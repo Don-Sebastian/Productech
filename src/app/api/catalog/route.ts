@@ -40,8 +40,8 @@ export async function POST(request: NextRequest) {
     if (!session?.user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
     const role = (session.user as any).role;
-    if (role !== "OWNER" && role !== "ADMIN") {
-      return NextResponse.json({ error: "Only owners can manage catalog" }, { status: 403 });
+    if (role !== "OWNER" && role !== "ADMIN" && role !== "MANAGER") {
+      return NextResponse.json({ error: "Only managers and owners can manage catalog" }, { status: 403 });
     }
 
     const companyId = (session.user as any).companyId;

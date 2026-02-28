@@ -53,6 +53,72 @@ export async function GET(req: Request) {
       return NextResponse.json({ pendingSessions });
     }
 
+    // History view: all past sessions (for supervisor, manager, owner)
+    if (view === "history") {
+      const fromDate = searchParams.get("from");
+      const toDate = searchParams.get("to");
+      const statusParam = searchParams.get("status"); // approval status filter
+      const operatorParam = searchParams.get("operator"); // operator id filter
+      const page = parseInt(searchParams.get("page") || "1");
+      const pageSize = 50;
+
+      const where: any = { companyId, status: "STOPPED" };
+
+      // Operators can only see their own history
+      if (role === "OPERATOR") {
+        where.operatorId = userId;
+      } else if (operatorParam) {
+        where.operatorId = operatorParam;
+      }
+
+      // Date range filter
+      if (fromDate || toDate) {
+        where.shiftDate = {};
+        if (fromDate) {
+          const from = new Date(fromDate);
+          from.setHours(0, 0, 0, 0);
+          where.shiftDate.gte = from;
+        }
+        if (toDate) {
+          const to = new Date(toDate);
+          to.setHours(23, 59, 59, 999);
+          where.shiftDate.lte = to;
+        }
+      }
+
+      // Approval status filter
+      if (statusParam && statusParam !== "ALL") {
+        where.approvalStatus = statusParam;
+      }
+
+      const [historySessions, totalCount] = await Promise.all([
+        prisma.hotPressSession.findMany({
+          where,
+          include: sessionIncludes,
+          orderBy: { shiftDate: "desc" },
+          skip: (page - 1) * pageSize,
+          take: pageSize,
+        }),
+        prisma.hotPressSession.count({ where }),
+      ]);
+
+      // Also get operators list for the filter dropdown
+      const operators = await prisma.user.findMany({
+        where: { companyId, role: "OPERATOR" },
+        select: { id: true, name: true },
+        orderBy: { name: "asc" },
+      });
+
+      return NextResponse.json({
+        sessions: historySessions,
+        operators,
+        totalCount,
+        page,
+        pageSize,
+        totalPages: Math.ceil(totalCount / pageSize),
+      });
+    }
+
     // Operator view: active + today's stopped
     const activeSession = await prisma.hotPressSession.findFirst({
       where: {

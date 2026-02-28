@@ -22,6 +22,7 @@ import {
   X,
   ListChecks,
   ClipboardCheck,
+  History,
 } from "lucide-react";
 
 interface SidebarProps {
@@ -46,10 +47,11 @@ const roleConfigs: Record<string, { label: string; color: string; links: { href:
     color: "from-emerald-600 to-teal-600",
     links: [
       { href: "/owner", label: "Dashboard", icon: LayoutDashboard },
-      { href: "/owner/catalog", label: "Product Catalog", icon: Layers },
       { href: "/owner/managers", label: "Managers", icon: Users },
       { href: "/owner/production", label: "Production", icon: Factory },
       { href: "/owner/inventory", label: "Inventory", icon: Package },
+      { href: "/owner/approvals", label: "Approve Production", icon: ClipboardCheck },
+      { href: "/owner/log-history", label: "Log History", icon: History },
     ],
   },
   MANAGER: {
@@ -57,9 +59,11 @@ const roleConfigs: Record<string, { label: string; color: string; links: { href:
     color: "from-blue-600 to-cyan-600",
     links: [
       { href: "/manager", label: "Dashboard", icon: LayoutDashboard },
+      { href: "/manager/catalog", label: "Product Catalog", icon: Layers },
       { href: "/manager/orders", label: "Orders", icon: ShoppingCart },
       { href: "/manager/inventory", label: "Inventory", icon: Package },
       { href: "/manager/approvals", label: "Approve Production", icon: ClipboardCheck },
+      { href: "/manager/log-history", label: "Log History", icon: History },
       { href: "/manager/sections", label: "Sections", icon: Factory },
       { href: "/manager/supervisors", label: "Supervisors", icon: Users },
       { href: "/manager/operators", label: "Operators", icon: Wrench },
@@ -73,6 +77,7 @@ const roleConfigs: Record<string, { label: string; color: string; links: { href:
       { href: "/supervisor/orders", label: "Orders", icon: ShoppingCart },
       { href: "/supervisor/approvals", label: "Approve Production", icon: ClipboardCheck },
       { href: "/supervisor/production-list", label: "Production List", icon: ListChecks },
+      { href: "/supervisor/log-history", label: "Log History", icon: History },
     ],
   },
   OPERATOR: {
@@ -82,6 +87,7 @@ const roleConfigs: Record<string, { label: string; color: string; links: { href:
       { href: "/operator", label: "Dashboard", icon: LayoutDashboard },
       { href: "/operator/production", label: "Daily Production", icon: ClipboardList },
       { href: "/operator/log", label: "Machine Log", icon: Gauge },
+      { href: "/operator/history", label: "Log History", icon: History },
     ],
   },
 };

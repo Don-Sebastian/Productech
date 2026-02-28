@@ -88,7 +88,7 @@ export async function POST(request: NextRequest) {
 
     // Send high-priority notifications to all operator sections
     const operatorSections = ["peeling", "drying", "hotpress", "finishing"];
-    const notifData = operatorSections.map((section) => ({
+    const notifData: { type: string; title: string; message: string; priority: "LOW" | "NORMAL" | "HIGH" | "URGENT"; targetRole: string; companyId: string; productionListId: string; }[] = operatorSections.map((section) => ({
       type: "PRODUCTION_LIST",
       title: "🏭 New Production List",
       message: `Production list ${listNumber} created with ${items.length} item(s). Check your section for tasks.`,

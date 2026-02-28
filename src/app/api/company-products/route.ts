@@ -39,8 +39,8 @@ export async function POST(request: NextRequest) {
     if (!session?.user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
     const role = (session.user as any).role;
-    if (role !== "OWNER" && role !== "ADMIN") {
-      return NextResponse.json({ error: "Only owners can add products" }, { status: 403 });
+    if (role !== "OWNER" && role !== "ADMIN" && role !== "MANAGER") {
+      return NextResponse.json({ error: "Only managers and owners can add products" }, { status: 403 });
     }
 
     const companyId = (session.user as any).companyId;
@@ -100,7 +100,7 @@ export async function PUT(request: NextRequest) {
     const updateData: any = {};
     if (openingStock !== undefined) updateData.openingStock = parseInt(openingStock);
     if (currentStock !== undefined) updateData.currentStock = parseInt(currentStock);
-    if (isActive !== undefined && role === "OWNER") updateData.isActive = isActive;
+    if (isActive !== undefined && (role === "OWNER" || role === "MANAGER")) updateData.isActive = isActive;
 
     const product = await prisma.companyProduct.update({
       where: { id },
@@ -122,7 +122,7 @@ export async function DELETE(request: NextRequest) {
     if (!session?.user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
     const role = (session.user as any).role;
-    if (role !== "OWNER") return NextResponse.json({ error: "Only owners can delete" }, { status: 403 });
+    if (role !== "OWNER" && role !== "MANAGER") return NextResponse.json({ error: "Only managers and owners can delete" }, { status: 403 });
 
     const { searchParams } = new URL(request.url);
     const id = searchParams.get("id");
