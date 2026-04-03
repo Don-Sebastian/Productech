@@ -42,7 +42,7 @@ export async function GET(request: NextRequest) {
     const logs = await prisma.dailyProductionLog.findMany({
       where,
       include: {
-        operator: { select: { name: true, section: true } },
+        operator: { select: { name: true, sections: true } },
         supervisorApprovedBy: { select: { name: true } },
         managerApprovedBy: { select: { name: true } },
         entries: {

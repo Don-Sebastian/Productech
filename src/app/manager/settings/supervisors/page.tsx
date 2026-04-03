@@ -24,17 +24,14 @@ export default function ManagerSupervisors() {
   }
 
   return (
-    <div className="min-h-screen bg-slate-950">
-      <Sidebar user={session.user} />
-      <main className="ml-64 p-8">
-        <UserManagement
-          targetRole="SUPERVISOR"
-          title="Supervisors"
-          description="Create and manage supervisors for different sections. Each supervisor manages production in their assigned section."
-          showSection={true}
-          accentColor="amber"
-        />
-      </main>
+    <div className="h-full flex flex-col">
+      <UserManagement
+        targetRole="SUPERVISOR"
+        title="Supervisors"
+        description="Create and manage supervisors for different sections. Each supervisor manages production in their assigned section."
+        showSection={true}
+        accentColor="amber"
+      />
     </div>
   );
 }

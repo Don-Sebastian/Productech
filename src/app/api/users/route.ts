@@ -53,7 +53,7 @@ export async function GET(request: NextRequest) {
         email: true,
         phone: true,
         role: true,
-        section: true,
+        sections: true,
         isActive: true,
         createdAt: true,
         company: {
@@ -144,8 +144,8 @@ export async function POST(request: NextRequest) {
         password: hashedPassword,
         phone: phone || null,
         role,
-        section: role === "SUPERVISOR" ? (section || null) : null,
         companyId: companyId,
+        sections: role === "SUPERVISOR" && section ? { connect: [{ id: section }] } : undefined,
         createdById: session.user.id,
       },
       select: {
@@ -154,7 +154,7 @@ export async function POST(request: NextRequest) {
         email: true,
         phone: true,
         role: true,
-        section: true,
+        sections: true,
         isActive: true,
         createdAt: true,
       },

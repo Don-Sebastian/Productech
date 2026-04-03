@@ -17,7 +17,7 @@ export async function GET(request: NextRequest) {
         items: {
           include: { category: true, thickness: true, size: true },
         },
-        order: { select: { id: true, orderNumber: true, customerName: true } },
+        order: { select: { id: true, orderNumber: true, customer: { select: { name: true } } } },
         createdBy: { select: { id: true, name: true } },
       },
       orderBy: { createdAt: "desc" },

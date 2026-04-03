@@ -12,7 +12,7 @@ function ProductionListContent() {
   const searchParams = useSearchParams();
   const orderId = searchParams.get("orderId");
 
-  const [catalog, setCatalog] = useState<any>({ categories: [], thicknesses: [], sizes: [] });
+  const [products, setProducts] = useState<any[]>([]);
   const [prodLists, setProdLists] = useState<any[]>([]);
   const [order, setOrder] = useState<any>(null);
   const [loading, setLoading] = useState(true);
@@ -40,31 +40,57 @@ function ProductionListContent() {
   useEffect(() => {
     if (status !== "authenticated") return;
     Promise.all([
-      fetch("/api/catalog").then((r) => r.json()),
       fetch("/api/production-lists").then((r) => r.json()),
+      fetch("/api/company-products").then((r) => r.json()),
       orderId ? fetch(`/api/orders/${orderId}`).then((r) => r.json()) : Promise.resolve(null),
-    ]).then(([c, p, o]) => {
-      setCatalog(c);
+    ]).then(([p, prods, o]) => {
+      if (Array.isArray(prods)) setProducts(prods.filter((x: any) => x.isActive));
       if (Array.isArray(p)) setProdLists(p);
       if (o && !o.error) {
         setOrder(o);
-        // Pre-fill items from order
-        if (o.items?.length) {
-          setItems(o.items.map((i: any) => ({
-            categoryId: i.categoryId || i.category?.id,
-            categoryName: i.category?.name,
-            thicknessId: i.thicknessId || i.thickness?.id,
-            thicknessValue: i.thickness?.value,
-            sizeId: i.sizeId || i.size?.id,
-            sizeLabel: i.size?.label,
-            quantity: String(i.quantity),
-            layers: i.layers, brandSeal: i.brandSeal, varnish: i.varnish,
-          })));
+        // Pre-fill items from order, cross-referencing with inventory
+        if (o.items?.length && Array.isArray(products)) {
+          const optimizedItems = o.items.map((i: any) => {
+            const catId = i.categoryId || i.category?.id;
+            const thkId = i.thicknessId || i.thickness?.id;
+            const szId = i.sizeId || i.size?.id;
+            
+            // Find inventory match
+            const invProduct = prods.find((p: any) => p.categoryId === catId && p.thicknessId === thkId && p.sizeId === szId && p.isActive);
+            const stock = invProduct ? invProduct.currentStock : 0;
+            const neededQty = Math.max(0, i.quantity - stock);
+
+            return {
+              categoryId: catId,
+              categoryName: i.category?.name,
+              thicknessId: thkId,
+              thicknessValue: i.thickness?.value,
+              sizeId: szId,
+              sizeLabel: i.size?.label,
+              orderedQuantity: i.quantity,
+              stockAvailable: stock,
+              quantity: String(neededQty), 
+              layers: i.layers, brandSeal: i.brandSeal, varnish: i.varnish,
+              skip: neededQty === 0 // Mark as skipped if stock covers it
+            };
+          }).filter((i: any) => !i.skip); // Only include items that actually need production
+
+          setItems(optimizedItems);
         }
       }
       setLoading(false);
     }).catch(() => setLoading(false));
   }, [status, orderId]);
+
+  // Derived properties from products
+  const categories = [...new Map(products.map((p) => [p.category?.name, p.category])).values()].filter(Boolean);
+  const getThicknesses = (catName: string) => {
+    const filtered = products.filter((p) => p.category?.name === catName);
+    return [...new Map(filtered.map((p) => [p.thickness?.value, p.thickness])).values()].filter(Boolean);
+  };
+  const getSizes = (catName: string, thickVal: number) => {
+    return products.filter((p) => p.category?.name === catName && p.thickness?.value === thickVal).map(p => p.size).filter(Boolean);
+  };
 
   const resetItem = () => {
     setStep(0); setSelCat(null); setSelThick(null); setSelSize(null);
@@ -172,13 +198,28 @@ function ProductionListContent() {
             {/* Added items */}
             {items.length > 0 && (
               <div className="space-y-2 mb-4">
+                <p className="text-slate-400 text-xs mb-2 ml-1">Optimized To-Production items (Inventory cross-referenced):</p>
                 {items.map((item, idx) => (
                   <div key={idx} className="bg-slate-900/50 border border-slate-700 rounded-xl p-3 flex items-center justify-between">
                     <div>
                       <p className="text-white font-semibold text-sm">{item.categoryName} • {item.thicknessValue}mm • {item.sizeLabel}</p>
-                      <p className="text-slate-400 text-xs">
-                        Qty: {item.quantity}{item.layers && ` • ${item.layers}L`}{item.brandSeal && " • Seal"}{item.varnish && " • Varnish"}
-                      </p>
+                      <div className="text-slate-400 text-xs flex flex-wrap items-center gap-2 mt-1">
+                        <span>Target Qty:</span>
+                        <input
+                          type="number"
+                          value={item.quantity}
+                          onChange={(e) => {
+                            const newItems = [...items];
+                            newItems[idx].quantity = e.target.value;
+                            setItems(newItems);
+                          }}
+                          className="w-16 px-1.5 py-0.5 bg-slate-900 border border-slate-600 rounded text-amber-400 font-bold outline-none focus:border-amber-500"
+                        />
+                        <span>
+                          {item.orderedQuantity !== undefined && `(Ordered: ${item.orderedQuantity}, In Stock: ${item.stockAvailable})`}
+                          {item.layers && ` • ${item.layers}L`}{item.brandSeal && " • Seal"}{item.varnish && " • Varnish"}
+                        </span>
+                      </div>
                     </div>
                     <button onClick={() => setItems(items.filter((_, i) => i !== idx))} className="p-2 text-slate-500 hover:text-red-400"><Trash2 size={16} /></button>
                   </div>
@@ -194,18 +235,18 @@ function ProductionListContent() {
 
               {step === 0 && (
                 <div className="grid grid-cols-3 gap-2">
-                  {catalog.categories?.map((c: any) => (
+                  {categories.map((c: any) => (
                     <button key={c.id} onClick={() => { setSelCat(c); setStep(1); }}
                       className="py-4 bg-slate-700 hover:bg-amber-600 text-white font-bold rounded-xl transition active:scale-[0.95] text-base">{c.name}</button>
                   ))}
                 </div>
               )}
 
-              {step === 1 && (
+              {step === 1 && selCat && (
                 <div>
                   <p className="text-xs text-slate-400 mb-2">Type: <span className="text-white">{selCat?.name}</span></p>
                   <div className="grid grid-cols-3 sm:grid-cols-5 gap-2">
-                    {catalog.thicknesses?.map((t: any) => (
+                    {getThicknesses(selCat?.name).map((t: any) => (
                       <button key={t.id} onClick={() => { setSelThick(t); setStep(2); }}
                         className="py-3 bg-slate-700 hover:bg-amber-600 text-white font-bold rounded-xl transition active:scale-[0.95] text-lg">
                         {t.value}<span className="text-xs opacity-60">mm</span>
@@ -216,11 +257,11 @@ function ProductionListContent() {
                 </div>
               )}
 
-              {step === 2 && (
+              {step === 2 && selCat && selThick && (
                 <div>
                   <p className="text-xs text-slate-400 mb-2">{selCat?.name} • {selThick?.value}mm</p>
                   <div className="grid grid-cols-3 sm:grid-cols-4 gap-2">
-                    {catalog.sizes?.map((s: any) => (
+                    {getSizes(selCat?.name, selThick?.value).map((s: any) => (
                       <button key={s.id} onClick={() => { setSelSize(s); setStep(3); }}
                         className="py-3 bg-slate-700 hover:bg-amber-600 text-white font-bold rounded-xl transition active:scale-[0.95]">{s.label}</button>
                     ))}

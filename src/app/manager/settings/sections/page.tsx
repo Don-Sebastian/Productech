@@ -56,10 +56,8 @@ export default function ManagerSections() {
   }
 
   return (
-    <div className="min-h-screen bg-slate-950">
-      <Sidebar user={session.user} />
-      <main className="ml-0 md:ml-64 p-3 md:p-8">
-        <div className="mb-4 md:mb-6">
+    <div className="h-full flex flex-col pt-2">
+      <div className="mb-4 md:mb-6">
           <h1 className="text-xl md:text-2xl font-bold text-white flex items-center gap-2"><Building2 size={22} /> Sections</h1>
           <p className="text-slate-400 text-xs md:text-sm mt-1">Manage company operation sections</p>
         </div>
@@ -103,7 +101,6 @@ export default function ManagerSections() {
             ))}
           </div>
         )}
-      </main>
     </div>
   );
 }

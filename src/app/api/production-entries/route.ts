@@ -80,10 +80,39 @@ export async function POST(request: NextRequest) {
     const userId = (session.user as any).id;
     const companyId = (session.user as any).companyId;
 
-    const { productId, quantity, notes } = await request.json();
+    const { productId, categoryId, thicknessId, sizeId, quantity, notes } = await request.json();
 
-    if (!productId || !quantity || quantity <= 0) {
-      return NextResponse.json({ error: "Product and quantity required" }, { status: 400 });
+    if (!quantity || quantity <= 0) {
+      return NextResponse.json({ error: "Quantity must be greater than 0" }, { status: 400 });
+    }
+
+    let finalProductId = productId;
+
+    // Auto-resolve or create CompanyProduct if catalog IDs are provided
+    if (!finalProductId && categoryId && thicknessId && sizeId) {
+      const existingProduct = await prisma.companyProduct.findUnique({
+        where: {
+          companyId_categoryId_thicknessId_sizeId: {
+            companyId, categoryId, thicknessId, sizeId
+          }
+        }
+      });
+
+      if (existingProduct) {
+        finalProductId = existingProduct.id;
+        if (!existingProduct.isActive) {
+          await prisma.companyProduct.update({ where: { id: finalProductId }, data: { isActive: true } });
+        }
+      } else {
+        const newProduct = await prisma.companyProduct.create({
+          data: { companyId, categoryId, thicknessId, sizeId, isActive: true, currentStock: 0, openingStock: 0 }
+        });
+        finalProductId = newProduct.id;
+      }
+    }
+
+    if (!finalProductId) {
+      return NextResponse.json({ error: "Product or Catalog IDs required" }, { status: 400 });
     }
 
     // Check if there's already a submitted log for today (can't add more)
@@ -106,7 +135,7 @@ export async function POST(request: NextRequest) {
     // Create entry
     const entry = await prisma.productionEntry.create({
       data: {
-        productId,
+        productId: finalProductId,
         quantity: parseInt(quantity),
         notes: notes || null,
         operatorId: userId,

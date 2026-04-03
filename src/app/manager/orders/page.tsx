@@ -10,7 +10,8 @@ export default function ManagerOrders() {
   const { data: session, status } = useSession();
   const router = useRouter();
   const [orders, setOrders] = useState<any[]>([]);
-  const [catalog, setCatalog] = useState<any>({ categories: [], thicknesses: [], sizes: [] });
+  const [products, setProducts] = useState<any[]>([]);
+  const [customizations, setCustomizations] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [showCreate, setShowCreate] = useState(false);
   const [expandedOrder, setExpandedOrder] = useState<string | null>(null);
@@ -31,6 +32,7 @@ export default function ManagerOrders() {
   const [selLayers, setSelLayers] = useState<number | null>(null);
   const [selBrandSeal, setSelBrandSeal] = useState(false);
   const [selVarnish, setSelVarnish] = useState(false);
+  const [selCustomizations, setSelCustomizations] = useState<string[]>([]);
 
   const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null);
   const [error, setError] = useState("");
@@ -43,19 +45,32 @@ export default function ManagerOrders() {
   const fetchData = () => {
     Promise.all([
       fetch("/api/orders").then((r) => r.json()),
-      fetch("/api/catalog").then((r) => r.json()),
-    ]).then(([o, c]) => {
+      fetch("/api/company-products").then((r) => r.json()),
+      fetch("/api/customizations").then((r) => r.json()),
+    ]).then(([o, p, custom]) => {
       if (Array.isArray(o)) setOrders(o);
-      setCatalog(c);
+      if (Array.isArray(p)) setProducts(p.filter((x: any) => x.isActive));
+      if (Array.isArray(custom)) setCustomizations(custom);
       setLoading(false);
     });
   };
 
   useEffect(() => { if (status === "authenticated") fetchData(); }, [status]);
 
+  // Derived properties from products
+  const categories = [...new Map(products.map((p) => [p.category?.name, p.category])).values()].filter(Boolean);
+  const getThicknesses = (catName: string) => {
+    const filtered = products.filter((p) => p.category?.name === catName);
+    return [...new Map(filtered.map((p) => [p.thickness?.value, p.thickness])).values()].filter(Boolean);
+  };
+  const getSizes = (catName: string, thickVal: number) => {
+    return products.filter((p) => p.category?.name === catName && p.thickness?.value === thickVal).map(p => p.size).filter(Boolean);
+  };
+
   const resetItemForm = () => {
     setStep(0); setSelCategory(null); setSelThickness(null); setSelSize(null);
     setSelQuantity("50"); setSelLayers(null); setSelBrandSeal(false); setSelVarnish(false);
+    setSelCustomizations([]);
   };
 
   const addItemToOrder = () => {
@@ -65,6 +80,7 @@ export default function ManagerOrders() {
       thicknessId: selThickness.id, thicknessValue: selThickness.value,
       sizeId: selSize.id, sizeLabel: selSize.label,
       quantity: selQuantity, layers: selLayers, brandSeal: selBrandSeal, varnish: selVarnish,
+      customizations: selCustomizations,
     }]);
     resetItemForm();
   };
@@ -84,6 +100,7 @@ export default function ManagerOrders() {
           items: orderItems.map((i) => ({
             categoryId: i.categoryId, thicknessId: i.thicknessId, sizeId: i.sizeId,
             quantity: i.quantity, layers: i.layers, brandSeal: i.brandSeal, varnish: i.varnish,
+            customizations: i.customizations,
           })),
         }),
       });
@@ -226,7 +243,7 @@ export default function ManagerOrders() {
                     {/* Step 0: Category */}
                     {step === 0 && (
                       <div className="grid grid-cols-3 gap-2">
-                        {catalog.categories?.map((c: any) => (
+                        {categories.map((c: any) => (
                           <button key={c.id} onClick={() => { setSelCategory(c); setStep(1); }}
                             className="py-4 bg-slate-700 hover:bg-blue-600 text-white font-bold rounded-xl transition active:scale-[0.95] text-base">
                             {c.name}
@@ -236,11 +253,11 @@ export default function ManagerOrders() {
                     )}
 
                     {/* Step 1: Thickness */}
-                    {step === 1 && (
+                    {step === 1 && selCategory && (
                       <div>
                         <p className="text-xs text-slate-400 mb-2">Type: <span className="text-white font-semibold">{selCategory?.name}</span></p>
                         <div className="grid grid-cols-3 sm:grid-cols-5 gap-2">
-                          {catalog.thicknesses?.map((t: any) => (
+                          {getThicknesses(selCategory?.name).map((t: any) => (
                             <button key={t.id} onClick={() => { setSelThickness(t); setStep(2); }}
                               className="py-3 bg-slate-700 hover:bg-blue-600 text-white font-bold rounded-xl transition active:scale-[0.95] text-lg">
                               {t.value}<span className="text-xs opacity-60">mm</span>
@@ -252,20 +269,20 @@ export default function ManagerOrders() {
                     )}
 
                     {/* Step 2: Size */}
-                    {step === 2 && (
+                    {step === 2 && selCategory && selThickness && (
                       <div>
                         <p className="text-xs text-slate-400 mb-2">
                           {selCategory?.name} • <span className="text-white font-semibold">{selThickness?.value}mm</span>
                         </p>
                         <div className="grid grid-cols-3 sm:grid-cols-4 gap-2">
-                          {catalog.sizes?.map((s: any) => (
+                          {getSizes(selCategory?.name, selThickness?.value).map((s: any) => (
                             <button key={s.id} onClick={() => { setSelSize(s); setStep(3); }}
                               className="py-3 bg-slate-700 hover:bg-blue-600 text-white font-bold rounded-xl transition active:scale-[0.95] text-sm">
                               {s.label}
                             </button>
                           ))}
                         </div>
-                        <button onClick={() => setStep(1)} className="mt-2 text-sm text-slate-400 hover:text-blue-400">← Back</button>
+                        <button onClick={() => { setStep(1); setSelThickness(null); }} className="mt-2 text-sm text-slate-400">← Back</button>
                       </div>
                     )}
 
@@ -324,6 +341,29 @@ export default function ManagerOrders() {
                             {selVarnish ? "✓ Varnish" : "Varnish"}
                           </button>
                         </div>
+
+                        {/* Order Customizations */}
+                        {customizations.length > 0 && (
+                          <div className="pt-2 border-t border-slate-700/50">
+                            <label className="text-xs text-slate-400 mb-2 block">Customizations</label>
+                            <div className="flex flex-wrap gap-2">
+                              {customizations.map(c => {
+                                const isSelected = selCustomizations.includes(c.id);
+                                return (
+                                  <button key={c.id} onClick={() => {
+                                      if (isSelected) setSelCustomizations(selCustomizations.filter(id => id !== c.id));
+                                      else setSelCustomizations([...selCustomizations, c.id]);
+                                    }}
+                                    className={`py-2 px-3 rounded-lg text-xs font-semibold transition active:scale-[0.95] ${
+                                      isSelected ? "bg-cyan-600/30 text-cyan-300 ring-1 ring-cyan-500/50" : "bg-slate-700 text-slate-400"
+                                    }`}>
+                                    {c.name}
+                                  </button>
+                                );
+                              })}
+                            </div>
+                          </div>
+                        )}
 
                         <div className="flex gap-2">
                           <button onClick={addItemToOrder}
@@ -402,6 +442,9 @@ export default function ManagerOrders() {
                             {item.layers && <> • {item.layers}-layer</>}
                             {item.brandSeal && <> • <span className="text-emerald-400">Brand Seal</span></>}
                             {item.varnish && <> • <span className="text-amber-400">Varnish</span></>}
+                            {item.customizations?.map((c: any) => (
+                              <span key={c.id}> • <span className="text-cyan-400">{c.name}</span></span>
+                            ))}
                           </p>
                         </div>
                       ))}

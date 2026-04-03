@@ -32,9 +32,10 @@ export async function GET(
         email: true,
         phone: true,
         role: true,
-        section: true,
+        sections: true,
         isActive: true,
         createdAt: true,
+        companyId: true,
         company: {
           select: { id: true, name: true },
         },
@@ -51,7 +52,7 @@ export async function GET(
       return NextResponse.json({ error: "Unauthorized" }, { status: 403 });
     }
 
-    if (userRole !== "ADMIN" && user.company?.id !== companyId) {
+    if (userRole !== "ADMIN" && user.companyId !== companyId) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 403 });
     }
 
@@ -118,7 +119,9 @@ export async function PUT(
     if (name) updateData.name = name;
     if (email) updateData.email = email;
     if (phone !== undefined) updateData.phone = phone;
-    if (section !== undefined) updateData.section = section;
+    if (section !== undefined) {
+      updateData.sections = section ? { set: [{ id: section }] } : { set: [] };
+    }
     if (isActive !== undefined) updateData.isActive = isActive;
     if (password) {
       if (password.length < 6) {
@@ -139,7 +142,7 @@ export async function PUT(
         email: true,
         phone: true,
         role: true,
-        section: true,
+        sections: true,
         isActive: true,
         createdAt: true,
       },

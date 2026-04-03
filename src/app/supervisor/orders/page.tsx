@@ -1,17 +1,34 @@
 "use client";
 
 import { useSession } from "next-auth/react";
-import { useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
+import { useEffect, useState, Suspense } from "react";
 import Sidebar from "@/components/Sidebar";
 import { ShoppingCart, Clock, CheckCircle, Package, Ban, ChevronDown, ChevronUp, ListChecks } from "lucide-react";
 
-export default function SupervisorOrders() {
+export default function SupervisorOrdersPage() {
+  return (
+    <Suspense fallback={<div className="flex items-center justify-center h-screen bg-slate-950"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-amber-400" /></div>}>
+      <SupervisorOrders />
+    </Suspense>
+  )
+}
+
+function SupervisorOrders() {
   const { data: session, status } = useSession();
   const router = useRouter();
+  const searchParams = useSearchParams();
   const [orders, setOrders] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [expandedOrder, setExpandedOrder] = useState<string | null>(null);
+
+  const orderIdFromUrl = searchParams?.get('id');
+
+  useEffect(() => {
+    if (orderIdFromUrl && orders.length > 0 && !expandedOrder) {
+      setExpandedOrder(orderIdFromUrl);
+    }
+  }, [orderIdFromUrl, orders, expandedOrder]);
 
   useEffect(() => {
     if (status === "unauthenticated") router.push("/login");
@@ -123,7 +140,7 @@ export default function SupervisorOrders() {
                 <h3 className="text-white font-bold text-sm">{order.orderNumber}</h3>
                 <span className={`text-xs px-2 py-0.5 rounded-full ${priorityColors[order.priority]}`}>{order.priority}</span>
               </div>
-              <p className="text-slate-400 text-xs truncate">{order.customerName} • {order.items?.length} items</p>
+              <p className="text-slate-400 text-xs truncate">{order.customer?.name} • {order.items?.length} items</p>
             </div>
           </div>
           {isExpanded ? <ChevronUp className="text-slate-500" size={18} /> : <ChevronDown className="text-slate-500" size={18} />}

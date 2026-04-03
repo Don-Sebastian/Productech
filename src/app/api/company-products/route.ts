@@ -97,8 +97,20 @@ export async function PUT(request: NextRequest) {
 
     if (!id) return NextResponse.json({ error: "Product ID required" }, { status: 400 });
 
+    const productBefore = await prisma.companyProduct.findUnique({
+      where: { id }
+    });
+
+    if (!productBefore) return NextResponse.json({ error: "Product not found" }, { status: 404 });
+
     const updateData: any = {};
-    if (openingStock !== undefined) updateData.openingStock = parseInt(openingStock);
+    if (openingStock !== undefined) {
+      updateData.openingStock = parseInt(openingStock);
+      if (currentStock === undefined) {
+        const diff = updateData.openingStock - productBefore.openingStock;
+        updateData.currentStock = { increment: diff };
+      }
+    }
     if (currentStock !== undefined) updateData.currentStock = parseInt(currentStock);
     if (isActive !== undefined && (role === "OWNER" || role === "MANAGER")) updateData.isActive = isActive;
 

@@ -24,7 +24,7 @@ export async function GET(request: NextRequest) {
         ],
       },
       include: {
-        order: { select: { id: true, orderNumber: true, customerName: true, status: true } },
+        order: { select: { id: true, orderNumber: true, customer: { select: { name: true } }, status: true } },
         productionList: { select: { id: true, listNumber: true, status: true } },
       },
       orderBy: { createdAt: "desc" },

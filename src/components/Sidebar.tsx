@@ -23,6 +23,8 @@ import {
   ListChecks,
   ClipboardCheck,
   History,
+  Settings,
+  Truck,
 } from "lucide-react";
 
 interface SidebarProps {
@@ -59,14 +61,12 @@ const roleConfigs: Record<string, { label: string; color: string; links: { href:
     color: "from-blue-600 to-cyan-600",
     links: [
       { href: "/manager", label: "Dashboard", icon: LayoutDashboard },
-      { href: "/manager/catalog", label: "Product Catalog", icon: Layers },
       { href: "/manager/orders", label: "Orders", icon: ShoppingCart },
       { href: "/manager/inventory", label: "Inventory", icon: Package },
       { href: "/manager/approvals", label: "Approve Production", icon: ClipboardCheck },
+      { href: "/manager/dispatch", label: "Dispatch", icon: Truck },
       { href: "/manager/log-history", label: "Log History", icon: History },
-      { href: "/manager/sections", label: "Sections", icon: Factory },
-      { href: "/manager/supervisors", label: "Supervisors", icon: Users },
-      { href: "/manager/operators", label: "Operators", icon: Wrench },
+      { href: "/manager/settings", label: "Settings", icon: Settings },
     ],
   },
   SUPERVISOR: {
@@ -77,6 +77,7 @@ const roleConfigs: Record<string, { label: string; color: string; links: { href:
       { href: "/supervisor/orders", label: "Orders", icon: ShoppingCart },
       { href: "/supervisor/approvals", label: "Approve Production", icon: ClipboardCheck },
       { href: "/supervisor/production-list", label: "Production List", icon: ListChecks },
+      { href: "/supervisor/dispatch", label: "Dispatch", icon: Truck },
       { href: "/supervisor/log-history", label: "Log History", icon: History },
     ],
   },

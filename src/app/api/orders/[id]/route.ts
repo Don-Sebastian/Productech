@@ -14,6 +14,7 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
       include: {
         items: { include: { category: true, thickness: true, size: true } },
         createdBy: { select: { id: true, name: true } },
+        customer: true,
       },
     });
 
@@ -41,8 +42,13 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
 
     // Update order fields
     const updateData: any = {};
-    if (body.customerName) updateData.customerName = body.customerName;
-    if (body.customerPhone !== undefined) updateData.customerPhone = body.customerPhone;
+    if (body.customerName) {
+      let customer = await prisma.customer.findFirst({ where: { companyId, name: body.customerName }});
+      if (!customer) customer = await prisma.customer.create({ data: { name: body.customerName, companyId }});
+      updateData.customerId = customer.id;
+    }
+    // if body.customerPhone is passed, we might update the customer as well, but for now we skip updating their phone on order update.
+
     if (body.status) updateData.status = body.status;
     if (body.priority) updateData.priority = body.priority;
     if (body.notes !== undefined) updateData.notes = body.notes;
@@ -117,7 +123,7 @@ export async function DELETE(request: NextRequest, { params }: { params: Promise
       data: ["SUPERVISOR", "OPERATOR"].map((targetRole) => ({
         type: "ORDER_CANCELLED",
         title: "❌ Order Cancelled",
-        message: `Order ${order.orderNumber} for ${order.customerName} has been cancelled.`,
+        message: `Order ${order.orderNumber} has been cancelled.`,
         priority: "HIGH" as const,
         targetRole,
         companyId,

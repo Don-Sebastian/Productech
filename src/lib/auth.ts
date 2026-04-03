@@ -18,7 +18,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
 
         const user = await prisma.user.findUnique({
           where: { email: credentials.email as string },
-          include: { company: true },
+          include: { company: true, sections: true },
         });
 
         if (!user) {
@@ -44,7 +44,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
           name: user.name,
           role: user.role,
           companyId: user.companyId,
-          section: user.section,
+          sections: user.sections.map((s: any) => s.slug),
         };
       },
     }),
@@ -55,7 +55,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         token.id = user.id as string;
         token.role = (user as any).role;
         token.companyId = (user as any).companyId;
-        token.section = (user as any).section;
+        token.sections = (user as any).sections || [];
       }
       return token;
     },
@@ -64,20 +64,20 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         // Always refresh user data from DB to prevent stale JWT issues
         const dbUser = await prisma.user.findUnique({
           where: { id: token.id as string },
-          select: { id: true, name: true, role: true, companyId: true, section: true, isActive: true },
+          select: { id: true, name: true, role: true, companyId: true, sections: true, isActive: true },
         });
         if (dbUser) {
           session.user.id = dbUser.id;
           (session.user as any).role = dbUser.role;
           (session.user as any).companyId = dbUser.companyId;
-          (session.user as any).section = dbUser.section;
+          (session.user as any).sections = dbUser.sections.map((s: any) => s.slug);
           session.user.name = dbUser.name;
         } else {
           // Fallback to token data
           session.user.id = token.id as string;
           (session.user as any).role = token.role;
           (session.user as any).companyId = token.companyId;
-          (session.user as any).section = token.section;
+          (session.user as any).sections = token.sections || [];
         }
       }
       return session;

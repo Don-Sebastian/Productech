@@ -71,10 +71,18 @@ async function main() {
     data: { email: "manager@demo.com", password: demoPassword, name: "Suresh Menon", role: "MANAGER", phone: "+91 9876543212", companyId: company.id, createdById: owner.id },
   });
   const supervisor = await prisma.user.create({
-    data: { email: "supervisor@demo.com", password: demoPassword, name: "Anil Nair", role: "SUPERVISOR", section: "hotpress", companyId: company.id, createdById: manager.id },
+    data: { 
+      email: "supervisor@demo.com", password: demoPassword, name: "Anil Nair", role: "SUPERVISOR", 
+      companyId: company.id, createdById: manager.id,
+      sections: { connect: [{ id: sectionHotpress.id }] } 
+    },
   });
   const pressOperator = await prisma.user.create({
-    data: { email: "press@demo.com", password: demoPassword, name: "Vijay Thomas", role: "OPERATOR", section: "hotpress", companyId: company.id, createdById: manager.id },
+    data: { 
+      email: "press@demo.com", password: demoPassword, name: "Vijay Thomas", role: "OPERATOR", 
+      companyId: company.id, createdById: manager.id,
+      sections: { connect: [{ id: sectionHotpress.id }] }
+    },
   });
   console.log(`✓ 5 users`);
 
@@ -138,9 +146,13 @@ async function main() {
   console.log(`✓ ${productCount} company products`);
 
   // ==================== SAMPLE ORDER ====================
+  const customer = await prisma.customer.create({
+    data: { name: "Kerala Timber Traders", phone: "+91 9000000100", companyId: company.id }
+  });
+
   await prisma.order.create({
     data: {
-      orderNumber: "ORD-2026-001", customerName: "Kerala Timber Traders", customerPhone: "+91 9000000100",
+      orderNumber: "ORD-2026-001", customerId: customer.id,
       status: "CONFIRMED", priority: "HIGH", companyId: company.id, createdById: manager.id,
       items: { create: [
         { categoryId: catAlternate.id, thicknessId: thicknesses[12].id, sizeId: sizes["8×4"].id, quantity: 200, brandSeal: true },

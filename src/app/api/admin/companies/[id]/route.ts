@@ -27,7 +27,7 @@ export async function GET(
             phone: true,
             role: true,
             isActive: true,
-            section: true,
+            sections: true,
             createdAt: true,
           },
           orderBy: { createdAt: "desc" },

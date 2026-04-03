@@ -24,16 +24,13 @@ export default function ManagerOperators() {
   }
 
   return (
-    <div className="min-h-screen bg-slate-950">
-      <Sidebar user={session.user} />
-      <main className="ml-64 p-8">
-        <UserManagement
-          targetRole="OPERATOR"
-          title="Operators"
-          description="Create and manage machine operators. Operators log daily machine start/stop actions."
-          accentColor="rose"
-        />
-      </main>
+    <div className="h-full flex flex-col">
+      <UserManagement
+        targetRole="OPERATOR"
+        title="Operators"
+        description="Create and manage machine operators. Operators log daily machine start/stop actions."
+        accentColor="rose"
+      />
     </div>
   );
 }

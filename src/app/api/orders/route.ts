@@ -14,14 +14,16 @@ export async function GET(request: NextRequest) {
     const orders = await prisma.order.findMany({
       where: { companyId },
       include: {
+        customer: { select: { name: true, phone: true } },
+        createdBy: { select: { name: true } },
         items: {
           include: {
-            category: true,
-            thickness: true,
-            size: true,
+            category: { select: { name: true } },
+            thickness: { select: { value: true } },
+            size: { select: { label: true } },
+            customizations: { select: { name: true } },
           },
         },
-        createdBy: { select: { id: true, name: true } },
       },
       orderBy: { createdAt: "desc" },
     });
@@ -57,11 +59,17 @@ export async function POST(request: NextRequest) {
     const count = await prisma.order.count({ where: { companyId } });
     const orderNumber = `ORD-${new Date().getFullYear()}-${String(count + 1).padStart(3, "0")}`;
 
+    let customer = await prisma.customer.findFirst({ where: { companyId, name: customerName } });
+    if (!customer) {
+      customer = await prisma.customer.create({
+        data: { name: customerName, phone: customerPhone, companyId }
+      });
+    }
+
     const order = await prisma.order.create({
       data: {
         orderNumber,
-        customerName,
-        customerPhone: customerPhone || null,
+        customerId: customer.id,
         priority: priority || "NORMAL",
         notes: notes || null,
         dueDate: dueDate ? new Date(dueDate) : null,
@@ -77,12 +85,15 @@ export async function POST(request: NextRequest) {
             brandSeal: item.brandSeal || false,
             varnish: item.varnish || false,
             notes: item.notes || null,
+            customizations: item.customizations?.length > 0 
+              ? { connect: item.customizations.map((id: string) => ({ id })) } 
+              : undefined,
           })),
         },
       },
       include: {
         items: {
-          include: { category: true, thickness: true, size: true },
+          include: { category: true, thickness: true, size: true, customizations: true },
         },
       },
     });

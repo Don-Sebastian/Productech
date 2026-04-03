@@ -152,10 +152,10 @@ export default function ManagerInventory() {
 
                 {/* Expanded: Thickness Groups — vertically scrollable */}
                 {expandedCats.has(catName) && (
-                  <div className="max-h-[60vh] overflow-y-auto px-2 pb-3 md:px-4 md:pb-4">
+                  <div className="max-h-[60vh] overflow-x-auto flex gap-10 px-2 pb-3 md:px-4 md:pb-4">
                     {Object.entries(groupByThickness(items)).map(([thickLabel, sizeItems]) => (
                       <div key={thickLabel} className="mb-3 last:mb-0">
-                        <p className="text-blue-300 font-bold text-xs md:text-sm mb-2 px-1 sticky top-0 bg-slate-950/90 py-1 z-10 backdrop-blur-sm">{thickLabel}</p>
+                        <p className="text-blue-300 font-bold text-xs md:text-xl mb-3 px-1 sticky top-0  py-1 z-10 backdrop-blur-sm">{thickLabel}</p>
                         
                         {/* Mobile: Card layout */}
                         <div className="md:hidden space-y-1.5">
@@ -193,7 +193,7 @@ export default function ManagerInventory() {
                         </div>
 
                         {/* Desktop: Table layout */}
-                        <div className="hidden md:block">
+                        <div className="hidden md:block flex flex-col ">
                           <table className="w-full text-sm">
                             <thead>
                               <tr className="text-slate-500 text-xs">

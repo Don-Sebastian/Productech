@@ -40,6 +40,22 @@ export default function Login() {
     setLoading(true);
 
     try {
+      // Step 1: Validate credentials via custom endpoint for proper error messages
+      const validateRes = await fetch("/api/auth/login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email, password }),
+      });
+
+      const validateData = await validateRes.json();
+
+      if (!validateRes.ok) {
+        setError(validateData.error || "Invalid credentials");
+        setLoading(false);
+        return;
+      }
+
+      // Step 2: Credentials are valid, now sign in via NextAuth
       const result = await signIn("credentials", {
         email,
         password,
@@ -47,16 +63,23 @@ export default function Login() {
       });
 
       if (result?.error) {
-        setError(result.error || "Invalid credentials");
+        // This shouldn't happen since we pre-validated, but handle it just in case
+        setError("Sign-in failed. Please try again.");
       } else if (result?.ok) {
-        // Fetch session to get role, then redirect
-        const res = await fetch("/api/auth/session");
-        const sessionData = await res.json();
-        const role = sessionData?.user?.role;
+        // Redirect based on role from validation response
+        const role = validateData.user?.role;
         if (role) {
           redirectByRole(role);
         } else {
-          router.push("/dashboard");
+          // Fallback: fetch session
+          const res = await fetch("/api/auth/session");
+          const sessionData = await res.json();
+          const sessionRole = sessionData?.user?.role;
+          if (sessionRole) {
+            redirectByRole(sessionRole);
+          } else {
+            router.push("/dashboard");
+          }
         }
       }
     } catch (err) {

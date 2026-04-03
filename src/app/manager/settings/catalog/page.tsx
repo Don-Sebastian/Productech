@@ -109,10 +109,8 @@ export default function ManagerCatalog() {
   });
 
   return (
-    <div className="min-h-screen bg-slate-950">
-      <Sidebar user={session.user} />
-      <main className="ml-0 md:ml-64 p-4 md:p-8">
-        <div className="mb-6">
+    <div className="h-full flex flex-col pt-2">
+      <div className="mb-6">
           <h1 className="text-2xl md:text-3xl font-bold text-white mb-1">Product Catalog</h1>
           <p className="text-slate-400 text-sm">Define what your company produces &mdash; types, thicknesses, sizes, and product combinations</p>
         </div>
@@ -312,7 +310,6 @@ export default function ManagerCatalog() {
             )}
           </div>
         )}
-      </main>
     </div>
   );
 }

@@ -37,6 +37,10 @@ model Company {
   dailyProductionLogs DailyProductionLog[]
   sections           Section[]
   hotPressSessions   HotPressSession[]
+  customers          Customer[] // NEW
+  orderCustomizations OrderCustomization[] // NEW
+  dispatchLoads      DispatchLoad[] // NEW
+  timelineEvents     OrderTimelineEvent[] // NEW
 }
 
 // ==================== Sections ====================
@@ -52,6 +56,8 @@ model Section {
   companyId String
   company   Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
 
+  users     User[] @relation("UserSections") // NEW
+
   @@unique([companyId, slug])
   @@index([companyId])
 }
@@ -64,13 +70,14 @@ model User {
   name      String
   role      Role     @default(OPERATOR)
   phone     String?
-  section   String?  // slug of their section (e.g. "hotpress")
   isActive  Boolean  @default(true)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
   companyId String?
   company   Company? @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  sections  Section[] @relation("UserSections") // NEW (Replaces string `section`)
 
   // Who created this user (for hierarchical management)
   createdById String?
@@ -84,6 +91,10 @@ model User {
   createdProdLists  ProductionList[] @relation("ProductionListCreator")
   notifications     Notification[]
 
+  dispatchLoadsCreated DispatchLoad[] @relation("DispatchLoadCreator") // NEW
+  dispatchLoadsManaged DispatchLoad[] @relation("DispatchLoadManager") // NEW
+  timelineEvents       OrderTimelineEvent[] // NEW
+  
   // Inventory & Production
   productionEntries          ProductionEntry[]
   operatorDailyLogs          DailyProductionLog[]  @relation("DailyLogOperator")
@@ -106,6 +117,24 @@ enum Role {
   OPERATOR
 }
 
+// ==================== Customers (NEW) ====================
+model Customer {
+  id        String   @id @default(cuid())
+  name      String
+  phone     String?
+  email     String?
+  address   String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  companyId String
+  company   Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  orders    Order[]
+
+  @@unique([companyId, name, phone])
+  @@index([companyId])
+}
+
 // ==================== Plywood Product Catalog ====================
 
 model PlywoodCategory {
@@ -123,6 +152,7 @@ model PlywoodCategory {
   productionItems ProductionListItem[]
   companyProducts CompanyProduct[]
   pressEntries    PressEntry[]
+  dispatchLoadItems DispatchLoadItem[] // NEW
 
   @@index([companyId])
 }
@@ -143,6 +173,7 @@ model PlywoodThickness {
   productionItems ProductionListItem[]
   companyProducts CompanyProduct[]
   pressEntries    PressEntry[]
+  dispatchLoadItems DispatchLoadItem[] // NEW
 
   @@index([companyId])
 }
@@ -164,6 +195,7 @@ model PlywoodSize {
   productionItems ProductionListItem[]
   companyProducts CompanyProduct[]
   pressEntries    PressEntry[]
+  dispatchLoadItems DispatchLoadItem[] // NEW
 
   @@index([companyId])
 }
@@ -369,8 +401,8 @@ model PauseEvent {
 model Order {
   id            String      @id @default(cuid())
   orderNumber   String
-  customerName  String
-  customerPhone String?
+  customerId    String?     // NEW
+  customer      Customer?   @relation(fields: [customerId], references: [id]) // NEW
   status        OrderStatus @default(PENDING)
   priority      Priority    @default(NORMAL)
   notes         String?
@@ -387,16 +419,24 @@ model Order {
   items           OrderItem[]
   productionLists ProductionList[]
   notifications   Notification[]
+  dispatchLoads   DispatchLoad[] // NEW
+  timelineEvents  OrderTimelineEvent[] // NEW
 
   @@index([companyId])
   @@index([createdById])
+  @@index([customerId])
   @@index([status])
 }
 
 enum OrderStatus {
   PENDING
   CONFIRMED
+  SENT_TO_SUPERVISOR
+  TO_PRODUCTION_GENERATED
   IN_PRODUCTION
+  PRODUCTION_COMPLETED
+  READY_FOR_DISPATCH
+  DISPATCHED
   COMPLETED
   CANCELLED
 }
@@ -406,6 +446,22 @@ enum Priority {
   NORMAL
   HIGH
   URGENT
+}
+
+model OrderCustomization {
+  id        String   @id @default(cuid())
+  name      String
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  companyId String
+  company   Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  
+  orderItems OrderItem[] @relation("OrderItemCustomizations")
+
+  @@unique([companyId, name])
+  @@index([companyId])
 }
 
 model OrderItem {
@@ -430,7 +486,87 @@ model OrderItem {
   sizeId      String
   size        PlywoodSize      @relation(fields: [sizeId], references: [id])
 
+  customizations OrderCustomization[] @relation("OrderItemCustomizations") // NEW
+
   @@index([orderId])
+}
+
+// ==================== Timeline Events (NEW) ====================
+model OrderTimelineEvent {
+  id        String   @id @default(cuid())
+  action    String   
+  details   String?
+  createdAt DateTime @default(now())
+
+  companyId String
+  company   Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  
+  orderId   String
+  order     Order   @relation(fields: [orderId], references: [id], onDelete: Cascade)
+
+  userId    String
+  user      User    @relation(fields: [userId], references: [id])
+
+  @@index([companyId])
+  @@index([orderId])
+  @@index([userId])
+}
+
+// ==================== Dispatch Management (NEW) ====================
+model DispatchLoad {
+  id          String         @id @default(cuid())
+  loadNumber  String
+  status      DispatchStatus @default(SUPERVISOR_SUBMITTED)
+  notes       String?
+  createdAt   DateTime       @default(now())
+  updatedAt   DateTime       @updatedAt
+
+  companyId   String
+  company     Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  orderId     String
+  order       Order   @relation(fields: [orderId], references: [id])
+
+  createdById String
+  createdBy   User    @relation("DispatchLoadCreator", fields: [createdById], references: [id])
+
+  managerId   String?
+  manager     User?   @relation("DispatchLoadManager", fields: [managerId], references: [id])
+
+  items       DispatchLoadItem[]
+
+  @@index([companyId])
+  @@index([orderId])
+  @@index([createdById])
+  @@index([status])
+}
+
+enum DispatchStatus {
+  SUPERVISOR_SUBMITTED
+  MANAGER_CONFIRMED
+  DISPATCHED
+}
+
+model DispatchLoadItem {
+  id        String   @id @default(cuid())
+  quantity  Int
+  notes     String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  dispatchLoadId String
+  dispatchLoad   DispatchLoad @relation(fields: [dispatchLoadId], references: [id], onDelete: Cascade)
+
+  categoryId  String
+  category    PlywoodCategory  @relation(fields: [categoryId], references: [id])
+
+  thicknessId String
+  thickness   PlywoodThickness @relation(fields: [thicknessId], references: [id])
+
+  sizeId      String
+  size        PlywoodSize      @relation(fields: [sizeId], references: [id])
+
+  @@index([dispatchLoadId])
 }
 
 // ==================== Production Planning ====================
