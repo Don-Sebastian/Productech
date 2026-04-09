@@ -132,7 +132,12 @@ export default function SupervisorApproval() {
               <ClipboardCheck size={18} className="text-amber-300" />
             </div>
             <div>
-              <p className="text-white font-bold text-sm">{log.operator?.name}</p>
+              <p className="text-white font-bold text-sm flex items-center gap-2">
+                <span className="text-[10px] px-2 py-0.5 rounded-full font-black uppercase tracking-wider bg-rose-500/20 text-rose-300 border border-rose-500/30">
+                  OPERATOR
+                </span>
+                {log.operator?.name}
+              </p>
               <p className="text-slate-400 text-xs">
                 {new Date(log.date).toLocaleDateString("en-IN")} • {log.entries?.length} entries • {totalQty} sheets
               </p>

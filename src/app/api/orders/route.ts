@@ -11,29 +11,40 @@ export async function GET(request: NextRequest) {
     const companyId = (session.user as any).companyId;
     if (!companyId) return NextResponse.json({ error: "No company" }, { status: 400 });
 
-    const orders = await prisma.order.findMany({
-      where: { companyId },
-      include: {
-        customer: { select: { name: true, phone: true } },
-        createdBy: { select: { name: true } },
-        items: {
-          include: {
-            category: { select: { name: true } },
-            thickness: { select: { value: true } },
-            size: { select: { label: true } },
-            customizations: { select: { name: true } },
+    const [orders, company, productTimings] = await Promise.all([
+      prisma.order.findMany({
+        where: { companyId },
+        include: {
+          customer: { select: { name: true, phone: true } },
+          createdBy: { select: { name: true } },
+          items: {
+            include: {
+              category: { select: { name: true } },
+              thickness: { select: { value: true } as any },
+              size: { select: { label: true } },
+              customizations: { select: { name: true } },
+            },
           },
         },
-      },
-      orderBy: { createdAt: "desc" },
-    });
+        orderBy: { createdAt: "desc" },
+      }),
+      prisma.company.findUnique({ where: { id: companyId } }),
+      (prisma as any).productTiming.findMany({ where: { companyId } }),
+    ]);
 
-    return NextResponse.json(orders);
+    const pressSettings = {
+      workingHoursPerDay: (company as any)?.workingHoursPerDay ?? 8,
+      numHotPresses: (company as any)?.numHotPresses ?? 1,
+      pressCapacityPerPress: (company as any)?.pressCapacityPerPress ?? 10,
+    };
+
+    return NextResponse.json({ orders, pressSettings, productTimings });
   } catch (error) {
     console.error("Error fetching orders:", error);
     return NextResponse.json({ error: "Failed to fetch orders" }, { status: 500 });
   }
 }
+
 
 // POST - Create a new order
 export async function POST(request: NextRequest) {
@@ -55,6 +66,9 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Customer name and at least one item required" }, { status: 400 });
     }
 
+    // Validate priority (1-5, default 3)
+    const orderPriority = priority ? Math.max(1, Math.min(5, parseInt(priority))) : 3;
+
     // Generate order number
     const count = await prisma.order.count({ where: { companyId } });
     const orderNumber = `ORD-${new Date().getFullYear()}-${String(count + 1).padStart(3, "0")}`;
@@ -70,7 +84,7 @@ export async function POST(request: NextRequest) {
       data: {
         orderNumber,
         customerId: customer.id,
-        priority: priority || "NORMAL",
+        priority: orderPriority as any,
         notes: notes || null,
         dueDate: dueDate ? new Date(dueDate) : null,
         companyId,
@@ -99,12 +113,13 @@ export async function POST(request: NextRequest) {
     });
 
     // Create high-priority notifications for supervisors and operators
+    const priorityLabel = orderPriority <= 2 ? "🔴 HIGH" : orderPriority === 3 ? "🟡 NORMAL" : "🟢 LOW";
     const targetRoles = ["SUPERVISOR", "OPERATOR"];
     const notifData = targetRoles.map((targetRole) => ({
       type: "NEW_ORDER",
       title: "🚨 New Order Received",
-      message: `Order ${orderNumber} from ${customerName} — ${items.length} item(s). Priority: ${priority || "NORMAL"}`,
-      priority: priority === "URGENT" ? "URGENT" as const : "HIGH" as const,
+      message: `Order ${orderNumber} from ${customerName} — ${items.length} item(s). Priority: ${priorityLabel}`,
+      priority: Math.max(1, orderPriority - 1) as any,
       targetRole,
       companyId,
       orderId: order.id,

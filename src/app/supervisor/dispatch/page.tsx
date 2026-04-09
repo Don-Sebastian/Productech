@@ -4,7 +4,8 @@ import { useSession } from "next-auth/react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useState, Suspense } from "react";
 import Sidebar from "@/components/Sidebar";
-import { Truck, Plus, X, Trash2, Check, AlertTriangle, Package } from "lucide-react";
+import { Truck, Plus, X, Trash2, Check, AlertTriangle, Package, CalendarClock } from "lucide-react";
+import { calcListProductionMinutes, calcEstimatedDates, formatDate, type PressSettings } from "@/lib/productionEstimate";
 
 function DispatchListContent() {
   const { data: session, status } = useSession();
@@ -14,9 +15,13 @@ function DispatchListContent() {
 
   const [catalog, setCatalog] = useState<any>({ categories: [], thicknesses: [], sizes: [] });
   const [dispatchLoads, setDispatchLoads] = useState<any[]>([]);
+  const [readyOrders, setReadyOrders] = useState<any[]>([]);
+  const [pressSettings, setPressSettings] = useState<PressSettings>({ workingHoursPerDay: 8, numHotPresses: 1, pressCapacityPerPress: 10 });
+  const [productTimings, setProductTimings] = useState<any[]>([]);
   const [order, setOrder] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [showCreate, setShowCreate] = useState(!!orderId);
+  const [showBuilder, setShowBuilder] = useState(false);
   const [notes, setNotes] = useState("");
   const [items, setItems] = useState<any[]>([]);
   const [error, setError] = useState("");
@@ -39,11 +44,21 @@ function DispatchListContent() {
     Promise.all([
       fetch("/api/catalog").then((r) => r.json()),
       fetch("/api/dispatch").then((r) => r.json()),
+      fetch("/api/orders").then((r) => r.json()),
       fetch("/api/company-products").then((r) => r.json()),
       orderId ? fetch(`/api/orders/${orderId}`).then((r) => r.json()) : Promise.resolve(null),
-    ]).then(([c, dLists, products, o]) => {
+    ]).then(([c, dLists, oList, products, o]) => {
       setCatalog(c);
       if (Array.isArray(dLists)) setDispatchLoads(dLists);
+      // Handle new { orders, pressSettings, productTimings } shape from orders API
+      const orderList = oList && Array.isArray(oList.orders) ? oList.orders : (Array.isArray(oList) ? oList : []);
+      if (oList?.pressSettings) setPressSettings(oList.pressSettings);
+      if (oList?.productTimings) setProductTimings(oList.productTimings);
+      
+      setReadyOrders(orderList.filter((order: any) =>
+        order.status === "READY_FOR_DISPATCH" &&
+        !(Array.isArray(dLists) && dLists.some((d: any) => d.orderId === order.id))
+      ));
       if (o && !o.error) {
         setOrder(o);
         // Pre-fill items from order
@@ -114,8 +129,20 @@ function DispatchListContent() {
       if (res.ok) {
         setSuccess("Dispatch load submitted to manager!");
         setShowCreate(false); setItems([]); setNotes(""); resetItem();
-        const d = await fetch("/api/dispatch").then((r) => r.json());
+        
+        const [d, oList] = await Promise.all([
+          fetch("/api/dispatch").then((r) => r.json()),
+          fetch("/api/orders").then((r) => r.json()),
+        ]);
+        
         if (Array.isArray(d)) setDispatchLoads(d);
+        const orderList = oList && Array.isArray(oList.orders) ? oList.orders : (Array.isArray(oList) ? oList : []);
+        if (oList?.pressSettings) setPressSettings(oList.pressSettings);
+        setReadyOrders(orderList.filter((ord: any) =>
+          ord.status === "READY_FOR_DISPATCH" &&
+          !(Array.isArray(d) && d.some((load: any) => load.orderId === ord.id))
+        ));
+
         setTimeout(() => setSuccess(""), 4000);
       } else {
         const d = await res.json();
@@ -173,8 +200,15 @@ function DispatchListContent() {
 
             {order && (
               <div className="bg-blue-500/10 border border-blue-500/20 rounded-xl p-3 mb-4">
-                <p className="text-blue-300 text-sm font-semibold">📦 For Order: {order.orderNumber}</p>
-                <p className="text-blue-400/70 text-xs">{order.customer?.name} • {order.items?.length} items</p>
+                <p className="text-blue-300 text-sm font-semibold mb-2 flex items-center gap-2">
+                   📦 For Order: {order.orderNumber}
+                </p>
+                <div className="flex items-center gap-2">
+                  <span className="text-blue-400 bg-blue-500/10 px-2 py-0.5 rounded-md border border-blue-500/20 uppercase tracking-widest font-black text-[10px]">
+                    {order.customer?.name}
+                  </span>
+                  <p className="text-blue-400/70 text-xs">• {order.items?.length} items</p>
+                </div>
               </div>
             )}
             
@@ -205,10 +239,19 @@ function DispatchListContent() {
             )}
 
             {/* Item Builder */}
-            {order && (
-              <div className="bg-emerald-500/5 border border-emerald-500/20 rounded-2xl p-4 mb-4">
+            {order && !showBuilder && (
+              <button 
+                onClick={() => setShowBuilder(true)} 
+                className="w-full py-3 mb-4 border border-dashed border-slate-600 rounded-xl text-slate-400 hover:text-emerald-400 hover:border-emerald-500/50 hover:bg-emerald-500/5 transition flex items-center justify-center gap-2 font-semibold active:scale-[0.98]">
+                <Plus size={18} /> Add Extra Item Manually
+              </button>
+            )}
+
+            {order && showBuilder && (
+              <div className="bg-emerald-500/5 border border-emerald-500/20 rounded-2xl p-4 mb-4 relative">
+                <button onClick={() => setShowBuilder(false)} className="absolute top-4 right-4 text-slate-500 hover:text-white transition bg-slate-800 p-1 rounded-md max-w-fit"><X size={16} /></button>
                 <p className="text-emerald-300 font-semibold text-sm mb-3">
-                  {step === 0 ? "➊ Select Type" : step === 1 ? "➋ Thickness" : step === 2 ? "➌ Size" : "➍ Quantity To Dispatch"}
+                  {step === 0 ? "➊ Select Category" : step === 1 ? "➋ Thickness" : step === 2 ? "➌ Size" : "➍ Quantity To Dispatch"}
                 </p>
 
                 {step === 0 && (
@@ -222,7 +265,7 @@ function DispatchListContent() {
 
                 {step === 1 && (
                   <div>
-                    <p className="text-xs text-slate-400 mb-2">Type: <span className="text-white">{selCat?.name}</span></p>
+                    <p className="text-xs text-slate-400 mb-2">Category: <span className="text-white">{selCat?.name}</span></p>
                     <div className="grid grid-cols-3 sm:grid-cols-5 gap-2">
                       {catalog.thicknesses?.map((t: any) => (
                         <button key={t.id} onClick={() => { setSelThick(t); setStep(2); }}
@@ -276,39 +319,57 @@ function DispatchListContent() {
           </div>
         )}
 
-        {/* EXISTING LISTS */}
-        {loading ? (
-          <div className="flex items-center justify-center py-16"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-emerald-400" /></div>
-        ) : dispatchLoads.length === 0 && !showCreate ? (
-          <div className="text-center py-16">
-            <Package size={48} className="mx-auto text-slate-600 mb-4" />
-            <p className="text-slate-400">No dispatch loads yet</p>
-          </div>
-        ) : (
-          <div className="space-y-3">
-            {dispatchLoads.map((list) => (
-              <div key={list.id} className="bg-slate-800/40 border border-slate-700/50 rounded-2xl p-4">
-                <div className="flex items-center justify-between mb-2">
-                  <div>
-                    <h3 className="text-white font-bold">{list.loadNumber}</h3>
-                    <p className="text-slate-400 text-xs">
-                      {list.order?.orderNumber && `Order: ${list.order.orderNumber} • `}
-                      {list.order?.customer?.name && `${list.order.customer.name} • `}
-                      {list.items?.length} items
-                    </p>
-                  </div>
-                  <span className={`text-xs px-3 py-1 rounded-full font-semibold ${statusColors[list.status]}`}>{list.status}</span>
-                </div>
-                <div className="space-y-1 mt-3">
-                  {list.items?.map((item: any, idx: number) => (
-                    <div key={idx} className="bg-slate-900/40 rounded-lg p-2 text-xs flex justify-between">
-                      <span className="text-white font-medium">{item.category?.name} • {item.thickness?.value}mm • {item.size?.label}</span>
-                      <span className="text-emerald-400 font-bold">Qty: {item.quantity}</span>
+        {!showCreate && readyOrders.length > 0 && (
+          <div className="mb-6">
+            <h2 className="text-emerald-300 font-bold text-sm mb-3 flex items-center gap-2">
+              📦 ORDERS READY FOR DISPATCH ({readyOrders.length})
+            </h2>
+            <div className="space-y-3">
+              {readyOrders.map((ro) => {
+                const prodMinutes = calcListProductionMinutes(
+                  (ro.items || []).map((i: any) => ({
+                    quantity: i.quantity,
+                    categoryId: i.categoryId,
+                    thicknessId: i.thicknessId,
+                  })),
+                  productTimings,
+                  pressSettings
+                );
+                const estDispatch = prodMinutes > 0 && ro.createdAt
+                  ? calcEstimatedDates(ro.createdAt, prodMinutes, pressSettings).dispatchDate
+                  : null;
+                return (
+                  <div key={ro.id} className="bg-emerald-500/10 border border-emerald-500/20 rounded-2xl p-4 flex flex-col md:flex-row items-center justify-between gap-4">
+                    <div className="flex-1">
+                      <h3 className="text-white font-black text-xl tracking-tight">
+                        {ro.customer?.name || "Private Order"}
+                      </h3>
+                      <span className="text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded-md border border-emerald-500/20 uppercase tracking-widest font-black text-[10px]">
+                        Order: {ro.orderNumber}
+                      </span>
+                      <div className="flex items-center gap-2 mt-1 flex-wrap">
+                        <span className="text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded-md border border-emerald-500/20 uppercase tracking-widest font-black text-[10px]">
+                          {ro.customer?.name}
+                        </span>
+                        <p className="text-slate-400 text-sm">• {ro.items?.length} items</p>
+                        {estDispatch && (
+                          <span className="text-violet-300 bg-violet-500/10 px-2 py-0.5 rounded-md border border-violet-500/20 font-bold text-[10px] flex items-center gap-1">
+                            <CalendarClock size={10} /> Est. {formatDate(estDispatch)}
+                          </span>
+                        )}
+                      </div>
                     </div>
-                  ))}
-                </div>
-              </div>
-            ))}
+                    <button onClick={() => {
+                        router.push(`/supervisor/dispatch?orderId=${ro.id}`);
+                        setShowCreate(true);
+                      }}
+                      className="w-full md:w-auto px-6 py-2.5 bg-emerald-600 hover:bg-emerald-500 text-white font-bold rounded-xl active:scale-[0.97] transition shrink-0">
+                      Create Dispatch Load
+                    </button>
+                  </div>
+                );
+              })}
+            </div>
           </div>
         )}
       </main>

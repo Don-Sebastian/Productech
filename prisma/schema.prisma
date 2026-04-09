@@ -1,6 +1,3 @@
-// This is your Prisma schema file,
-// learn more about it in the docs: https://pris.ly/d/prisma-schema
-
 generator client {
   provider = "prisma-client-js"
 }
@@ -10,114 +7,106 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-// ==================== Multi-Company Setup ====================
 model Company {
-  id        String   @id @default(cuid())
-  name      String
-  location  String
-  phone     String?
-  email     String   @unique
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  id                  String               @id @default(cuid())
+  name                String
+  location            String
+  phone               String?
+  email               String               @unique
+  createdAt           DateTime             @default(now())
+  updatedAt           DateTime             @updatedAt
 
-  // Relations
-  users              User[]
-  productionBatches  ProductionBatch[]
-  inventoryItems     InventoryItem[]
-  rawMaterials       RawMaterial[]
-  productTypes       ProductType[]
-  machineLogs        MachineLog[]
-  plywoodCategories  PlywoodCategory[]
-  plywoodThicknesses PlywoodThickness[]
-  plywoodSizes       PlywoodSize[]
-  companyProducts    CompanyProduct[]
-  orders             Order[]
-  productionLists    ProductionList[]
-  notifications      Notification[]
+  // Production estimation settings (manager-configurable)
+  workingHoursPerDay    Float @default(8)  // Hours hot press runs per day
+  numHotPresses         Int   @default(1)  // Number of hot press machines
+  pressCapacityPerPress Int   @default(10) // Daylights (boards) per press per cook
+
+  companyProducts     CompanyProduct[]
+  customers           Customer[]
   dailyProductionLogs DailyProductionLog[]
-  sections           Section[]
-  hotPressSessions   HotPressSession[]
-  customers          Customer[] // NEW
-  orderCustomizations OrderCustomization[] // NEW
-  dispatchLoads      DispatchLoad[] // NEW
-  timelineEvents     OrderTimelineEvent[] // NEW
+  dispatchLoads       DispatchLoad[]
+  hotPressSessions    HotPressSession[]
+  inventoryItems      InventoryItem[]
+  machineLogs         MachineLog[]
+  notifications       Notification[]
+  orders              Order[]
+  orderCustomizations OrderCustomization[]
+  timelineEvents      OrderTimelineEvent[]
+  plywoodCategories   PlywoodCategory[]
+  plywoodSizes        PlywoodSize[]
+  plywoodThicknesses  PlywoodThickness[]
+  productTypes        ProductType[]
+  productionBatches   ProductionBatch[]
+  productionLists     ProductionList[]
+  rawMaterials        RawMaterial[]
+  sections            Section[]
+  users               User[]
+  productTimings      ProductTiming[]
+  machines            Machine[]
+  machineAssignments  MachineAssignment[]
+  peelingMaterials    PeelingMaterial[]
+  peelingSessions     PeelingSession[]
+  dryerSessions       DryerSession[]
+  finishingLogs       FinishingLog[]
 }
 
-// ==================== Sections ====================
 model Section {
   id        String   @id @default(cuid())
-  name      String   // "Hot Press", "Peeling", "Drying", "Finishing"
-  slug      String   // "hotpress", "peeling", "drying", "finishing"
+  name      String
+  slug      String
   isActive  Boolean  @default(true)
   sortOrder Int      @default(0)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
-
   companyId String
-  company   Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
-
-  users     User[] @relation("UserSections") // NEW
+  company   Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  users     User[]   @relation("UserSections")
+  machines  Machine[]
 
   @@unique([companyId, slug])
   @@index([companyId])
 }
 
-// ==================== Users & Authentication ====================
 model User {
-  id        String   @id @default(cuid())
-  email     String   @unique
-  password  String
-  name      String
-  role      Role     @default(OPERATOR)
-  phone     String?
-  isActive  Boolean  @default(true)
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  companyId String?
-  company   Company? @relation(fields: [companyId], references: [id], onDelete: Cascade)
-
-  sections  Section[] @relation("UserSections") // NEW (Replaces string `section`)
-
-  // Who created this user (for hierarchical management)
-  createdById String?
-  createdBy   User?   @relation("CreatedUsers", fields: [createdById], references: [id], onDelete: SetNull)
-  createdUsers User[] @relation("CreatedUsers")
-
-  productionBatches ProductionBatch[]
-  inventoryLogs     InventoryLog[]
-  machineLogs       MachineLog[]
-  createdOrders     Order[]          @relation("OrderCreator")
-  createdProdLists  ProductionList[] @relation("ProductionListCreator")
-  notifications     Notification[]
-
-  dispatchLoadsCreated DispatchLoad[] @relation("DispatchLoadCreator") // NEW
-  dispatchLoadsManaged DispatchLoad[] @relation("DispatchLoadManager") // NEW
-  timelineEvents       OrderTimelineEvent[] // NEW
-  
-  // Inventory & Production
-  productionEntries          ProductionEntry[]
-  operatorDailyLogs          DailyProductionLog[]  @relation("DailyLogOperator")
-  supervisorApprovedLogs     DailyProductionLog[]  @relation("DailyLogSupervisor")
-  managerApprovedLogs        DailyProductionLog[]  @relation("DailyLogManager")
-
-  // Hot Press
-  hotPressSessions HotPressSession[]
+  id                     String               @id @default(cuid())
+  email                  String               @unique
+  password               String
+  name                   String
+  role                   Role                 @default(OPERATOR)
+  phone                  String?
+  isActive               Boolean              @default(true)
+  createdAt              DateTime             @default(now())
+  updatedAt              DateTime             @updatedAt
+  companyId              String?
+  createdById            String?
+  managerApprovedLogs    DailyProductionLog[] @relation("DailyLogManager")
+  operatorDailyLogs      DailyProductionLog[] @relation("DailyLogOperator")
+  supervisorApprovedLogs DailyProductionLog[] @relation("DailyLogSupervisor")
+  dispatchLoadsCreated   DispatchLoad[]       @relation("DispatchLoadCreator")
+  dispatchLoadsManaged   DispatchLoad[]       @relation("DispatchLoadManager")
+  hotPressSessions       HotPressSession[]
+  inventoryLogs          InventoryLog[]
+  machineLogs            MachineLog[]
+  notifications          Notification[]
+  createdOrders          Order[]              @relation("OrderCreator")
+  timelineEvents         OrderTimelineEvent[]
+  productionBatches      ProductionBatch[]
+  productionEntries      ProductionEntry[]
+  createdProdLists       ProductionList[]     @relation("ProductionListCreator")
+  machineAssignments     MachineAssignment[]
+  peelingSessions        PeelingSession[]
+  dryerSessions          DryerSession[]
+  finishingLogs          FinishingLog[]
+  company                Company?             @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  createdBy              User?                @relation("CreatedUsers", fields: [createdById], references: [id])
+  createdUsers           User[]               @relation("CreatedUsers")
+  sections               Section[]            @relation("UserSections")
 
   @@index([companyId])
   @@index([createdById])
   @@index([role])
 }
 
-enum Role {
-  ADMIN
-  OWNER
-  MANAGER
-  SUPERVISOR
-  OPERATOR
-}
-
-// ==================== Customers (NEW) ====================
 model Customer {
   id        String   @id @default(cuid())
   name      String
@@ -126,154 +115,154 @@ model Customer {
   address   String?
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
-
   companyId String
-  company   Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  company   Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
   orders    Order[]
 
   @@unique([companyId, name, phone])
   @@index([companyId])
 }
 
-// ==================== Plywood Product Catalog ====================
-
 model PlywoodCategory {
-  id        String   @id @default(cuid())
-  name      String
-  isActive  Boolean  @default(true)
-  sortOrder Int      @default(0)
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  companyId String
-  company   Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
-
-  orderItems      OrderItem[]
-  productionItems ProductionListItem[]
-  companyProducts CompanyProduct[]
-  pressEntries    PressEntry[]
-  dispatchLoadItems DispatchLoadItem[] // NEW
+  id                String               @id @default(cuid())
+  name              String
+  isActive          Boolean              @default(true)
+  sortOrder         Int                  @default(0)
+  createdAt         DateTime             @default(now())
+  updatedAt         DateTime             @updatedAt
+  companyId         String
+  companyProducts   CompanyProduct[]
+  dispatchLoadItems DispatchLoadItem[]
+  orderItems        OrderItem[]
+  company           Company              @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  pressEntries      PressEntry[]
+  productionItems   ProductionListItem[]
+  productTimings    ProductTiming[]
+  finishingEntries  FinishingEntry[]
 
   @@index([companyId])
 }
 
 model PlywoodThickness {
-  id        String   @id @default(cuid())
-  value     Float
-  unit      String   @default("mm")
-  isActive  Boolean  @default(true)
-  sortOrder Int      @default(0)
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  id                String               @id @default(cuid())
+  value             Float
+  unit              String               @default("mm")
+  isActive          Boolean              @default(true)
+  sortOrder         Int                  @default(0)
+  createdAt         DateTime             @default(now())
+  updatedAt         DateTime             @updatedAt
+  companyId         String
+  companyProducts   CompanyProduct[]
+  dispatchLoadItems DispatchLoadItem[]
+  orderItems        OrderItem[]
+  company           Company              @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  pressEntries      PressEntry[]
+  productionItems   ProductionListItem[]
+  productTimings    ProductTiming[]
+  finishingEntries  FinishingEntry[]
 
-  companyId String
-  company   Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  @@index([companyId])
+}
 
-  orderItems      OrderItem[]
-  productionItems ProductionListItem[]
-  companyProducts CompanyProduct[]
-  pressEntries    PressEntry[]
-  dispatchLoadItems DispatchLoadItem[] // NEW
+model ProductTiming {
+  id                String           @id @default(cuid())
+  companyId         String
+  company           Company          @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  categoryId        String
+  category          PlywoodCategory  @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+  thicknessId       String
+  thickness         PlywoodThickness @relation(fields: [thicknessId], references: [id], onDelete: Cascade)
+  cookingTime       Float            @default(0)
+  coolingTime       Float            @default(0)
+  createdAt         DateTime         @default(now())
+  updatedAt         DateTime         @updatedAt
 
+  @@unique([companyId, categoryId, thicknessId])
   @@index([companyId])
 }
 
 model PlywoodSize {
-  id        String   @id @default(cuid())
-  label     String
-  length    Float
-  width     Float
-  isActive  Boolean  @default(true)
-  sortOrder Int      @default(0)
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  companyId String
-  company   Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
-
-  orderItems      OrderItem[]
-  productionItems ProductionListItem[]
-  companyProducts CompanyProduct[]
-  pressEntries    PressEntry[]
-  dispatchLoadItems DispatchLoadItem[] // NEW
+  id                String               @id @default(cuid())
+  label             String
+  length            Float
+  width             Float
+  isActive          Boolean              @default(true)
+  sortOrder         Int                  @default(0)
+  createdAt         DateTime             @default(now())
+  updatedAt         DateTime             @updatedAt
+  companyId         String
+  companyProducts   CompanyProduct[]
+  dispatchLoadItems DispatchLoadItem[]
+  orderItems        OrderItem[]
+  company           Company              @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  pressEntries      PressEntry[]
+  productionItems   ProductionListItem[]
+  finishingEntries  FinishingEntry[]
 
   @@index([companyId])
 }
 
-// ==================== Company Product (Inventory Unit) ====================
 model CompanyProduct {
-  id           String   @id @default(cuid())
-  openingStock Int      @default(0)
-  currentStock Int      @default(0)
-  isActive     Boolean  @default(true)
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
-
-  companyId   String
-  company     Company          @relation(fields: [companyId], references: [id], onDelete: Cascade)
-
-  categoryId  String
-  category    PlywoodCategory  @relation(fields: [categoryId], references: [id])
-
-  thicknessId String
-  thickness   PlywoodThickness @relation(fields: [thicknessId], references: [id])
-
-  sizeId      String
-  size        PlywoodSize      @relation(fields: [sizeId], references: [id])
-
+  id                String            @id @default(cuid())
+  openingStock      Int               @default(0)
+  currentStock      Int               @default(0)
+  isActive          Boolean           @default(true)
+  createdAt         DateTime          @default(now())
+  updatedAt         DateTime          @updatedAt
+  companyId         String
+  categoryId        String
+  thicknessId       String
+  sizeId            String
+  category          PlywoodCategory   @relation(fields: [categoryId], references: [id])
+  company           Company           @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  size              PlywoodSize       @relation(fields: [sizeId], references: [id])
+  thickness         PlywoodThickness  @relation(fields: [thicknessId], references: [id])
   productionEntries ProductionEntry[]
 
   @@unique([companyId, categoryId, thicknessId, sizeId])
   @@index([companyId])
 }
 
-// ==================== Daily Production (Approval Flow) ====================
-
 model ProductionEntry {
-  id        String   @id @default(cuid())
-  quantity  Int
-  notes     String?
-  createdAt DateTime @default(now())
-
-  productId String
-  product   CompanyProduct @relation(fields: [productId], references: [id])
-
-  operatorId String
-  operator   User @relation(fields: [operatorId], references: [id])
-
-  dailyLogId String?
-  dailyLog   DailyProductionLog? @relation(fields: [dailyLogId], references: [id])
+  id                   String              @id @default(cuid())
+  quantity             Int
+  notes                String?
+  createdAt            DateTime            @default(now())
+  productId            String
+  operatorId           String
+  dailyLogId           String?
+  productionListItemId String?
+  dailyLog             DailyProductionLog? @relation(fields: [dailyLogId], references: [id])
+  operator             User                @relation(fields: [operatorId], references: [id])
+  product              CompanyProduct      @relation(fields: [productId], references: [id])
+  productionListItem   ProductionListItem? @relation(fields: [productionListItemId], references: [id], onDelete: SetNull)
 
   @@index([productId])
   @@index([operatorId])
   @@index([dailyLogId])
+  @@index([productionListItemId])
 }
 
 model DailyProductionLog {
-  id     String         @id @default(cuid())
-  date   DateTime
-  status ApprovalStatus @default(PENDING)
-  notes  String?
-  createdAt DateTime    @default(now())
-  updatedAt DateTime    @updatedAt
-
-  companyId String
-  company   Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
-
-  operatorId String
-  operator   User @relation("DailyLogOperator", fields: [operatorId], references: [id])
-
+  id                     String            @id @default(cuid())
+  date                   DateTime
+  status                 ApprovalStatus    @default(PENDING)
+  notes                  String?
+  createdAt              DateTime          @default(now())
+  updatedAt              DateTime          @updatedAt
+  companyId              String
+  operatorId             String
   supervisorApprovedById String?
-  supervisorApprovedBy   User?    @relation("DailyLogSupervisor", fields: [supervisorApprovedById], references: [id])
   supervisorApprovedAt   DateTime?
   supervisorNotes        String?
-
-  managerApprovedById String?
-  managerApprovedBy   User?    @relation("DailyLogManager", fields: [managerApprovedById], references: [id])
-  managerApprovedAt   DateTime?
-  managerNotes        String?
-
-  entries ProductionEntry[]
+  managerApprovedById    String?
+  managerApprovedAt      DateTime?
+  managerNotes           String?
+  company                Company           @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  managerApprovedBy      User?             @relation("DailyLogManager", fields: [managerApprovedById], references: [id])
+  operator               User              @relation("DailyLogOperator", fields: [operatorId], references: [id])
+  supervisorApprovedBy   User?             @relation("DailyLogSupervisor", fields: [supervisorApprovedById], references: [id])
+  entries                ProductionEntry[]
 
   @@unique([companyId, operatorId, date])
   @@index([companyId])
@@ -281,48 +270,33 @@ model DailyProductionLog {
   @@index([status])
 }
 
-enum ApprovalStatus {
-  PENDING
-  SUBMITTED
-  SUPERVISOR_APPROVED
-  MANAGER_APPROVED
-  REJECTED
-}
-
-// ==================== Hot Press Machine Log ====================
-
-// A single machine session from START to STOP
 model HotPressSession {
-  id          String            @id @default(cuid())
-  status      HotPressStatus    @default(RUNNING)
-  startTime   DateTime          @default(now())
-  stopTime    DateTime?
-  numDaylights Int              @default(10)  // Default 10 plywoods per cook
-  shiftDate   DateTime                        // The calendar date of the shift
-
-  // Current product being pressed (persists until changed)
-  currentCategoryId  String?
-  currentThicknessId String?
-  currentSizeId      String?
-
-  // ---- Approval workflow ----
-  approvalStatus  ApprovalStatus   @default(PENDING)
-  operatorApprovedAt   DateTime?
-  supervisorApprovedAt DateTime?
-  managerApprovedAt    DateTime?
-  supervisorId    String?          // who approved at supervisor level
-  managerId       String?          // who approved at manager level
-  rejectionNote   String?          // reason if rejected
-
-  companyId String
-  company   Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
-
-  operatorId String
-  operator   User @relation(fields: [operatorId], references: [id])
-
-  entries      PressEntry[]
-  glueEntries  GlueEntry[]
-  pauseEvents  PauseEvent[]
+  id                          String         @id @default(cuid())
+  status                      HotPressStatus @default(RUNNING)
+  startTime                   DateTime       @default(now())
+  stopTime                    DateTime?
+  numDaylights                Int            @default(10)
+  shiftDate                   DateTime
+  currentCategoryId           String?
+  currentThicknessId          String?
+  currentSizeId               String?
+  approvalStatus              ApprovalStatus @default(PENDING)
+  operatorApprovedAt          DateTime?
+  supervisorApprovedAt        DateTime?
+  managerApprovedAt           DateTime?
+  supervisorId                String?
+  managerId                   String?
+  rejectionNote               String?
+  companyId                   String
+  operatorId                  String
+  machineId                   String?
+  currentProductionListItemId String?
+  glueEntries                 GlueEntry[]
+  company                     Company        @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  machine                     Machine?       @relation(fields: [machineId], references: [id])
+  operator                    User           @relation(fields: [operatorId], references: [id])
+  pauseEvents                 PauseEvent[]
+  entries                     PressEntry[]
 
   @@index([companyId])
   @@index([operatorId])
@@ -330,97 +304,73 @@ model HotPressSession {
   @@index([approvalStatus])
 }
 
-
-
-enum HotPressStatus {
-  RUNNING
-  PAUSED
-  MAINTENANCE
-  STOPPED
-}
-
-// Each individual cook or repress within a session
 model PressEntry {
-  id         String    @id @default(cuid())
-  type       PressEntryType @default(COOK)
-  loadTime   DateTime?
-  unloadTime DateTime?
-  quantity   Int       @default(10)  // Number of plywoods produced in this cook
-  notes      String?
-  createdAt  DateTime  @default(now())
-
-  categoryId  String
-  category    PlywoodCategory  @relation(fields: [categoryId], references: [id])
-
-  thicknessId String
-  thickness   PlywoodThickness @relation(fields: [thicknessId], references: [id])
-
-  sizeId      String
-  size        PlywoodSize      @relation(fields: [sizeId], references: [id])
-
-  sessionId String
-  session   HotPressSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  id                   String              @id @default(cuid())
+  type                 PressEntryType      @default(COOK)
+  loadTime             DateTime?
+  unloadTime           DateTime?
+  quantity             Int                 @default(10)
+  notes                String?
+  createdAt            DateTime            @default(now())
+  categoryId           String
+  thicknessId          String
+  sizeId               String
+  sessionId            String
+  productionListItemId String?
+  category             PlywoodCategory     @relation(fields: [categoryId], references: [id])
+  productionListItem   ProductionListItem? @relation(fields: [productionListItemId], references: [id], onDelete: SetNull)
+  session              HotPressSession     @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  size                 PlywoodSize         @relation(fields: [sizeId], references: [id])
+  thickness            PlywoodThickness    @relation(fields: [thicknessId], references: [id])
 
   @@index([sessionId])
+  @@index([productionListItemId])
 }
 
-enum PressEntryType {
-  COOK
-  REPRESS
-}
-
-// Glue additions during a session
 model GlueEntry {
-  id        String   @id @default(cuid())
-  time      DateTime @default(now())
-  barrels   Float    @default(1)  // Number of barrels added
+  id        String          @id @default(cuid())
+  time      DateTime        @default(now())
+  barrels   Float           @default(1)
   notes     String?
-
   sessionId String
   session   HotPressSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
 
   @@index([sessionId])
 }
 
-// Pause/Resume/Maintenance events
 model PauseEvent {
-  id         String    @id @default(cuid())
-  type       String    // "PAUSE", "MAINTENANCE"
-  startTime  DateTime  @default(now())
-  endTime    DateTime?
-  notes      String?
-
+  id        String          @id @default(cuid())
+  type      String
+  startTime DateTime        @default(now())
+  endTime   DateTime?
+  notes     String?
   sessionId String
   session   HotPressSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
 
   @@index([sessionId])
 }
-
-// ==================== Order Management ====================
 
 model Order {
-  id            String      @id @default(cuid())
-  orderNumber   String
-  customerId    String?     // NEW
-  customer      Customer?   @relation(fields: [customerId], references: [id]) // NEW
-  status        OrderStatus @default(PENDING)
-  priority      Priority    @default(NORMAL)
-  notes         String?
-  dueDate       DateTime?
-  createdAt     DateTime    @default(now())
-  updatedAt     DateTime    @updatedAt
-
-  companyId   String
-  company     Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
-
-  createdById String
-  createdBy   User   @relation("OrderCreator", fields: [createdById], references: [id])
-
-  items           OrderItem[]
-  productionLists ProductionList[]
+  id              String               @id @default(cuid())
+  orderNumber     String
+  status          OrderStatus          @default(PENDING)
+  notes           String?
+  dueDate         DateTime?
+  estimatedDispatchDate DateTime?
+  createdAt       DateTime             @default(now())
+  updatedAt       DateTime             @updatedAt
+  companyId       String
+  createdById     String
+  customerId      String?
+  priority        Int                  @default(3)
+  dispatchLoads   DispatchLoad[]
   notifications   Notification[]
-  dispatchLoads   DispatchLoad[] // NEW
-  timelineEvents  OrderTimelineEvent[] // NEW
+  company         Company              @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  createdBy       User                 @relation("OrderCreator", fields: [createdById], references: [id])
+  customer        Customer?            @relation(fields: [customerId], references: [id])
+  items           OrderItem[]
+  timelineEvents  OrderTimelineEvent[]
+  productionLists ProductionList[]
 
   @@index([companyId])
   @@index([createdById])
@@ -428,36 +378,14 @@ model Order {
   @@index([status])
 }
 
-enum OrderStatus {
-  PENDING
-  CONFIRMED
-  SENT_TO_SUPERVISOR
-  TO_PRODUCTION_GENERATED
-  IN_PRODUCTION
-  PRODUCTION_COMPLETED
-  READY_FOR_DISPATCH
-  DISPATCHED
-  COMPLETED
-  CANCELLED
-}
-
-enum Priority {
-  LOW
-  NORMAL
-  HIGH
-  URGENT
-}
-
 model OrderCustomization {
-  id        String   @id @default(cuid())
-  name      String
-  isActive  Boolean  @default(true)
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  companyId String
-  company   Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
-  
+  id         String      @id @default(cuid())
+  name       String
+  isActive   Boolean     @default(true)
+  createdAt  DateTime    @default(now())
+  updatedAt  DateTime    @updatedAt
+  companyId  String
+  company    Company     @relation(fields: [companyId], references: [id], onDelete: Cascade)
   orderItems OrderItem[] @relation("OrderItemCustomizations")
 
   @@unique([companyId, name])
@@ -465,74 +393,59 @@ model OrderCustomization {
 }
 
 model OrderItem {
-  id        String   @id @default(cuid())
-  quantity  Int
-  layers    Int?
-  brandSeal Boolean  @default(false)
-  varnish   Boolean  @default(false)
-  notes     String?
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  orderId     String
-  order       Order            @relation(fields: [orderId], references: [id], onDelete: Cascade)
-
-  categoryId  String
-  category    PlywoodCategory  @relation(fields: [categoryId], references: [id])
-
-  thicknessId String
-  thickness   PlywoodThickness @relation(fields: [thicknessId], references: [id])
-
-  sizeId      String
-  size        PlywoodSize      @relation(fields: [sizeId], references: [id])
-
-  customizations OrderCustomization[] @relation("OrderItemCustomizations") // NEW
+  id             String               @id @default(cuid())
+  quantity       Int
+  layers         Int?
+  brandSeal      Boolean              @default(false)
+  varnish        Boolean              @default(false)
+  notes          String?
+  createdAt      DateTime             @default(now())
+  updatedAt      DateTime             @updatedAt
+  orderId        String
+  categoryId     String
+  thicknessId    String
+  sizeId         String
+  category       PlywoodCategory      @relation(fields: [categoryId], references: [id])
+  order          Order                @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  size           PlywoodSize          @relation(fields: [sizeId], references: [id])
+  thickness      PlywoodThickness     @relation(fields: [thicknessId], references: [id])
+  customizations OrderCustomization[] @relation("OrderItemCustomizations")
 
   @@index([orderId])
 }
 
-// ==================== Timeline Events (NEW) ====================
 model OrderTimelineEvent {
   id        String   @id @default(cuid())
-  action    String   
+  action    String
   details   String?
   createdAt DateTime @default(now())
-
   companyId String
-  company   Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
-  
   orderId   String
-  order     Order   @relation(fields: [orderId], references: [id], onDelete: Cascade)
-
   userId    String
-  user      User    @relation(fields: [userId], references: [id])
+  company   Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  order     Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  user      User     @relation(fields: [userId], references: [id])
 
   @@index([companyId])
   @@index([orderId])
   @@index([userId])
 }
 
-// ==================== Dispatch Management (NEW) ====================
 model DispatchLoad {
-  id          String         @id @default(cuid())
+  id          String             @id @default(cuid())
   loadNumber  String
-  status      DispatchStatus @default(SUPERVISOR_SUBMITTED)
+  status      DispatchStatus     @default(SUPERVISOR_SUBMITTED)
   notes       String?
-  createdAt   DateTime       @default(now())
-  updatedAt   DateTime       @updatedAt
-
+  createdAt   DateTime           @default(now())
+  updatedAt   DateTime           @updatedAt
   companyId   String
-  company     Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
-
   orderId     String
-  order       Order   @relation(fields: [orderId], references: [id])
-
   createdById String
-  createdBy   User    @relation("DispatchLoadCreator", fields: [createdById], references: [id])
-
   managerId   String?
-  manager     User?   @relation("DispatchLoadManager", fields: [managerId], references: [id])
-
+  company     Company            @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  createdBy   User               @relation("DispatchLoadCreator", fields: [createdById], references: [id])
+  manager     User?              @relation("DispatchLoadManager", fields: [managerId], references: [id])
+  order       Order              @relation(fields: [orderId], references: [id], onDelete: Cascade)
   items       DispatchLoadItem[]
 
   @@index([companyId])
@@ -541,226 +454,175 @@ model DispatchLoad {
   @@index([status])
 }
 
-enum DispatchStatus {
-  SUPERVISOR_SUBMITTED
-  MANAGER_CONFIRMED
-  DISPATCHED
-}
-
 model DispatchLoadItem {
-  id        String   @id @default(cuid())
-  quantity  Int
-  notes     String?
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
+  id             String           @id @default(cuid())
+  quantity       Int
+  notes          String?
+  createdAt      DateTime         @default(now())
+  updatedAt      DateTime         @updatedAt
   dispatchLoadId String
-  dispatchLoad   DispatchLoad @relation(fields: [dispatchLoadId], references: [id], onDelete: Cascade)
-
-  categoryId  String
-  category    PlywoodCategory  @relation(fields: [categoryId], references: [id])
-
-  thicknessId String
-  thickness   PlywoodThickness @relation(fields: [thicknessId], references: [id])
-
-  sizeId      String
-  size        PlywoodSize      @relation(fields: [sizeId], references: [id])
+  categoryId     String
+  thicknessId    String
+  sizeId         String
+  category       PlywoodCategory  @relation(fields: [categoryId], references: [id])
+  dispatchLoad   DispatchLoad     @relation(fields: [dispatchLoadId], references: [id], onDelete: Cascade)
+  size           PlywoodSize      @relation(fields: [sizeId], references: [id])
+  thickness      PlywoodThickness @relation(fields: [thicknessId], references: [id])
 
   @@index([dispatchLoadId])
 }
 
-// ==================== Production Planning ====================
-
 model ProductionList {
-  id          String           @id @default(cuid())
-  listNumber  String
-  status      ProductionStatus @default(PLANNED)
-  notes       String?
-  createdAt   DateTime         @default(now())
-  updatedAt   DateTime         @updatedAt
-
-  companyId   String
-  company     Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
-
-  orderId     String?
-  order       Order?  @relation(fields: [orderId], references: [id])
-
-  createdById String
-  createdBy   User   @relation("ProductionListCreator", fields: [createdById], references: [id])
-
-  items         ProductionListItem[]
+  id            String               @id @default(cuid())
+  listNumber    String
+  status        ProductionStatus     @default(PLANNED)
+  notes         String?
+  estimatedProductionMinutes Int?
+  createdAt     DateTime             @default(now())
+  updatedAt     DateTime             @updatedAt
+  companyId     String
+  orderId       String?
+  createdById   String
+  priority      Int                  @default(3)
   notifications Notification[]
+  company       Company              @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  createdBy     User                 @relation("ProductionListCreator", fields: [createdById], references: [id])
+  order         Order?               @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  items         ProductionListItem[]
 
   @@index([companyId])
   @@index([orderId])
 }
 
-enum ProductionStatus {
-  PLANNED
-  PEELING
-  DRYING
-  PRESSING
-  FINISHING
-  COMPLETED
-}
-
 model ProductionListItem {
-  id        String   @id @default(cuid())
-  quantity  Int
-  layers    Int?
-  brandSeal Boolean  @default(false)
-  varnish   Boolean  @default(false)
-  notes     String?
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  productionListId String
-  productionList   ProductionList   @relation(fields: [productionListId], references: [id], onDelete: Cascade)
-
-  categoryId  String
-  category    PlywoodCategory  @relation(fields: [categoryId], references: [id])
-
-  thicknessId String
-  thickness   PlywoodThickness @relation(fields: [thicknessId], references: [id])
-
-  sizeId      String
-  size        PlywoodSize      @relation(fields: [sizeId], references: [id])
+  id                String            @id @default(cuid())
+  quantity          Int
+  layers            Int?
+  brandSeal         Boolean           @default(false)
+  varnish           Boolean           @default(false)
+  notes             String?
+  createdAt         DateTime          @default(now())
+  updatedAt         DateTime          @updatedAt
+  productionListId  String
+  categoryId        String
+  thicknessId       String
+  sizeId            String
+  producedQuantity  Int               @default(0)
+  pressEntries      PressEntry[]
+  productionEntries ProductionEntry[]
+  category          PlywoodCategory   @relation(fields: [categoryId], references: [id])
+  productionList    ProductionList    @relation(fields: [productionListId], references: [id], onDelete: Cascade)
+  size              PlywoodSize       @relation(fields: [sizeId], references: [id])
+  thickness         PlywoodThickness  @relation(fields: [thicknessId], references: [id])
 
   @@index([productionListId])
 }
 
-// ==================== Notifications ====================
-
 model Notification {
-  id        String   @id @default(cuid())
-  type      String
-  title     String
-  message   String
-  priority  Priority @default(NORMAL)
-  isRead    Boolean  @default(false)
-  targetRole String?
-  createdAt DateTime @default(now())
-
-  companyId String
-  company   Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
-
-  userId    String?
-  user      User?   @relation(fields: [userId], references: [id])
-
-  orderId   String?
-  order     Order?  @relation(fields: [orderId], references: [id])
-
+  id               String          @id @default(cuid())
+  type             String
+  title            String
+  message          String
+  isRead           Boolean         @default(false) // Left for legacy purposes, but readByUsers is used for targeted roles
+  readByUsers      String[]
+  targetRole       String?
+  createdAt        DateTime        @default(now())
+  companyId        String
+  userId           String?
+  orderId          String?
   productionListId String?
-  productionList   ProductionList? @relation(fields: [productionListId], references: [id])
+  priority         Int             @default(3)
+  company          Company         @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  order            Order?          @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  productionList   ProductionList? @relation(fields: [productionListId], references: [id], onDelete: Cascade)
+  user             User?           @relation(fields: [userId], references: [id])
 
   @@index([companyId])
   @@index([userId])
   @@index([isRead])
 }
 
-// ==================== Legacy Models ====================
 model ProductType {
-  id           String   @id @default(cuid())
-  name         String
-  thickness    Float
-  description  String?
-  standardSize String?
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
-
-  companyId String
-  company   Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
-
-  productionBatches ProductionBatch[]
+  id                String            @id @default(cuid())
+  name              String
+  thickness         Float
+  description       String?
+  standardSize      String?
+  createdAt         DateTime          @default(now())
+  updatedAt         DateTime          @updatedAt
+  companyId         String
   inventoryItems    InventoryItem[]
+  company           Company           @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  productionBatches ProductionBatch[]
 
   @@index([companyId])
 }
 
 model RawMaterial {
-  id          String   @id @default(cuid())
-  name        String
-  unit        String
-  description String?
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-
-  companyId String
-  company   Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
-
+  id             String          @id @default(cuid())
+  name           String
+  unit           String
+  description    String?
+  createdAt      DateTime        @default(now())
+  updatedAt      DateTime        @updatedAt
+  companyId      String
   batchMaterials BatchMaterial[]
+  company        Company         @relation(fields: [companyId], references: [id], onDelete: Cascade)
 
   @@index([companyId])
 }
 
 model ProductionBatch {
-  id            String      @id @default(cuid())
-  batchNumber   String
-  quantity      Int
-  status        BatchStatus @default(INITIATED)
-  startDate     DateTime
+  id             String          @id @default(cuid())
+  batchNumber    String
+  quantity       Int
+  status         BatchStatus     @default(INITIATED)
+  startDate      DateTime
   completionDate DateTime?
-  defectiveUnits Int        @default(0)
-  notes         String?
-  section       String?
-  createdAt     DateTime    @default(now())
-  updatedAt     DateTime    @updatedAt
-
-  companyId String
-  company   Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
-
-  productTypeId String
-  productType   ProductType @relation(fields: [productTypeId], references: [id])
-
-  assignedToId String
-  assignedTo   User @relation(fields: [assignedToId], references: [id])
-
+  defectiveUnits Int             @default(0)
+  notes          String?
+  section        String?
+  createdAt      DateTime        @default(now())
+  updatedAt      DateTime        @updatedAt
+  companyId      String
+  productTypeId  String
+  assignedToId   String
   batchMaterials BatchMaterial[]
+  assignedTo     User            @relation(fields: [assignedToId], references: [id])
+  company        Company         @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  productType    ProductType     @relation(fields: [productTypeId], references: [id])
 
   @@index([companyId])
   @@index([productTypeId])
   @@index([assignedToId])
 }
 
-enum BatchStatus {
-  INITIATED
-  IN_PROGRESS
-  COMPLETED
-  QUALITY_CHECK
-  FAILED
-}
-
 model BatchMaterial {
-  id        String   @id @default(cuid())
-  quantity  Float
-  createdAt DateTime @default(now())
-
-  batchId String
-  batch   ProductionBatch @relation(fields: [batchId], references: [id], onDelete: Cascade)
-
+  id         String          @id @default(cuid())
+  quantity   Float
+  createdAt  DateTime        @default(now())
+  batchId    String
   materialId String
-  material   RawMaterial @relation(fields: [materialId], references: [id])
+  batch      ProductionBatch @relation(fields: [batchId], references: [id], onDelete: Cascade)
+  material   RawMaterial     @relation(fields: [materialId], references: [id])
 
   @@index([batchId])
   @@index([materialId])
 }
 
 model InventoryItem {
-  id              String   @id @default(cuid())
-  quantity        Int
+  id               String         @id @default(cuid())
+  quantity         Int
   minimumThreshold Int
-  location        String?
-  lastRestocked   DateTime?
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
-
-  companyId String
-  company   Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
-
-  productTypeId String
-  productType   ProductType @relation(fields: [productTypeId], references: [id])
-
-  inventoryLogs InventoryLog[]
+  location         String?
+  lastRestocked    DateTime?
+  createdAt        DateTime       @default(now())
+  updatedAt        DateTime       @updatedAt
+  companyId        String
+  productTypeId    String
+  company          Company        @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  productType      ProductType    @relation(fields: [productTypeId], references: [id])
+  inventoryLogs    InventoryLog[]
 
   @@unique([companyId, productTypeId])
   @@index([companyId])
@@ -768,27 +630,18 @@ model InventoryItem {
 }
 
 model InventoryLog {
-  id        String        @id @default(cuid())
-  quantity  Int
-  type      InventoryType
-  reason    String?
-  timestamp DateTime      @default(now())
-
+  id              String        @id @default(cuid())
+  quantity        Int
+  type            InventoryType
+  reason          String?
+  timestamp       DateTime      @default(now())
   inventoryItemId String
+  loggedById      String
   inventoryItem   InventoryItem @relation(fields: [inventoryItemId], references: [id], onDelete: Cascade)
-
-  loggedById String
-  loggedBy   User @relation(fields: [loggedById], references: [id])
+  loggedBy        User          @relation(fields: [loggedById], references: [id])
 
   @@index([inventoryItemId])
   @@index([loggedById])
-}
-
-enum InventoryType {
-  INBOUND
-  OUTBOUND
-  ADJUSTMENT
-  DAMAGE
 }
 
 model MachineLog {
@@ -800,16 +653,124 @@ model MachineLog {
   section     String?
   shiftDate   DateTime
   createdAt   DateTime      @default(now())
-
-  companyId String
-  company   Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
-
-  operatorId String
-  operator   User @relation(fields: [operatorId], references: [id])
+  companyId   String
+  operatorId  String
+  company     Company       @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  operator    User          @relation(fields: [operatorId], references: [id])
 
   @@index([companyId])
   @@index([operatorId])
   @@index([shiftDate])
+}
+
+model Machine {
+  id               String              @id @default(cuid())
+  name             String              // e.g. "HP-1", "Dryer A"
+  code             String              // short code for logs
+  isActive         Boolean             @default(true)
+  sortOrder        Int                 @default(0)
+  createdAt        DateTime            @default(now())
+  updatedAt        DateTime            @updatedAt
+  companyId        String
+  sectionId        String
+
+  company          Company             @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  section          Section             @relation(fields: [sectionId], references: [id])
+  assignments      MachineAssignment[]
+  hotPressSessions HotPressSession[]
+
+  @@unique([companyId, code])
+  @@index([companyId])
+  @@index([sectionId])
+}
+
+model MachineAssignment {
+  id         String    @id @default(cuid())
+  role       String    // "OPERATOR" or "SUPERVISOR"
+  assignedAt DateTime  @default(now())
+  removedAt  DateTime? // null = currently active
+  companyId  String
+  machineId  String
+  userId     String
+
+  company    Company   @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  machine    Machine   @relation(fields: [machineId], references: [id], onDelete: Cascade)
+  user       User      @relation(fields: [userId], references: [id])
+
+  @@index([machineId])
+  @@index([userId])
+  @@index([companyId])
+}
+
+enum Role {
+  ADMIN
+  OWNER
+  MANAGER
+  SUPERVISOR
+  OPERATOR
+}
+
+enum ApprovalStatus {
+  PENDING
+  SUBMITTED
+  SUPERVISOR_APPROVED
+  MANAGER_APPROVED
+  REJECTED
+}
+
+enum HotPressStatus {
+  RUNNING
+  PAUSED
+  MAINTENANCE
+  STOPPED
+}
+
+enum PressEntryType {
+  COOK
+  REPRESS
+}
+
+enum OrderStatus {
+  PENDING
+  CONFIRMED
+  IN_PRODUCTION
+  COMPLETED
+  CANCELLED
+  SENT_TO_SUPERVISOR
+  TO_PRODUCTION_GENERATED
+  PRODUCTION_COMPLETED
+  READY_FOR_DISPATCH
+  DISPATCHED
+}
+
+enum DispatchStatus {
+  SUPERVISOR_SUBMITTED
+  MANAGER_CONFIRMED
+  DISPATCHED
+}
+
+enum ProductionStatus {
+  PLANNED
+  PEELING
+  DRYING
+  PRESSING
+  FINISHING
+  COMPLETED
+}
+
+enum BatchStatus {
+  INITIATED
+  IN_PROGRESS
+  COMPLETED
+  QUALITY_CHECK
+  FAILED
+}
+
+enum InventoryType {
+  INBOUND
+  OUTBOUND
+  ADJUSTMENT
+  DAMAGE
 }
 
 enum MachineAction {
@@ -819,4 +780,179 @@ enum MachineAction {
   RESUME
   MAINTENANCE
   BREAKDOWN
+}
+
+enum MachineSessionStatus {
+  RUNNING
+  PAUSED
+  MAINTENANCE
+  STOPPED
+}
+
+// ==================== PEELING SECTION ====================
+
+model PeelingMaterial {
+  id              String         @id @default(cuid())
+  treeType        String         // e.g. "Rubber", "Mango", "Silverrock"
+  veneerThickness Float          // e.g. 1.4, 1.9 (mm)
+  isActive        Boolean        @default(true)
+  createdAt       DateTime       @default(now())
+  updatedAt       DateTime       @updatedAt
+  companyId       String
+  company         Company        @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  entries         PeelingEntry[]
+
+  @@unique([companyId, treeType, veneerThickness])
+  @@index([companyId])
+}
+
+model PeelingSession {
+  id          String               @id @default(cuid())
+  status      MachineSessionStatus @default(RUNNING)
+  startTime   DateTime             @default(now())
+  stopTime    DateTime?
+  shiftDate   DateTime
+  createdAt   DateTime             @default(now())
+  updatedAt   DateTime             @updatedAt
+  operatorId  String
+  companyId   String
+  machineId   String?
+
+  operator    User                 @relation(fields: [operatorId], references: [id])
+  company     Company              @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  entries     PeelingEntry[]
+  pauseEvents PeelingPauseEvent[]
+
+  @@index([operatorId])
+  @@index([companyId])
+  @@index([shiftDate])
+}
+
+model PeelingEntry {
+  id                String          @id @default(cuid())
+  quantity          Int             @default(0)  // veneer sheets peeled
+  logCount          Int             @default(0)  // wood logs consumed
+  notes             String?
+  timestamp         DateTime        @default(now())
+  sessionId         String
+  peelingMaterialId String
+
+  session           PeelingSession  @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  peelingMaterial   PeelingMaterial @relation(fields: [peelingMaterialId], references: [id])
+
+  @@index([sessionId])
+}
+
+model PeelingPauseEvent {
+  id        String         @id @default(cuid())
+  type      String         @default("PAUSE") // PAUSE or MAINTENANCE
+  startTime DateTime       @default(now())
+  endTime   DateTime?
+  notes     String?
+  sessionId String
+  session   PeelingSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+
+  @@index([sessionId])
+}
+
+// ==================== DRYER SECTION ====================
+
+model DryerSession {
+  id                       String               @id @default(cuid())
+  status                   MachineSessionStatus @default(RUNNING)
+  startTime                DateTime             @default(now())
+  stopTime                 DateTime?
+  shiftDate                DateTime
+  autoCheckEnabled         Boolean              @default(false)
+  autoCheckIntervalMinutes Int                  @default(30)
+  createdAt                DateTime             @default(now())
+  updatedAt                DateTime             @updatedAt
+  operatorId               String
+  companyId                String
+  machineId                String?
+
+  operator    User          @relation(fields: [operatorId], references: [id])
+  company     Company       @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  batches     DryerBatch[]
+  checks      DryerCheck[]
+  pauseEvents DryerPauseEvent[]
+
+  @@index([operatorId])
+  @@index([companyId])
+  @@index([shiftDate])
+}
+
+model DryerBatch {
+  id              String       @id @default(cuid())
+  veneerThickness Float        // mm
+  loadTime        DateTime     @default(now())
+  unloadTime      DateTime?
+  quantity        Int          @default(0)
+  notes           String?
+  sessionId       String
+  session         DryerSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+
+  @@index([sessionId])
+}
+
+model DryerCheck {
+  id         String       @id @default(cuid())
+  beltSpeed  Float        // belt speed reading
+  dryerTemp  Float        // dryer temperature
+  boilerTemp Float        // oil boiler temperature
+  timestamp  DateTime     @default(now())
+  notes      String?
+  sessionId  String
+  session    DryerSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+
+  @@index([sessionId])
+}
+
+model DryerPauseEvent {
+  id        String       @id @default(cuid())
+  type      String       @default("PAUSE")
+  startTime DateTime     @default(now())
+  endTime   DateTime?
+  notes     String?
+  sessionId String
+  session   DryerSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+
+  @@index([sessionId])
+}
+
+// ==================== FINISHING SECTION ====================
+
+model FinishingLog {
+  id         String           @id @default(cuid())
+  shiftDate  DateTime
+  createdAt  DateTime         @default(now())
+  updatedAt  DateTime         @updatedAt
+  operatorId String
+  companyId  String
+
+  operator   User             @relation(fields: [operatorId], references: [id])
+  company    Company          @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  entries    FinishingEntry[]
+
+  @@unique([operatorId, shiftDate])
+  @@index([companyId])
+  @@index([shiftDate])
+}
+
+model FinishingEntry {
+  id             String          @id @default(cuid())
+  quantity       Int             // sheets finished
+  notes          String?
+  timestamp      DateTime        @default(now())
+  categoryId     String
+  thicknessId    String
+  sizeId         String
+  finishingLogId String
+
+  category       PlywoodCategory  @relation(fields: [categoryId], references: [id])
+  thickness      PlywoodThickness @relation(fields: [thicknessId], references: [id])
+  size           PlywoodSize      @relation(fields: [sizeId], references: [id])
+  finishingLog   FinishingLog     @relation(fields: [finishingLogId], references: [id], onDelete: Cascade)
+
+  @@index([finishingLogId])
 }

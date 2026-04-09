@@ -153,7 +153,7 @@ async function main() {
   await prisma.order.create({
     data: {
       orderNumber: "ORD-2026-001", customerId: customer.id,
-      status: "CONFIRMED", priority: "HIGH", companyId: company.id, createdById: manager.id,
+      status: "CONFIRMED", priority: 1, companyId: company.id, createdById: manager.id,
       items: { create: [
         { categoryId: catAlternate.id, thicknessId: thicknesses[12].id, sizeId: sizes["8×4"].id, quantity: 200, brandSeal: true },
       ] },

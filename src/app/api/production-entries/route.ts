@@ -46,6 +46,11 @@ export async function GET(request: NextRequest) {
           },
         },
         operator: { select: { name: true } },
+        productionListItem: {
+          include: {
+            productionList: { select: { listNumber: true, priority: true } },
+          },
+        },
       },
       orderBy: { createdAt: "desc" },
     });
@@ -80,7 +85,7 @@ export async function POST(request: NextRequest) {
     const userId = (session.user as any).id;
     const companyId = (session.user as any).companyId;
 
-    const { productId, categoryId, thicknessId, sizeId, quantity, notes } = await request.json();
+    const { productId, categoryId, thicknessId, sizeId, quantity, notes, productionListItemId } = await request.json();
 
     if (!quantity || quantity <= 0) {
       return NextResponse.json({ error: "Quantity must be greater than 0" }, { status: 400 });
@@ -139,6 +144,7 @@ export async function POST(request: NextRequest) {
         quantity: parseInt(quantity),
         notes: notes || null,
         operatorId: userId,
+        productionListItemId: productionListItemId || null,
       },
       include: {
         product: {
@@ -150,6 +156,14 @@ export async function POST(request: NextRequest) {
         },
       },
     });
+
+    // If linked to a production list item, update the producedQuantity
+    if (productionListItemId) {
+      await prisma.productionListItem.update({
+        where: { id: productionListItemId },
+        data: { producedQuantity: { increment: parseInt(quantity) } },
+      });
+    }
 
     return NextResponse.json(entry, { status: 201 });
   } catch (error) {
@@ -178,6 +192,14 @@ export async function DELETE(request: NextRequest) {
     // Can't delete if already submitted
     if (entry.dailyLog && entry.dailyLog.status !== "PENDING" && entry.dailyLog.status !== "REJECTED") {
       return NextResponse.json({ error: "Cannot delete - already submitted" }, { status: 400 });
+    }
+
+    // If linked to a production list item, decrement the producedQuantity
+    if (entry.productionListItemId) {
+      await prisma.productionListItem.update({
+        where: { id: entry.productionListItemId },
+        data: { producedQuantity: { decrement: entry.quantity } },
+      });
     }
 
     await prisma.productionEntry.delete({ where: { id } });

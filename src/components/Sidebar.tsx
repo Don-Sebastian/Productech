@@ -49,11 +49,14 @@ const roleConfigs: Record<string, { label: string; color: string; links: { href:
     color: "from-emerald-600 to-teal-600",
     links: [
       { href: "/owner", label: "Dashboard", icon: LayoutDashboard },
-      { href: "/owner/managers", label: "Managers", icon: Users },
-      { href: "/owner/production", label: "Production", icon: Factory },
-      { href: "/owner/inventory", label: "Inventory", icon: Package },
-      { href: "/owner/approvals", label: "Approve Production", icon: ClipboardCheck },
       { href: "/owner/log-history", label: "Log History", icon: History },
+      { href: "/owner/inventory", label: "Inventory", icon: Package },
+      { href: "/owner/production", label: "Production", icon: Factory },
+      { href: "/owner/orders", label: "Order History", icon: ShoppingCart },
+      // { href: "/owner/approvals", label: "Approve Production", icon: ClipboardCheck },
+      { href: "/owner/dispatch-history", label: "Dispatch History", icon: Truck },
+      { href: "/owner/managers", label: "Managers", icon: Users },
+      
     ],
   },
   MANAGER: {
@@ -62,6 +65,7 @@ const roleConfigs: Record<string, { label: string; color: string; links: { href:
     links: [
       { href: "/manager", label: "Dashboard", icon: LayoutDashboard },
       { href: "/manager/orders", label: "Orders", icon: ShoppingCart },
+      { href: "/manager/production", label: "Production Lists", icon: ListChecks },
       { href: "/manager/inventory", label: "Inventory", icon: Package },
       { href: "/manager/approvals", label: "Approve Production", icon: ClipboardCheck },
       { href: "/manager/dispatch", label: "Dispatch", icon: Truck },
@@ -86,11 +90,27 @@ const roleConfigs: Record<string, { label: string; color: string; links: { href:
     color: "from-rose-600 to-pink-600",
     links: [
       { href: "/operator", label: "Dashboard", icon: LayoutDashboard },
-      { href: "/operator/production", label: "Daily Production", icon: ClipboardList },
       { href: "/operator/log", label: "Machine Log", icon: Gauge },
       { href: "/operator/history", label: "Log History", icon: History },
     ],
   },
+};
+
+const sectionNavLinks: Record<string, { href: string; label: string; icon: any }[]> = {
+  hotpress: [
+    { href: "/operator/hotpress/log", label: "Machine Log", icon: Gauge },
+    { href: "/operator/hotpress/production", label: "Production List", icon: ClipboardList },
+    { href: "/operator/hotpress/history", label: "Log History", icon: History },
+  ],
+  peeling: [
+    { href: "/operator/peeling/log", label: "Dashboard", icon: LayoutDashboard },
+  ],
+  dryer: [
+    { href: "/operator/dryer/log", label: "Dashboard", icon: LayoutDashboard },
+  ],
+  finishing: [
+    { href: "/operator/finishing/log", label: "Dashboard", icon: LayoutDashboard },
+  ],
 };
 
 export default function Sidebar({ user }: SidebarProps) {
@@ -98,33 +118,50 @@ export default function Sidebar({ user }: SidebarProps) {
   const role = (user as any)?.role || "OPERATOR";
   const config = roleConfigs[role] || roleConfigs.OPERATOR;
   const [unread, setUnread] = useState(0);
+  const [unreadNotifs, setUnreadNotifs] = useState<any[]>([]);
   const [mobileOpen, setMobileOpen] = useState(false);
+  const [operatorSection, setOperatorSection] = useState<string | null>(null);
+
+  // Fetch operator's machine section for dynamic nav
+  useEffect(() => {
+    if (role !== "OPERATOR") return;
+    fetch("/api/operator/assignment")
+      .then((r) => r.ok ? r.json() : null)
+      .then((data) => {
+        if (data?.machine?.section?.slug) {
+          setOperatorSection(data.machine.section.slug);
+        }
+      })
+      .catch(() => {});
+  }, [role]);
 
   // Fetch notification count
   useEffect(() => {
     if (role === "ADMIN") return;
-    fetch("/api/notifications")
-      .then((r) => r.json())
-      .then((data) => {
-        if (Array.isArray(data)) {
-          setUnread(data.filter((n: any) => !n.isRead).length);
-        }
-      })
-      .catch(() => {});
+    const updateNotifs = (data: any) => {
+      if (Array.isArray(data)) {
+        const unreadArr = data.filter((n: any) => !n.isRead);
+        setUnread(unreadArr.length);
+        setUnreadNotifs(unreadArr);
+      }
+    };
+
+    fetch("/api/notifications").then((r) => r.json()).then(updateNotifs).catch(() => {});
 
     // Poll every 30 seconds
     const interval = setInterval(() => {
-      fetch("/api/notifications")
-        .then((r) => r.json())
-        .then((data) => {
-          if (Array.isArray(data)) setUnread(data.filter((n: any) => !n.isRead).length);
-        })
-        .catch(() => {});
+      fetch("/api/notifications").then((r) => r.json()).then(updateNotifs).catch(() => {});
     }, 30000);
     return () => clearInterval(interval);
   }, [role]);
 
-  const notifPath = `/${role.toLowerCase()}/notifications`;
+  const navLinks = role === "OPERATOR" && operatorSection
+    ? (sectionNavLinks[operatorSection] || config.links)
+    : config.links;
+
+  const notifPath = role === "OPERATOR" && operatorSection
+    ? `/operator/${operatorSection}/notification`
+    : `/${role.toLowerCase()}/notifications`;
 
   const sidebarContent = (
     <>
@@ -143,16 +180,40 @@ export default function Sidebar({ user }: SidebarProps) {
 
       {/* Navigation */}
       <nav className="flex-1 p-3 space-y-1 overflow-y-auto">
-        {config.links.map((link) => {
+        {navLinks.map((link) => {
           const isActive = pathname === link.href ||
             (link.href !== `/${role.toLowerCase()}` && pathname.startsWith(link.href));
           const Icon = link.icon;
+
+          // Check if this link should be highlighted based on unread notifications
+          const matchedNotifs = unreadNotifs.filter(n => {
+            const t = n.type || "";
+            if (link.href.includes("/orders") && t.includes("ORDER")) return true;
+            if (link.href.includes("/production") && (t.includes("PRODUCTION") || t.includes("LIST"))) return true;
+            if (link.href.includes("/approvals") && t.includes("COMPLETION")) return true;
+            if (link.href.includes("/dispatch") && (t.includes("DISPATCH") || t.includes("READY"))) return true;
+            if (link.href.includes("/history") && t.includes("LOG")) return true;
+            return false;
+          });
+          const isHighlighted = !isActive && matchedNotifs.length > 0;
 
           return (
             <Link
               key={link.href}
               href={link.href}
-              onClick={() => setMobileOpen(false)}
+              onClick={() => {
+                setMobileOpen(false);
+                if (matchedNotifs.length > 0) {
+                  const ids = matchedNotifs.map((n) => n.id);
+                  fetch("/api/notifications", {
+                    method: "PUT",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ notificationIds: ids }),
+                  });
+                  setUnreadNotifs((prev) => prev.filter((n) => !ids.includes(n.id)));
+                  setUnread((prev) => prev - ids.length);
+                }
+              }}
               className={`flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all duration-200 group ${
                 isActive
                   ? `bg-gradient-to-r ${config.color} text-white shadow-lg`
@@ -161,6 +222,15 @@ export default function Sidebar({ user }: SidebarProps) {
             >
               <Icon size={18} className={isActive ? "text-white" : "text-slate-500 group-hover:text-slate-300"} />
               <span className="flex-1">{link.label}</span>
+              {isHighlighted && (
+                <div className="flex items-center gap-1.5 mr-1">
+                  <span className="text-[10px] font-extrabold uppercase tracking-widest text-amber-500 animate-pulse">Action</span>
+                  <span className="relative flex h-2 w-2">
+                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-amber-400 opacity-75"></span>
+                    <span className="relative inline-flex rounded-full h-2 w-2 bg-amber-500"></span>
+                  </span>
+                </div>
+              )}
               {isActive && <ChevronRight size={14} className="text-white/50" />}
             </Link>
           );

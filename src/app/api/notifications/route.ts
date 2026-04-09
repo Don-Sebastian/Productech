@@ -15,7 +15,7 @@ export async function GET(request: NextRequest) {
     if (!companyId) return NextResponse.json([]);
 
     // Get notifications targeted at this user OR at their role
-    const notifications = await prisma.notification.findMany({
+    const dbNotifs = await prisma.notification.findMany({
       where: {
         companyId,
         OR: [
@@ -30,6 +30,12 @@ export async function GET(request: NextRequest) {
       orderBy: { createdAt: "desc" },
       take: 50,
     });
+
+    // Map `isRead` based on if the user ID is in readByUsers (for role-based) or absolute isRead flag
+    const notifications = dbNotifs.map((n: any) => ({
+      ...n,
+      isRead: n.userId === userId ? n.isRead : n.readByUsers?.includes(userId),
+    }));
 
     return NextResponse.json(notifications);
   } catch (error) {
@@ -50,26 +56,42 @@ export async function PUT(request: NextRequest) {
     const companyId = (session.user as any).companyId;
 
     if (markAllRead) {
+      // Direct user notifications
       await prisma.notification.updateMany({
+        where: { companyId, userId, isRead: false },
+        data: { isRead: true },
+      });
+      // Role-based notifications: fetch unread ones and append userId to readByUsers
+      const unreadRoleNotifs = await prisma.notification.findMany({
         where: {
           companyId,
-          isRead: false,
-          OR: [
-            { userId },
-            { targetRole: role },
-          ],
+          targetRole: role,
+          NOT: { readByUsers: { has: userId } },
         },
-        data: { isRead: true },
       });
+      for (const notif of unreadRoleNotifs) {
+        await prisma.notification.update({
+          where: { id: notif.id },
+          data: { readByUsers: { push: userId } },
+        });
+      }
     } else if (notificationIds?.length) {
-      await prisma.notification.updateMany({
+      // Find the required notifications first
+      const notifs = await prisma.notification.findMany({
         where: { id: { in: notificationIds } },
-        data: { isRead: true },
       });
+      for (const notif of notifs) {
+        if (notif.userId === userId) {
+          await prisma.notification.update({ where: { id: notif.id }, data: { isRead: true } });
+        } else if (notif.targetRole === role && !notif.readByUsers.includes(userId)) {
+          await prisma.notification.update({ where: { id: notif.id }, data: { readByUsers: { push: userId } } });
+        }
+      }
     }
 
     return NextResponse.json({ success: true });
   } catch (error) {
+    console.error("Error updating notifications:", error);
     return NextResponse.json({ error: "Failed to update" }, { status: 500 });
   }
 }

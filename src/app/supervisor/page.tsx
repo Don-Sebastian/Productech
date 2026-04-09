@@ -4,6 +4,8 @@ import { useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import Sidebar from "@/components/Sidebar";
+import MachineRequiredScreen from "@/components/MachineRequiredScreen";
+import { useMachineAssignment } from "@/hooks/useMachineAssignment";
 import {
   Factory,
   CheckCircle,
@@ -16,6 +18,8 @@ import {
 export default function SupervisorDashboard() {
   const { data: session, status } = useSession();
   const router = useRouter();
+  const role = (session?.user as any)?.role;
+  const { assigned, loading: assignmentLoading, error: assignmentError } = useMachineAssignment(role, status);
   const [stats, setStats] = useState<any>(null);
   const [loading, setLoading] = useState(true);
 
@@ -25,7 +29,7 @@ export default function SupervisorDashboard() {
   }, [status, session, router]);
 
   useEffect(() => {
-    if (status === "authenticated") {
+    if (status === "authenticated" && assigned) {
       fetch("/api/dashboard/stats")
         .then((res) => res.json())
         .then((data) => {
@@ -34,14 +38,18 @@ export default function SupervisorDashboard() {
         })
         .catch(() => setLoading(false));
     }
-  }, [status]);
+  }, [status, assigned]);
 
-  if (status === "loading" || !session?.user) {
+  if (status === "loading" || !session?.user || assignmentLoading) {
     return (
       <div className="flex items-center justify-center h-screen bg-slate-950">
         <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-amber-400"></div>
       </div>
     );
+  }
+
+  if (!assigned) {
+    return <MachineRequiredScreen error={assignmentError} />;
   }
 
   const section = stats?.section || (session.user as any)?.section;

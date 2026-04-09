@@ -1,13 +1,16 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import Sidebar from "@/components/Sidebar";
+import MachineRequiredScreen from "@/components/MachineRequiredScreen";
+import { useMachineAssignment } from "@/hooks/useMachineAssignment";
+import LongPressButton from "@/components/LongPressButton";
 import {
   Power, PowerOff, Flame, Timer, ArrowDown, ArrowUp, RotateCcw,
   Droplets, Pause, Play, Wrench, ChevronDown, ChevronUp,
-  CheckCircle2, Send, Clock, Package, Edit3, X, Check
+  CheckCircle2, Send, Clock, Package, Edit3, X, Check, AlertTriangle
 } from "lucide-react";
 
 interface PressEntry {
@@ -132,15 +135,27 @@ function buildProductionSummary(entries: PressEntry[]) {
 export default function OperatorLogPage() {
   const { data: session, status } = useSession();
   const router = useRouter();
+  const role = (session?.user as any)?.role;
+  const { assigned, loading: assignmentLoading, error: assignmentError } = useMachineAssignment(role, status);
   const [data, setData] = useState<{
     activeSession: HotPressSession | null;
     todaySessions: HotPressSession[];
     products: Product[];
+    productionLists?: any[];
   } | null>(null);
   const [loading, setLoading] = useState(true);
 
+  // Cook/Cool countdown timer
+  const [timerType, setTimerType] = useState<"cook" | "cool" | null>(null);
+  const [timerRemaining, setTimerRemaining] = useState(0); // seconds remaining
+  const [timerTotal, setTimerTotal] = useState(0); // total seconds
+  const [timerExpired, setTimerExpired] = useState(false);
+  const timerRef = useRef<NodeJS.Timeout | null>(null);
+  const alarmPlayed = useRef(false);
+
   // Product selection modal
   const [showProductPicker, setShowProductPicker] = useState(false);
+  const [pickMode, setPickMode] = useState<"catalog" | "productionLists">("productionLists");
   const [pickStep, setPickStep] = useState<"category" | "thickness" | "size">("category");
   const [pickCat, setPickCat] = useState<string | null>(null);
   const [pickThick, setPickThick] = useState<string | null>(null);
@@ -179,7 +194,7 @@ export default function OperatorLogPage() {
     }
   }, []);
 
-  useEffect(() => { if (status === "authenticated") fetchData(); }, [fetchData, status]);
+  useEffect(() => { if (status === "authenticated" && assigned) fetchData(); }, [fetchData, status, assigned]);
 
   const doAction = async (action: string, extra: Record<string, any> = {}) => {
     try {
@@ -196,12 +211,98 @@ export default function OperatorLogPage() {
     } catch { alert("Network error"); }
   };
 
-  if (status === "loading" || !session?.user) {
+  // Timer countdown effect
+  useEffect(() => {
+    const checkTimer = () => {
+      const stored = localStorage.getItem("crply_hotpress_timer");
+      if (!stored) return;
+      try {
+        const parsed = JSON.parse(stored);
+        if (parsed.endTime && parsed.type && parsed.totalSecs) {
+          const remaining = Math.max(0, Math.floor((parsed.endTime - Date.now()) / 1000));
+          
+          if (timerType !== parsed.type) setTimerType(parsed.type);
+          if (timerTotal !== parsed.totalSecs) setTimerTotal(parsed.totalSecs);
+          setTimerRemaining(remaining);
+          
+          if (remaining <= 0 && !parsed.expiredHandled) {
+            setTimerExpired(true);
+            if (!alarmPlayed.current) {
+              alarmPlayed.current = true;
+              try {
+                const ctx = new AudioContext();
+                const playBeep = (freq: number, delay: number) => {
+                  const osc = ctx.createOscillator();
+                  const gain = ctx.createGain();
+                  osc.frequency.value = freq;
+                  osc.connect(gain);
+                  gain.connect(ctx.destination);
+                  gain.gain.value = 0.3;
+                  osc.start(ctx.currentTime + delay);
+                  osc.stop(ctx.currentTime + delay + 0.2);
+                };
+                playBeep(880, 0); playBeep(880, 0.3); playBeep(1100, 0.6);
+              } catch {}
+            }
+            // Mark as handled so alarm doesn't repeat on reload
+            localStorage.setItem("crply_hotpress_timer", JSON.stringify({ ...parsed, expiredHandled: true }));
+          } else if (remaining <= 0) {
+            setTimerExpired(true);
+          } else {
+            setTimerExpired(false);
+          }
+        }
+      } catch {}
+    };
+
+    checkTimer();
+    timerRef.current = setInterval(checkTimer, 1000);
+    return () => { if (timerRef.current) clearInterval(timerRef.current); };
+  }, [timerType, timerTotal]);
+
+  // Start timer helper
+  const startTimer = (type: "cook" | "cool", durationMinutes: number) => {
+    const totalSecs = Math.round(durationMinutes * 60);
+    const endTime = Date.now() + totalSecs * 1000;
+    
+    setTimerType(type);
+    setTimerTotal(totalSecs);
+    setTimerRemaining(totalSecs);
+    setTimerExpired(false);
+    alarmPlayed.current = false;
+    
+    localStorage.setItem("crply_hotpress_timer", JSON.stringify({
+      type,
+      endTime,
+      totalSecs,
+      expiredHandled: false
+    }));
+  };
+  
+  const dismissTimer = () => {
+    setTimerType(null);
+    setTimerRemaining(0);
+    setTimerExpired(false);
+    localStorage.removeItem("crply_hotpress_timer");
+  };
+
+  // Get timing for current product
+  const getCurrentTiming = () => {
+    if (!data || !sess?.currentCategoryId || !sess?.currentThicknessId) return null;
+    const timings = (data as any).productTimings || [];
+    return timings.find((t: any) => t.categoryId === sess.currentCategoryId && t.thicknessId === sess.currentThicknessId);
+  };
+
+  if (status === "loading" || !session?.user || assignmentLoading) {
     return (
       <div className="flex items-center justify-center h-screen bg-slate-950">
         <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-orange-400" />
       </div>
     );
+  }
+
+  if (!assigned) {
+    return <MachineRequiredScreen error={assignmentError} />;
   }
 
   if (loading) {
@@ -244,6 +345,18 @@ export default function OperatorLogPage() {
     setPickStep("category");
     setPickCat(null);
     setPickThick(null);
+  };
+
+  const pickProdListItem = async (item: any) => {
+    if (!sess) return;
+    await doAction("setProduct", { 
+      sessionId: sess.id, 
+      categoryId: item.categoryId, 
+      thicknessId: item.thicknessId, 
+      sizeId: item.sizeId, 
+      productionListItemId: item.id 
+    });
+    setShowProductPicker(false);
   };
 
   const getFilteredThicknesses = () => {
@@ -300,13 +413,13 @@ export default function OperatorLogPage() {
         </div>
 
         {/* Start button */}
-        <button
-          onClick={() => doAction("start")}
-          className="w-full py-6 bg-gradient-to-r from-emerald-600 to-green-600 text-white text-xl font-bold rounded-2xl shadow-lg shadow-emerald-900/50 hover:shadow-emerald-800/60 transition-all flex items-center justify-center gap-3 active:scale-[0.98]"
+        <LongPressButton
+          onComplete={() => doAction("start")}
+          className="w-full py-6 bg-gradient-to-r from-emerald-600 to-green-600 text-white text-xl font-bold rounded-2xl shadow-lg shadow-emerald-900/50 hover:shadow-emerald-800/60 transition-all"
         >
           <Power size={28} />
           Start Machine
-        </button>
+        </LongPressButton>
 
         {/* Today's stopped sessions / submitted logs */}
         {data?.todaySessions && data.todaySessions.length > 0 && (
@@ -406,36 +519,90 @@ export default function OperatorLogPage() {
         </button>
       </div>
 
+      {/* Timer Display */}
+      {timerType && (timerRemaining > 0 || timerExpired) && (
+        <div className={`rounded-2xl p-4 border ${
+          timerExpired 
+            ? "bg-red-500/10 border-red-500/40 animate-pulse" 
+            : timerType === "cook" 
+              ? "bg-orange-500/10 border-orange-500/30" 
+              : "bg-blue-500/10 border-blue-500/30"
+        }`}>
+          <div className="flex items-center justify-between mb-2">
+            <div className="flex items-center gap-2">
+              {timerExpired ? (
+                <AlertTriangle size={18} className="text-red-400" />
+              ) : timerType === "cook" ? (
+                <Flame size={18} className="text-orange-400" />
+              ) : (
+                <Clock size={18} className="text-blue-400" />
+              )}
+              <span className={`text-xs font-black uppercase tracking-widest ${
+                timerExpired ? "text-red-400" : timerType === "cook" ? "text-orange-400" : "text-blue-400"
+              }`}>{timerExpired ? "TIME'S UP!" : timerType === "cook" ? "COOKING TIMER" : "COOLING TIMER"}</span>
+            </div>
+            <button onClick={dismissTimer}
+              className="text-slate-500 text-[10px] font-bold hover:text-white">DISMISS</button>
+          </div>
+          <div className="text-center">
+            <p className={`text-4xl font-black tracking-tight ${
+              timerExpired ? "text-red-400" : "text-white"
+            }`}>
+              {timerExpired ? "00:00" : `${String(Math.floor(timerRemaining / 60)).padStart(2, "0")}:${String(timerRemaining % 60).padStart(2, "0")}`}
+            </p>
+            {!timerExpired && timerTotal > 0 && (
+              <div className="mt-2 h-1.5 bg-slate-800 rounded-full overflow-hidden">
+                <div className={`h-full rounded-full transition-all duration-1000 ${
+                  timerType === "cook" ? "bg-orange-500" : "bg-blue-500"
+                }`} style={{ width: `${((timerTotal - timerRemaining) / timerTotal) * 100}%` }} />
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
       {/* Action Buttons */}
       {sess.status === "RUNNING" && !isCooking && (
         <>
-          <button
-            onClick={() => doAction("load", { sessionId: sess.id, type: "COOK" })}
+          <LongPressButton
+            onComplete={async () => {
+              await doAction("load", { sessionId: sess.id, type: "COOK" });
+              const timing = getCurrentTiming();
+              if (timing && timing.cookingTime > 0) startTimer("cook", timing.cookingTime);
+            }}
             disabled={!currentProduct}
-            className="w-full py-5 bg-gradient-to-r from-red-600 to-red-700 text-white text-lg font-bold rounded-2xl shadow-lg shadow-red-900/50 flex items-center justify-center gap-3 active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed"
+            className="w-full py-5 bg-gradient-to-r from-red-600 to-red-700 text-white text-lg font-bold rounded-2xl shadow-lg shadow-red-900/50 disabled:opacity-50 disabled:cursor-not-allowed"
           >
             <Flame size={24} /> <ArrowDown size={20} /> LOAD (Cook)
-          </button>
+          </LongPressButton>
 
-          <button
-            onClick={() => doAction("load", { sessionId: sess.id, type: "REPRESS" })}
+          <LongPressButton
+            onComplete={async () => {
+              await doAction("load", { sessionId: sess.id, type: "REPRESS" });
+              const timing = getCurrentTiming();
+              if (timing && timing.cookingTime > 0) startTimer("cook", timing.cookingTime);
+            }}
             disabled={!currentProduct}
-            className="w-full py-4 bg-gradient-to-r from-yellow-700 to-amber-700 text-white text-lg font-bold rounded-2xl shadow-lg flex items-center justify-center gap-3 active:scale-[0.98] disabled:opacity-50"
+            className="w-full py-4 bg-gradient-to-r from-yellow-700 to-amber-700 text-white text-lg font-bold rounded-2xl shadow-lg disabled:opacity-50"
           >
             <RotateCcw size={20} /> REPRESS
-          </button>
+          </LongPressButton>
         </>
       )}
 
       {/* Cooking in progress */}
       {isCooking && cookingEntry && (
-        <button
-          onClick={() => doAction("unload", { entryId: cookingEntry.id })}
-          className="w-full py-5 bg-gradient-to-r from-blue-600 to-indigo-600 text-white text-lg font-bold rounded-2xl shadow-lg shadow-blue-900/50 flex items-center justify-center gap-3 animate-pulse active:scale-[0.98]"
+        <LongPressButton
+          onComplete={async () => {
+            await doAction("unload", { entryId: cookingEntry.id });
+            const timing = getCurrentTiming();
+            if (timing && timing.coolingTime > 0) startTimer("cool", timing.coolingTime);
+          }}
+          className="w-full py-5 bg-gradient-to-r from-blue-600 to-indigo-600 text-white text-lg font-bold rounded-2xl shadow-lg shadow-blue-900/50 animate-pulse"
         >
           <ArrowUp size={24} /> UNLOAD ({cookingEntry.type === "REPRESS" ? "Repress" : "Cook"})
           <span className="text-sm font-normal ml-2">loaded {fmt(cookingEntry.loadTime)}</span>
-        </button>
+        </LongPressButton>
       )}
 
       {/* Glue Button */}
@@ -451,10 +618,10 @@ export default function OperatorLogPage() {
             step={0.5}
           />
           <span className="text-slate-400 text-sm">barrels</span>
-          <button
-            onClick={async () => { await doAction("glue", { sessionId: sess.id, barrels: glueBarrels }); setShowGlueInput(false); }}
+          <LongPressButton
+            onComplete={async () => { await doAction("glue", { sessionId: sess.id, barrels: glueBarrels }); setShowGlueInput(false); }}
             className="ml-auto px-4 py-2 bg-cyan-600 text-white rounded-xl text-sm font-bold"
-          >Add</button>
+          >Add</LongPressButton>
           <button onClick={() => setShowGlueInput(false)} className="text-slate-400"><X size={18} /></button>
         </div>
       ) : (
@@ -469,31 +636,31 @@ export default function OperatorLogPage() {
       {/* Pause / Maintenance / Stop */}
       <div className="grid grid-cols-3 gap-2">
         {sess.status === "RUNNING" ? (
-          <button onClick={() => doAction("pause", { sessionId: sess.id })}
-            className="py-3 bg-blue-900/50 border border-blue-700/50 text-blue-300 rounded-xl text-sm font-bold flex items-center justify-center gap-2 active:scale-[0.98]">
+          <LongPressButton onComplete={() => doAction("pause", { sessionId: sess.id })}
+            className="py-3 bg-blue-900/50 border border-blue-700/50 text-blue-300 rounded-xl text-sm font-bold">
             <Pause size={16} /> Pause
-          </button>
+          </LongPressButton>
         ) : (
-          <button onClick={() => doAction("resume", { sessionId: sess.id })}
-            className="py-3 bg-emerald-900/50 border border-emerald-700/50 text-emerald-300 rounded-xl text-sm font-bold flex items-center justify-center gap-2 active:scale-[0.98]">
+          <LongPressButton onComplete={() => doAction("resume", { sessionId: sess.id })}
+            className="py-3 bg-emerald-900/50 border border-emerald-700/50 text-emerald-300 rounded-xl text-sm font-bold">
             <Play size={16} /> Resume
-          </button>
+          </LongPressButton>
         )}
         {sess.status !== "MAINTENANCE" ? (
-          <button onClick={() => doAction("maintenance", { sessionId: sess.id })}
-            className="py-3 bg-orange-900/50 border border-orange-700/50 text-orange-300 rounded-xl text-sm font-bold flex items-center justify-center gap-2 active:scale-[0.98]">
+          <LongPressButton onComplete={() => doAction("maintenance", { sessionId: sess.id })}
+            className="py-3 bg-orange-900/50 border border-orange-700/50 text-orange-300 rounded-xl text-sm font-bold">
             <Wrench size={16} /> Maint.
-          </button>
+          </LongPressButton>
         ) : (
-          <button onClick={() => doAction("resume", { sessionId: sess.id })}
-            className="py-3 bg-emerald-900/50 border border-emerald-700/50 text-emerald-300 rounded-xl text-sm font-bold flex items-center justify-center gap-2 active:scale-[0.98]">
+          <LongPressButton onComplete={() => doAction("resume", { sessionId: sess.id })}
+            className="py-3 bg-emerald-900/50 border border-emerald-700/50 text-emerald-300 rounded-xl text-sm font-bold">
             <Play size={16} /> Resume
-          </button>
+          </LongPressButton>
         )}
-        <button onClick={() => doAction("stop")}
-          className="py-3 bg-red-900/50 border border-red-700/50 text-red-300 rounded-xl text-sm font-bold flex items-center justify-center gap-2 active:scale-[0.98]">
+        <LongPressButton onComplete={() => doAction("stop")}
+          className="py-3 bg-red-900/50 border border-red-700/50 text-red-300 rounded-xl text-sm font-bold">
           <PowerOff size={16} /> Stop
-        </button>
+        </LongPressButton>
       </div>
 
       {/* ==================== PRODUCTION LOG ==================== */}
@@ -653,42 +820,104 @@ export default function OperatorLogPage() {
       {showProductPicker && (
         <div className="fixed inset-0 bg-black/70 z-50 flex items-end sm:items-center justify-center p-4"
           onClick={() => setShowProductPicker(false)}>
-          <div className="bg-slate-800 border border-slate-700 rounded-2xl w-full max-w-md max-h-[80vh] overflow-y-auto"
+          <div className="bg-slate-800 border border-slate-700 rounded-2xl w-full max-w-2xl max-h-[85vh] overflow-hidden flex flex-col"
             onClick={e => e.stopPropagation()}>
-            <div className="p-4 border-b border-slate-700 flex items-center justify-between">
-              <h3 className="text-lg font-bold text-white">
-                {pickStep === "category" ? "Select Category" :
-                  pickStep === "thickness" ? "Select Thickness" : "Select Size"}
-              </h3>
-              <button onClick={() => setShowProductPicker(false)} className="text-slate-400"><X size={20} /></button>
+            <div className="p-4 border-b border-slate-700 flex items-center justify-between shrink-0">
+              <h3 className="text-lg font-bold text-white">Select Product</h3>
+              <button onClick={() => setShowProductPicker(false)} className="text-slate-400 p-2"><X size={20} /></button>
             </div>
-            <div className="p-4 space-y-2">
-              {pickStep === "category" && categories.map(c => (
-                <button key={c.id} onClick={() => pickCategory(c.id)}
-                  className="w-full py-4 px-4 bg-slate-700/50 text-white text-lg font-medium rounded-xl hover:bg-slate-700 transition text-left active:scale-[0.98]">
-                  {c.name}
-                </button>
-              ))}
-              {pickStep === "thickness" && getFilteredThicknesses().map(t => (
-                <button key={t.id} onClick={() => pickThickness(t.id)}
-                  className="w-full py-4 px-4 bg-slate-700/50 text-white text-lg font-medium rounded-xl hover:bg-slate-700 transition text-left active:scale-[0.98]">
-                  {t.value}mm
-                </button>
-              ))}
-              {pickStep === "size" && getFilteredSizes().map(s => (
-                <button key={s.id} onClick={() => pickSize(s.id)}
-                  className="w-full py-4 px-4 bg-slate-700/50 text-white text-lg font-medium rounded-xl hover:bg-slate-700 transition text-left active:scale-[0.98]">
-                  {s.length} × {s.width} ({s.label})
-                </button>
-              ))}
-              {pickStep !== "category" && (
-                <button onClick={() => {
-                  if (pickStep === "size") { setPickStep("thickness"); setPickThick(null); }
-                  else { setPickStep("category"); setPickCat(null); }
-                }}
-                  className="w-full py-3 text-slate-400 hover:text-white transition text-sm">
-                  ← Back
-                </button>
+            
+            <div className="flex border-b border-slate-700 w-full shrink-0">
+              <button onClick={() => setPickMode("productionLists")}
+                className={`flex-1 py-3 text-sm font-bold transition ${pickMode === "productionLists" ? "text-emerald-400 border-b-2 border-emerald-400 bg-emerald-900/10" : "text-slate-400 hover:bg-slate-700/50"}`}>
+                From Production Lists
+              </button>
+              <button onClick={() => setPickMode("catalog")}
+                className={`flex-1 py-3 text-sm font-bold transition ${pickMode === "catalog" ? "text-emerald-400 border-b-2 border-emerald-400 bg-emerald-900/10" : "text-slate-400 hover:bg-slate-700/50"}`}>
+                From Catalog (Ad-hoc)
+              </button>
+            </div>
+
+            <div className="p-4 space-y-3 overflow-y-auto grow">
+              {pickMode === "productionLists" ? (
+                <div className="space-y-4">
+                  {data?.productionLists?.map(list => (
+                    <div key={list.id} className="bg-slate-900/50 border border-slate-700/50 rounded-xl p-3">
+                      <div className="flex justify-between items-center mb-2">
+                        <span className="text-amber-400 bg-amber-500/10 px-2 py-0.5 rounded-md border border-amber-500/20 uppercase tracking-widest font-black text-xs">
+                          {list.order?.customer?.name || "NAME"}
+                        </span>
+                        <div className="flex items-center gap-2">
+                          <span className="text-white font-bold text-[10px] uppercase tracking-wider opacity-70">List #{list.listNumber}</span>
+                          {list.order && (
+                            <span className="text-blue-400 text-[10px] font-black bg-blue-900/20 px-2 py-0.5 rounded border border-blue-800/30 uppercase">
+                              #{list.order.orderNumber}
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                      <div className="space-y-2 mt-2">
+                        {list.items.map((item: any) => {
+                          const donePct = Math.min(100, Math.round((item.producedQuantity / item.quantity) * 100)) || 0;
+                          return (
+                            <button key={item.id} onClick={() => pickProdListItem(item)}
+                              className="w-full text-left bg-slate-800 hover:bg-slate-700 border border-slate-700 p-3 rounded-lg transition active:scale-[0.98] group flex justify-between items-center">
+                              <div>
+                                <p className="text-white font-medium text-sm group-hover:text-emerald-400 transition">
+                                  {item.category.name} • {item.thickness.value}mm • {item.size.length}x{item.size.width}
+                                </p>
+                                <p className="text-xs text-slate-400 flex items-center gap-2 mt-1">
+                                  <span>Prod: <strong className={donePct >= 100 ? "text-emerald-400" : "text-white"}>{item.producedQuantity}</strong> / {item.quantity}</span>
+                                  <span className="text-[10px] bg-slate-900 px-1.5 py-0.5 rounded">{donePct}%</span>
+                                </p>
+                              </div>
+                              <CheckCircle2 size={16} className={`text-emerald-400 opacity-0 group-hover:opacity-100 transition ${donePct >= 100 ? 'opacity-50' : ''}`} />
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  ))}
+                  {(!data?.productionLists || data.productionLists.length === 0) && (
+                    <div className="text-center py-8 text-slate-500">
+                      <Package size={32} className="mx-auto mb-2 opacity-50" />
+                      <p>No active production lists available.</p>
+                    </div>
+                  )}
+                </div>
+              ) : (
+                <div className="space-y-2">
+                  <p className="text-slate-400 text-xs mb-2">
+                    {pickStep === "category" ? "1. Category" : pickStep === "thickness" ? "2. Thickness" : "3. Size"}
+                  </p>
+                  {pickStep === "category" && categories.map(c => (
+                    <button key={c.id} onClick={() => pickCategory(c.id)}
+                      className="w-full py-4 px-4 bg-slate-700/50 text-white text-lg font-medium rounded-xl hover:bg-slate-700 transition text-left active:scale-[0.98]">
+                      {c.name}
+                    </button>
+                  ))}
+                  {pickStep === "thickness" && getFilteredThicknesses().map(t => (
+                    <button key={t.id} onClick={() => pickThickness(t.id)}
+                      className="w-full py-4 px-4 bg-slate-700/50 text-white text-lg font-medium rounded-xl hover:bg-slate-700 transition text-left active:scale-[0.98]">
+                      {t.value}mm
+                    </button>
+                  ))}
+                  {pickStep === "size" && getFilteredSizes().map(s => (
+                    <button key={s.id} onClick={() => pickSize(s.id)}
+                      className="w-full py-4 px-4 bg-slate-700/50 text-white text-lg font-medium rounded-xl hover:bg-slate-700 transition text-left active:scale-[0.98]">
+                      {s.length} × {s.width} ({s.label})
+                    </button>
+                  ))}
+                  {pickStep !== "category" && (
+                    <button onClick={() => {
+                      if (pickStep === "size") { setPickStep("thickness"); setPickThick(null); }
+                      else { setPickStep("category"); setPickCat(null); }
+                    }}
+                      className="w-full py-3 text-slate-400 hover:text-white transition text-sm">
+                      ← Back
+                    </button>
+                  )}
+                </div>
               )}
             </div>
           </div>

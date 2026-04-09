@@ -32,7 +32,7 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
     if (!session?.user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
     const role = (session.user as any).role;
-    if (!["MANAGER", "OWNER"].includes(role)) {
+    if (!["MANAGER", "OWNER", "SUPERVISOR"].includes(role)) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 403 });
     }
 
@@ -47,29 +47,42 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
       if (!customer) customer = await prisma.customer.create({ data: { name: body.customerName, companyId }});
       updateData.customerId = customer.id;
     }
-    // if body.customerPhone is passed, we might update the customer as well, but for now we skip updating their phone on order update.
 
     if (body.status) updateData.status = body.status;
-    if (body.priority) updateData.priority = body.priority;
+    if (body.priority !== undefined) updateData.priority = Math.max(1, Math.min(5, parseInt(body.priority)));
     if (body.notes !== undefined) updateData.notes = body.notes;
     if (body.dueDate !== undefined) updateData.dueDate = body.dueDate ? new Date(body.dueDate) : null;
 
-    // If items are provided, replace all items
-    if (body.items) {
+    // If items are provided, replace all items and RESET THE ORDER FLOW
+    if (body.items && Array.isArray(body.items)) {
+      // First delete associated items that might block list deletion
+      await prisma.productionList.deleteMany({ where: { orderId: id } });
+
+      // Reset order status and estimates
+      updateData.status = "PENDING";
+      updateData.estimatedDispatchDate = null;
+      updateData.estimatedProductionMinutes = null;
+
       await prisma.orderItem.deleteMany({ where: { orderId: id } });
-      await prisma.orderItem.createMany({
-        data: body.items.map((item: any) => ({
+      
+      const itemData = body.items.map((item: any) => {
+        const qty = parseInt(item.quantity);
+        if (isNaN(qty)) throw new Error("Invalid quantity provided");
+        
+        return {
           orderId: id,
           categoryId: item.categoryId,
           thicknessId: item.thicknessId,
           sizeId: item.sizeId,
-          quantity: parseInt(item.quantity),
-          layers: item.layers ? parseInt(item.layers) : null,
-          brandSeal: item.brandSeal || false,
-          varnish: item.varnish || false,
+          quantity: qty,
+          layers: (item.layers && !isNaN(parseInt(item.layers))) ? parseInt(item.layers) : null,
+          brandSeal: !!item.brandSeal,
+          varnish: !!item.varnish,
           notes: item.notes || null,
-        })),
+        };
       });
+
+      await prisma.orderItem.createMany({ data: itemData });
     }
 
     const order = await prisma.order.update({
@@ -87,17 +100,20 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
         type: "ORDER_UPDATED",
         title: "⚠️ Order Updated",
         message: `Order ${order.orderNumber} has been updated. Status: ${order.status}. Check for changes.`,
-        priority: "HIGH" as const,
+        priority: 1,
         targetRole,
         companyId,
         orderId: order.id,
-      })),
+      })) as any[],
     });
 
     return NextResponse.json(order);
-  } catch (error) {
-    console.error("Error updating order:", error);
-    return NextResponse.json({ error: "Failed to update order" }, { status: 500 });
+  } catch (error: any) {
+    console.error("Order Update Error Details:", error);
+    return NextResponse.json({ 
+      error: "Failed to update order", 
+      details: error.message 
+    }, { status: 500 });
   }
 }
 
@@ -124,11 +140,11 @@ export async function DELETE(request: NextRequest, { params }: { params: Promise
         type: "ORDER_CANCELLED",
         title: "❌ Order Cancelled",
         message: `Order ${order.orderNumber} has been cancelled.`,
-        priority: "HIGH" as const,
+        priority: 1,
         targetRole,
         companyId,
         orderId: id,
-      })),
+      })) as any[],
     });
 
     await prisma.order.delete({ where: { id } });

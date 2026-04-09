@@ -29,7 +29,8 @@ export async function GET(req: Request) {
       },
       glueEntries: { orderBy: { time: "asc" as const } },
       pauseEvents: { orderBy: { startTime: "asc" as const } },
-      operator: { select: { id: true, name: true, email: true } },
+      operator: { select: { id: true, name: true, email: true, role: true } },
+      machine: { select: { id: true, name: true, code: true, section: { select: { name: true, slug: true } } } },
     };
 
     // Supervisor view: sessions awaiting supervisor approval
@@ -140,7 +141,6 @@ export async function GET(req: Request) {
       orderBy: { startTime: "desc" },
     });
 
-    // Get products for selection
     const products = await prisma.companyProduct.findMany({
       where: { companyId, isActive: true },
       include: {
@@ -150,10 +150,33 @@ export async function GET(req: Request) {
       },
     });
 
+    // Also get active production lists
+    const productionLists = await prisma.productionList.findMany({
+      where: { companyId, status: { not: "COMPLETED" } },
+      include: {
+        order: { select: { orderNumber: true, customer: { select: { name: true } } } },
+        items: {
+          include: {
+            category: { select: { id: true, name: true, sortOrder: true } },
+            thickness: { select: { id: true, value: true } },
+            size: { select: { id: true, label: true, length: true, width: true } },
+          }
+        }
+      },
+      orderBy: { priority: "asc" }
+    });
+
+    // Get product timings for cook/cool timer
+    const productTimings = await prisma.productTiming.findMany({
+      where: { companyId },
+    });
+
     return NextResponse.json({
       activeSession,
       todaySessions,
       products,
+      productionLists,
+      productTimings,
     });
   } catch (e) {
     console.error("HotPress GET error:", e);
@@ -185,13 +208,25 @@ export async function POST(req: Request) {
         const shiftDate = new Date();
         shiftDate.setHours(0, 0, 0, 0);
 
+        // Auto-detect operator's hot press machine assignment
+        const machineAssignment = await (prisma as any).machineAssignment.findFirst({
+          where: {
+            userId,
+            role: "OPERATOR",
+            removedAt: null,
+            machine: { section: { slug: "hotpress" }, isActive: true },
+          },
+          include: { machine: { select: { id: true } } },
+        });
+
         const newSession = await prisma.hotPressSession.create({
           data: {
             companyId,
             operatorId: userId,
+            machineId: machineAssignment?.machine?.id || null,
             shiftDate,
             numDaylights: body.numDaylights || 10,
-          },
+          } as any,
         });
         return NextResponse.json(newSession);
       }
@@ -218,10 +253,15 @@ export async function POST(req: Request) {
 
       // ==================== SET PRODUCT ====================
       case "setProduct": {
-        const { sessionId, categoryId, thicknessId, sizeId } = body;
+        const { sessionId, categoryId, thicknessId, sizeId, productionListItemId } = body;
         const updated = await prisma.hotPressSession.update({
           where: { id: sessionId },
-          data: { currentCategoryId: categoryId, currentThicknessId: thicknessId, currentSizeId: sizeId },
+          data: { 
+            currentCategoryId: categoryId, 
+            currentThicknessId: thicknessId, 
+            currentSizeId: sizeId,
+            currentProductionListItemId: productionListItemId || null
+          },
         });
         return NextResponse.json(updated);
       }
@@ -253,6 +293,7 @@ export async function POST(req: Request) {
             thicknessId: sess.currentThicknessId,
             sizeId: sess.currentSizeId,
             sessionId: loadSid,
+            productionListItemId: (sess as any).currentProductionListItemId,
           },
           include: {
             category: { select: { name: true } },
@@ -275,16 +316,40 @@ export async function POST(req: Request) {
             size: { select: { label: true, length: true, width: true } },
           },
         });
+        
+        // If linked to a production list item and is COOK, increment producedQuantity
+        if ((entry as any).productionListItemId && entry.type === "COOK") {
+          await prisma.productionListItem.update({
+            where: { id: (entry as any).productionListItemId },
+            data: { producedQuantity: { increment: entry.quantity } },
+          });
+        }
+        
         return NextResponse.json(entry);
       }
 
       // ==================== UPDATE ENTRY QUANTITY ====================
       case "updateQuantity": {
         const { entryId: eId, quantity: qty } = body;
+        const oldEntry = await prisma.pressEntry.findUnique({ where: { id: eId } });
+        if (!oldEntry) return NextResponse.json({ error: "Not found" }, { status: 404 });
+        
+        const newQty = parseInt(qty);
+        const diff = newQty - oldEntry.quantity;
+
         const entry = await prisma.pressEntry.update({
           where: { id: eId },
-          data: { quantity: parseInt(qty) },
+          data: { quantity: newQty },
         });
+
+        // Adjust produced quantity if it has already been unloaded
+        if (oldEntry.unloadTime && (entry as any).productionListItemId && entry.type === "COOK" && diff !== 0) {
+          await prisma.productionListItem.update({
+            where: { id: (entry as any).productionListItemId },
+            data: { producedQuantity: { increment: diff } }
+          });
+        }
+
         return NextResponse.json(entry);
       }
 

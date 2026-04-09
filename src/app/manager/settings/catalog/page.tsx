@@ -1,7 +1,7 @@
 "use client";
 
 import { useSession } from "next-auth/react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useState } from "react";
 import Sidebar from "@/components/Sidebar";
 import { Plus, X, Layers, Package, Trash2 } from "lucide-react";
@@ -9,6 +9,7 @@ import { Plus, X, Layers, Package, Trash2 } from "lucide-react";
 export default function ManagerCatalog() {
   const { data: session, status } = useSession();
   const router = useRouter();
+  const searchParams = useSearchParams();
   const [catalog, setCatalog] = useState<any>({ categories: [], thicknesses: [], sizes: [] });
   const [products, setProducts] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -25,6 +26,19 @@ export default function ManagerCatalog() {
   const [newSizeLength, setNewSizeLength] = useState("");
   const [newSizeWidth, setNewSizeWidth] = useState("");
 
+  // Sync tab with URL
+  useEffect(() => {
+    const tab = searchParams.get("tab") as any;
+    if (["products", "categories", "thicknesses", "sizes"].includes(tab)) {
+      setMgmtTab(tab);
+    }
+  }, [searchParams]);
+  
+  // Timing state
+  const [selTimingCat, setSelTimingCat] = useState<any>(null);
+  // Per-category-thickness timing state: { [categoryId-thicknessId]: { cookingTime, coolingTime, saving, saved } }
+  const [timingMap, setTimingMap] = useState<Record<string, { cookingTime: string; coolingTime: string; saving: boolean; saved: boolean }>>({});
+
   useEffect(() => {
     if (status === "unauthenticated") router.push("/login");
     if (status === "authenticated" && (session?.user as any)?.role !== "MANAGER") router.push("/");
@@ -32,16 +46,108 @@ export default function ManagerCatalog() {
 
   const fetchData = () => {
     Promise.all([
-      fetch("/api/catalog").then((r) => r.json()),
-      fetch("/api/company-products").then((r) => r.json()),
+      fetch("/api/catalog", { cache: "no-store" }).then((r) => r.ok ? r.json() : Promise.reject("Catalog failed")),
+      fetch("/api/company-products", { cache: "no-store" }).then((r) => r.ok ? r.json() : Promise.reject("Products failed")),
     ]).then(([c, p]) => {
+      console.log("Fetched catalog:", c);
       setCatalog(c);
       if (Array.isArray(p)) setProducts(p);
+      if (!selTimingCat && c.categories?.length) setSelTimingCat(c.categories[0]);
+      setLoading(false);
+    }).catch(err => {
+      console.error("Fetch error:", err);
+      setError("Failed to refresh data");
       setLoading(false);
     });
   };
 
-  useEffect(() => { if (status === "authenticated") fetchData(); }, [status]);
+  useEffect(() => {
+    if (status === "authenticated") fetchData();
+  }, [status]);
+
+  // Sync timingMap state when catalog loads
+  useEffect(() => {
+    if (catalog.categories?.length && catalog.thicknesses?.length) {
+      setTimingMap((prev) => {
+        const next = { ...prev };
+        catalog.categories.forEach((cat: any) => {
+          catalog.thicknesses.forEach((thick: any) => {
+            const key = `${cat.id}-${thick.id}`;
+            if (!next[key]) {
+              const existing = catalog.productTimings?.find((pt: any) => pt.categoryId === cat.id && pt.thicknessId === thick.id);
+              next[key] = {
+                cookingTime: existing ? String(existing.cookingTime) : "0",
+                coolingTime: existing ? String(existing.coolingTime) : "0",
+                saving: false,
+                saved: false,
+              };
+            }
+          });
+        });
+        return next;
+      });
+    }
+  }, [catalog.categories, catalog.thicknesses, catalog.productTimings]);
+
+  const deleteCatalogItem = async (id: string, type: "category" | "thickness" | "size") => {
+    if (!window.confirm(`Are you sure you want to delete this ${type}?`)) return;
+    
+    try {
+      const res = await fetch("/api/catalog", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ type, action: "delete", data: { id } }),
+      });
+      if (res.ok) {
+        fetchData();
+        setSuccess(`${type} deleted successfully`);
+        setTimeout(() => setSuccess(""), 3000);
+      } else {
+        setError(`Failed to delete ${type}`);
+      }
+    } catch (err) {
+      setError("Error connecting to server");
+    }
+  };
+
+  const updateProductTiming = async (thicknessId: string) => {
+    if (!selTimingCat) return;
+    const key = `${selTimingCat.id}-${thicknessId}`;
+    const times = timingMap[key];
+    if (!times) return;
+
+    setTimingMap((prev) => ({ ...prev, [key]: { ...prev[key], saving: true } }));
+    try {
+      const res = await fetch("/api/catalog", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          type: "timing",
+          action: "update",
+          data: {
+            categoryId: selTimingCat.id,
+            thicknessId: thicknessId,
+            cookingTime: times.cookingTime,
+            coolingTime: times.coolingTime
+          },
+        }),
+      });
+      if (res.ok) {
+        setTimingMap((prev) => ({ ...prev, [key]: { ...prev[key], saving: false, saved: true } }));
+        setTimeout(() => setTimingMap((prev) => ({ ...prev, [key]: { ...prev[key], saved: false } })), 2500);
+        fetchData();
+      } else {
+        const errorData = await res.json();
+        console.error("Save error:", errorData);
+        setTimingMap((prev) => ({ ...prev, [key]: { ...prev[key], saving: false } }));
+        setError(errorData.message || "Failed to save timing");
+      }
+    } catch (err) {
+      console.error(err);
+      setTimingMap((prev) => ({ ...prev, [key]: { ...prev[key], saving: false } }));
+      setError("Network error saving timing");
+    }
+  };
 
   const addProduct = async (sizeId: string) => {
     setError("");
@@ -112,18 +218,22 @@ export default function ManagerCatalog() {
     <div className="h-full flex flex-col pt-2">
       <div className="mb-6">
           <h1 className="text-2xl md:text-3xl font-bold text-white mb-1">Product Catalog</h1>
-          <p className="text-slate-400 text-sm">Define what your company produces &mdash; types, thicknesses, sizes, and product combinations</p>
+          <p className="text-slate-400 text-sm">Define what your company produces &mdash; categories, thicknesses, sizes, and product combinations</p>
         </div>
 
         {/* Tab buttons */}
         <div className="grid grid-cols-4 gap-2 mb-6">
           {([
             { key: "products" as const, label: "Products", count: products.filter((p) => p.isActive).length },
-            { key: "categories" as const, label: "Types", count: catalog.categories?.length || 0 },
+            { key: "categories" as const, label: "Categories", count: catalog.categories?.length || 0 },
             { key: "thicknesses" as const, label: "Thickness", count: catalog.thicknesses?.length || 0 },
             { key: "sizes" as const, label: "Sizes", count: catalog.sizes?.length || 0 },
           ]).map((t) => (
-            <button key={t.key} onClick={() => { setMgmtTab(t.key); setShowAdd(false); }}
+            <button key={t.key} onClick={() => { 
+                setMgmtTab(t.key); 
+                setShowAdd(false);
+                router.replace(`/manager/settings/catalog?tab=${t.key}`, { scroll: false });
+              }}
               className={`py-3 rounded-xl font-semibold text-sm transition ${
                 mgmtTab === t.key
                   ? "bg-gradient-to-br from-blue-600 to-cyan-600 text-white shadow-lg"
@@ -161,7 +271,7 @@ export default function ManagerCatalog() {
                         className="py-4 bg-slate-700 hover:bg-blue-600 text-white font-bold rounded-xl transition active:scale-[0.95]">{c.name}</button>
                     ))}
                     {(!catalog.categories || catalog.categories.length === 0) && (
-                      <p className="col-span-3 text-slate-500 text-center py-4">No categories yet. Add categories in the &quot;Types&quot; tab first.</p>
+                      <p className="col-span-3 text-slate-500 text-center py-4">No categories yet. Add categories in the &quot;Categories&quot; tab first.</p>
                     )}
                   </div>
                 )}
@@ -252,13 +362,20 @@ export default function ManagerCatalog() {
             </div>
             <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
               {catalog.categories?.map((c: any) => (
-                <div key={c.id} className="bg-slate-800/40 border border-blue-500/20 rounded-xl p-4">
+                <div key={c.id} className="bg-slate-800/40 border border-blue-500/20 rounded-xl p-4 flex justify-between items-center group">
                   <p className="text-white font-bold text-lg">{c.name}</p>
+                  <button 
+                    onClick={() => deleteCatalogItem(c.id, "category")}
+                    className="p-1.5 text-slate-500 hover:text-red-400 hover:bg-red-400/10 rounded-lg opacity-0 group-hover:opacity-100 transition-all"
+                    title="Delete Category"
+                  >
+                    <Trash2 size={16} />
+                  </button>
                 </div>
               ))}
             </div>
             {(!catalog.categories || catalog.categories.length === 0) && (
-              <p className="text-slate-500 text-center py-8">No categories yet. Add your product types above (e.g. Packing, Semi, Alternate).</p>
+              <p className="text-slate-500 text-center py-8">No categories yet. Add your product categories above (e.g. Packing, Semi, Alternate).</p>
             )}
           </div>
         )}
@@ -266,23 +383,115 @@ export default function ManagerCatalog() {
         {/* ===================== THICKNESSES TAB ===================== */}
         {mgmtTab === "thicknesses" && (
           <div>
-            <div className="flex gap-2 mb-4 items-center">
+            <div className="flex gap-2 mb-6 items-center">
               <input type="number" value={newThickVal} onChange={(e) => setNewThickVal(e.target.value)} placeholder="e.g. 19"
                 className="flex-1 px-4 py-3 bg-slate-900/50 border border-slate-600 rounded-xl text-white outline-none focus:ring-2 focus:ring-blue-500/50" />
               <span className="text-slate-400">mm</span>
               <button onClick={() => addCatalogItem("thickness")} className="px-5 py-3 bg-blue-600 text-white font-semibold rounded-xl active:scale-[0.97]">Add</button>
             </div>
-            <div className="grid grid-cols-3 sm:grid-cols-5 gap-3">
-              {catalog.thicknesses?.map((t: any) => (
-                <div key={t.id} className="bg-slate-800/40 border border-cyan-500/20 rounded-xl p-4 text-center">
-                  <p className="text-3xl font-black text-white">{t.value}</p>
-                  <p className="text-slate-400 text-sm">mm</p>
+
+            <div className="bg-slate-900/50 border border-slate-800 rounded-3xl p-6 mb-8">
+              <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6">
+                <div>
+                  <h2 className="text-white font-bold text-lg">Production Press Timings</h2>
+                  <p className="text-slate-500 text-sm">Set specific cooking & cooling times for each category and thickness.</p>
                 </div>
-              ))}
+                
+                <div className="flex gap-1 bg-slate-800 p-1.5 rounded-2xl">
+                   {catalog.categories?.map((c: any) => (
+                     <button
+                        key={c.id}
+                        onClick={() => setSelTimingCat(c)}
+                        className={`px-4 py-2 rounded-xl text-xs font-black transition-all ${selTimingCat?.id === c.id ? "bg-blue-600 text-white shadow-lg" : "text-slate-500 hover:text-slate-300"}`}
+                     >
+                       {c.name}
+                     </button>
+                   ))}
+                </div>
+              </div>
+
+              {selTimingCat && (
+                <div className="space-y-4">
+                  <div className="flex items-center gap-2 mb-4">
+                    <div className="h-px flex-1 bg-slate-800" />
+                    <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest px-4">{selTimingCat.name} CATEGORY PARAMETERS</span>
+                    <div className="h-px flex-1 bg-slate-800" />
+                  </div>
+                  
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                    {catalog.thicknesses?.map((t: any) => {
+                      const key = `${selTimingCat.id}-${t.id}`;
+                      const tt = timingMap[key] || { cookingTime: "0", coolingTime: "0", saving: false, saved: false };
+                      const totalMin = (parseFloat(tt.cookingTime) || 0) + (parseFloat(tt.coolingTime) || 0);
+
+                      return (
+                        <div key={t.id} className="bg-slate-800/40 border border-slate-700/50 rounded-2xl p-5 hover:border-blue-500/30 transition-colors group">
+                          <div className="flex items-center justify-between mb-4">
+                            <div className="flex items-baseline gap-1">
+                              <span className="text-2xl font-black text-white">{t.value}</span>
+                              <span className="text-slate-500 text-[10px] font-bold uppercase tracking-widest">mm</span>
+                              <button 
+                                onClick={() => deleteCatalogItem(t.id, "thickness")}
+                                className="ml-2 p-1 text-slate-600 hover:text-red-400 transition-colors"
+                                title="Delete Thickness"
+                              >
+                                <Trash2 size={14} />
+                              </button>
+                            </div>
+                            <div className="text-right">
+                              <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-0.5">Total Cycle</p>
+                              <p className="text-cyan-400 font-black text-sm">{totalMin}m</p>
+                            </div>
+                          </div>
+
+                          <div className="grid grid-cols-2 gap-2 mb-4">
+                            <div className="space-y-1.5">
+                              <label className="text-[9px] font-black text-slate-500 uppercase tracking-widest flex items-center gap-1">
+                                <span className="text-orange-400">🔥</span> Cook
+                              </label>
+                              <input
+                                type="number" min={0} step={1} value={tt.cookingTime}
+                                onChange={(e) => setTimingMap((prev) => ({ ...prev, [key]: { ...prev[key], cookingTime: e.target.value, saved: false } }))}
+                                className="w-full bg-slate-900/60 border border-slate-700 rounded-xl px-3 py-2.5 text-white font-black text-center focus:border-orange-500/50 outline-none transition-all"
+                              />
+                            </div>
+                            <div className="space-y-1.5">
+                              <label className="text-[9px] font-black text-slate-500 uppercase tracking-widest flex items-center gap-1">
+                                <span className="text-blue-400">❄️</span> Cool
+                              </label>
+                              <input
+                                type="number" min={0} step={1} value={tt.coolingTime}
+                                onChange={(e) => setTimingMap((prev) => ({ ...prev, [key]: { ...prev[key], coolingTime: e.target.value, saved: false } }))}
+                                className="w-full bg-slate-900/60 border border-slate-700 rounded-xl px-3 py-2.5 text-white font-black text-center focus:border-blue-500/50 outline-none transition-all"
+                              />
+                            </div>
+                          </div>
+
+                          <button
+                            onClick={() => updateProductTiming(t.id)}
+                            disabled={tt.saving}
+                            className={`w-full py-2.5 rounded-xl text-xs font-black uppercase tracking-widest transition-all active:scale-[0.97] ${
+                              tt.saved 
+                                ? "bg-emerald-500/20 text-emerald-400 border border-emerald-500/30" 
+                                : "bg-blue-600/10 hover:bg-blue-600/20 text-blue-400 border border-blue-500/20"
+                            }`}
+                          >
+                            {tt.saving ? "Saving..." : tt.saved ? "Stored ✓" : "Update Timing"}
+                          </button>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+
+              {(!catalog.categories || catalog.categories.length === 0) && (
+                 <div className="text-center py-12">
+                   <p className="text-slate-500 font-bold uppercase tracking-widest text-xs">No Categories Defined</p>
+                   <p className="text-slate-600 text-sm mt-1">Add product types first to configure press timings.</p>
+                 </div>
+              )}
             </div>
-            {(!catalog.thicknesses || catalog.thicknesses.length === 0) && (
-              <p className="text-slate-500 text-center py-8">No thicknesses yet. Add the thicknesses your company produces (e.g. 6, 9, 12, 18).</p>
-            )}
           </div>
         )}
 
@@ -299,7 +508,14 @@ export default function ManagerCatalog() {
             </div>
             <div className="grid grid-cols-3 sm:grid-cols-4 gap-3">
               {catalog.sizes?.map((s: any) => (
-                <div key={s.id} className="bg-slate-800/40 border border-amber-500/20 rounded-xl p-4 text-center">
+                <div key={s.id} className="bg-slate-800/40 border border-amber-500/20 rounded-xl p-4 text-center relative group">
+                  <button 
+                    onClick={() => deleteCatalogItem(s.id, "size")}
+                    className="absolute top-2 right-2 p-1.5 text-slate-500 hover:text-red-400 hover:bg-red-400/10 rounded-lg opacity-0 group-hover:opacity-100 transition-all"
+                    title="Delete Size"
+                  >
+                    <Trash2 size={14} />
+                  </button>
                   <p className="text-2xl font-black text-white">{s.label}</p>
                   <p className="text-slate-400 text-xs">{s.length}ft × {s.width}ft</p>
                 </div>

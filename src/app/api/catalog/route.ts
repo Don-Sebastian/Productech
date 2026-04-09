@@ -26,10 +26,17 @@ export async function GET(request: NextRequest) {
       }),
     ]);
 
-    return NextResponse.json({ categories, thicknesses, sizes });
-  } catch (error) {
+    let productTimings: any[] = [];
+    try {
+      productTimings = await prisma.productTiming.findMany({ where: { companyId } });
+    } catch (e) {
+      console.warn("[CATALOG] Could not fetch productTimings:", e);
+    }
+
+    return NextResponse.json({ categories, thicknesses, sizes, productTimings });
+  } catch (error: any) {
     console.error("Error fetching catalog:", error);
-    return NextResponse.json({ error: "Failed to fetch catalog" }, { status: 500 });
+    return NextResponse.json({ error: "Failed to fetch catalog", details: error.message }, { status: 500 });
   }
 }
 
@@ -39,89 +46,144 @@ export async function POST(request: NextRequest) {
     const session = await auth();
     if (!session?.user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-    const role = (session.user as any).role;
-    if (role !== "OWNER" && role !== "ADMIN" && role !== "MANAGER") {
-      return NextResponse.json({ error: "Only managers and owners can manage catalog" }, { status: 403 });
-    }
-
     const companyId = (session.user as any).companyId;
     if (!companyId) return NextResponse.json({ error: "No company" }, { status: 400 });
 
-    const { type, action, data } = await request.json();
-
-    // type: "category" | "thickness" | "size"
-    // action: "create" | "toggle" | "delete"
-    // data: the item data
+    const body = await request.json();
+    const { type, action, data } = body;
 
     if (type === "category") {
       if (action === "create") {
-        const cat = await prisma.plywoodCategory.create({
-          data: { name: data.name, companyId, sortOrder: data.sortOrder || 0 },
+        const category = await prisma.plywoodCategory.create({
+          data: {
+            name: data.name,
+            companyId,
+            isActive: true,
+            sortOrder: data.sortOrder || 0,
+          },
         });
-        return NextResponse.json(cat, { status: 201 });
-      }
-      if (action === "toggle") {
-        const cat = await prisma.plywoodCategory.update({
-          where: { id: data.id },
-          data: { isActive: data.isActive },
-        });
-        return NextResponse.json(cat);
+        return NextResponse.json(category);
       }
       if (action === "delete") {
-        await prisma.plywoodCategory.delete({ where: { id: data.id } });
+        await prisma.plywoodCategory.update({
+          where: { id: data.id },
+          data: { isActive: false },
+        });
         return NextResponse.json({ success: true });
       }
     }
 
     if (type === "thickness") {
       if (action === "create") {
-        const th = await prisma.plywoodThickness.create({
-          data: { value: parseFloat(data.value), companyId, sortOrder: data.sortOrder || 0 },
+        const thickness = await prisma.plywoodThickness.create({
+          data: {
+            value: parseFloat(data.value),
+            companyId,
+            isActive: true,
+            sortOrder: data.sortOrder || 0,
+          },
         });
-        return NextResponse.json(th, { status: 201 });
-      }
-      if (action === "toggle") {
-        const th = await prisma.plywoodThickness.update({
-          where: { id: data.id },
-          data: { isActive: data.isActive },
-        });
-        return NextResponse.json(th);
+        return NextResponse.json(thickness);
       }
       if (action === "delete") {
-        await prisma.plywoodThickness.delete({ where: { id: data.id } });
+        await prisma.plywoodThickness.update({
+          where: { id: data.id },
+          data: { isActive: false },
+        });
         return NextResponse.json({ success: true });
       }
     }
 
     if (type === "size") {
       if (action === "create") {
-        const sz = await prisma.plywoodSize.create({
+        const size = await prisma.plywoodSize.create({
           data: {
             label: data.label,
             length: parseFloat(data.length),
             width: parseFloat(data.width),
             companyId,
+            isActive: true,
             sortOrder: data.sortOrder || 0,
           },
         });
-        return NextResponse.json(sz, { status: 201 });
-      }
-      if (action === "toggle") {
-        const sz = await prisma.plywoodSize.update({
-          where: { id: data.id },
-          data: { isActive: data.isActive },
-        });
-        return NextResponse.json(sz);
+        return NextResponse.json(size);
       }
       if (action === "delete") {
-        await prisma.plywoodSize.delete({ where: { id: data.id } });
+        await prisma.plywoodSize.update({
+          where: { id: data.id },
+          data: { isActive: false },
+        });
         return NextResponse.json({ success: true });
       }
     }
 
+    if (type === "product") {
+      if (action === "create") {
+        const product = await prisma.companyProduct.create({
+          data: {
+            companyId,
+            categoryId: data.categoryId,
+            thicknessId: data.thicknessId,
+            sizeId: data.sizeId,
+            openingStock: parseInt(data.openingStock) || 0,
+            currentStock: parseInt(data.openingStock) || 0,
+            isActive: true,
+          },
+        });
+        return NextResponse.json(product);
+      }
+      if (action === "toggle") {
+        await prisma.companyProduct.update({
+          where: { id: data.id },
+          data: { isActive: data.isActive },
+        });
+        return NextResponse.json({ success: true });
+      }
+    }
+
+    if (type === "timing") {
+      if (action === "update") {
+        const { categoryId, thicknessId, cookingTime: cook, coolingTime: cool } = data;
+        
+        console.log("[TIMING] Saving:", { companyId, categoryId, thicknessId, cook, cool });
+
+        try {
+          const timing = await prisma.productTiming.upsert({
+            where: {
+              companyId_categoryId_thicknessId: {
+                companyId,
+                categoryId,
+                thicknessId,
+              },
+            },
+            update: {
+              cookingTime: parseFloat(cook) || 0,
+              coolingTime: parseFloat(cool) || 0,
+            },
+            create: {
+              companyId,
+              categoryId,
+              thicknessId,
+              cookingTime: parseFloat(cook) || 0,
+              coolingTime: parseFloat(cool) || 0,
+            },
+          });
+          console.log("[TIMING] Success:", timing.id);
+          return NextResponse.json(timing);
+        } catch (dbError: any) {
+          console.error("[TIMING] Failed:", dbError.message, dbError.code);
+          return NextResponse.json({ 
+            error: "Failed to save timing", 
+            message: dbError.message,
+            code: dbError.code 
+          }, { status: 500 });
+        }
+      }
+    }
+
     return NextResponse.json({ error: "Invalid type or action" }, { status: 400 });
-  } catch (error) {
+  } catch (error: any) {
     console.error("Error managing catalog:", error);
-    return NextResponse.json({ error: "Failed to manage catalog" }, { status: 500 });
+    return NextResponse.json({ error: "Failed to manage catalog", details: error.message }, { status: 500 });
   }
 }

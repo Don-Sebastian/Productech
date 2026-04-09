@@ -37,7 +37,8 @@ interface HotPressSession {
   entries: PressEntry[];
   glueEntries: GlueEntry[];
   pauseEvents: PauseEvent[];
-  operator?: { id: string; name: string; email: string };
+  operator?: { id: string; name: string; email: string; role?: string };
+  machine?: { id: string; name: string; code: string; section?: { name: string; slug: string } } | null;
 }
 
 function fmt(d: string | null | undefined) {
@@ -229,8 +230,15 @@ function ApprovalCard({
       <div className="p-4 bg-blue-900/10 border-b border-slate-700/30">
         <div className="flex items-center justify-between mb-2">
           <div className="flex items-center gap-2">
-            <User size={16} className="text-blue-400" />
+            <span className="text-[10px] px-2 py-0.5 rounded-full font-black uppercase tracking-wider bg-rose-500/20 text-rose-300 border border-rose-500/30">
+              OPERATOR
+            </span>
             <span className="text-white font-bold">{session.operator?.name || "Operator"}</span>
+            {(session as any).machine && (
+              <span className="text-[10px] px-2 py-0.5 rounded-md font-bold bg-orange-500/10 text-orange-300 border border-orange-500/20">
+                {(session as any).machine.code} • {(session as any).machine.name}
+              </span>
+            )}
           </div>
           <span className="text-xs text-slate-400">{fmtDate(session.shiftDate)}</span>
         </div>

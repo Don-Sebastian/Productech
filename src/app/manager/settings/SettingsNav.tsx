@@ -2,18 +2,21 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Layers, Factory, Users, Wrench, Settings2 } from "lucide-react";
+import { Layers, Factory, Users, Wrench, Settings2, Flame, Cog, TreePine } from "lucide-react";
 
 export default function SettingsNav() {
   const pathname = usePathname();
 
   const tabs = [
     { href: "/manager/settings/catalog", label: "Product Catalog", icon: Layers },
-    { href: "/manager/settings/sections", label: "Sections", icon: Factory },
+    { href: "/manager/settings/peeling-catalog", label: "Peeling Catalog", icon: TreePine },
+    { href: "/manager/settings/production", label: "Hot Press", icon: Flame },
+    { href: "/manager/settings/machinery", label: "Machinery", icon: Cog },
     { href: "/manager/settings/supervisors", label: "Supervisors", icon: Users },
     { href: "/manager/settings/operators", label: "Operators", icon: Wrench },
     { href: "/manager/settings/customizations", label: "Order Customizations", icon: Settings2 },
   ];
+
 
   return (
     <>

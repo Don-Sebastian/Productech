@@ -91,10 +91,10 @@ export async function POST(request: NextRequest) {
       data: {
         companyId,
         targetRole: "MANAGER",
-        type: "PRODUCTION_LIST",
+        type: "DISPATCH",
         title: "New Dispatch Load Submitted",
         message: `Supervisor ${(session.user as any).name} submitted ${loadNumber} for order. Needs your confirmation.`,
-        priority: "NORMAL",
+        priority: 3,
       }
     });
     
