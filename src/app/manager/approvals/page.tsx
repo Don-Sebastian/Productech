@@ -108,12 +108,15 @@ export default function ManagerApprovalPage() {
 
   useEffect(() => { if (status === "authenticated") fetchData(); }, [fetchData, status]);
 
-  const approve = async (sessionId: string) => {
-    // Direct approve without confirm dialog
+  const [actionLoading, setActionLoading] = useState(false);
+
+  const approve = async (sessionId: string, overrides?: Record<string, number>) => {
+    if (actionLoading) return;
+    setActionLoading(true);
     const res = await fetch("/api/hotpress", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ action: "managerApprove", sessionId }),
+      body: JSON.stringify({ action: "managerApprove", sessionId, stockOverrides: overrides }),
     });
     if (res.ok) {
       await fetchData();
@@ -121,9 +124,12 @@ export default function ManagerApprovalPage() {
       const err = await res.json();
       alert(err.error || "Approval failed");
     }
+    setActionLoading(false);
   };
 
   const reject = async (sessionId: string) => {
+    if (actionLoading) return;
+    setActionLoading(true);
     const res = await fetch("/api/hotpress", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -137,6 +143,7 @@ export default function ManagerApprovalPage() {
       const err = await res.json();
       alert(err.error || "Rejection failed");
     }
+    setActionLoading(false);
   };
 
   if (status === "loading" || !session?.user) {
@@ -187,7 +194,7 @@ export default function ManagerApprovalPage() {
       ) : (
         <div className="space-y-4">
           {sessions.map(sess => (
-            <ManagerApprovalCard key={sess.id} session={sess} onApprove={() => approve(sess.id)}
+            <ManagerApprovalCard key={sess.id} session={sess} onApprove={(overrides) => approve(sess.id, overrides)}
               isRejecting={rejectingId === sess.id}
               onStartReject={() => setRejectingId(sess.id)}
               onCancelReject={() => { setRejectingId(null); setRejectNote(""); }}
@@ -208,7 +215,7 @@ function ManagerApprovalCard({
   session, onApprove, isRejecting, onStartReject, onCancelReject, rejectNote, onRejectNoteChange, onConfirmReject
 }: {
   session: HotPressSession;
-  onApprove: () => void;
+  onApprove: (overrides?: Record<string, number>) => void;
   isRejecting: boolean;
   onStartReject: () => void;
   onCancelReject: () => void;
@@ -218,6 +225,8 @@ function ManagerApprovalCard({
 }) {
   const [showLog, setShowLog] = useState(false);
   const [showSummary, setShowSummary] = useState(true);
+  const [approving, setApproving] = useState(false);
+  const [rejecting, setRejecting] = useState(false);
 
   const cooks = session.entries.filter(e => e.type === "COOK" && e.unloadTime);
   const represses = session.entries.filter(e => e.type === "REPRESS" && e.unloadTime);
@@ -225,15 +234,26 @@ function ManagerApprovalCard({
   const totalGlue = session.glueEntries.reduce((s, e) => s + e.barrels, 0);
   const summary = buildSummary(session.entries);
 
-  // Stock impact preview: what will be added to inventory
-  const stockImpact: { category: string; thickness: number; size: string; qty: number }[] = [];
+  // Stock impact with editable quantities
+  const stockImpactBase: { key: string; category: string; thickness: number; size: string; qty: number }[] = [];
   Object.entries(summary).forEach(([cat, thicknesses]) => {
     Object.entries(thicknesses).forEach(([, items]) => {
       items.forEach(item => {
-        stockImpact.push({ category: cat, thickness: item.thickness, size: item.size, qty: item.totalQty });
+        const key = `${cat}|${item.thickness}|${item.size}`;
+        stockImpactBase.push({ key, category: cat, thickness: item.thickness, size: item.size, qty: item.totalQty });
       });
     });
   });
+
+  const [stockOverrides, setStockOverrides] = useState<Record<string, number>>(() => {
+    const init: Record<string, number> = {};
+    stockImpactBase.forEach(s => { init[s.key] = s.qty; });
+    return init;
+  });
+  const updateStockQty = (key: string, val: number) => {
+    setStockOverrides(prev => ({ ...prev, [key]: Math.max(0, val) }));
+  };
+  const hasChanges = stockImpactBase.some(s => stockOverrides[s.key] !== s.qty);
 
   return (
     <div className="bg-slate-800/50 border border-slate-700/50 rounded-2xl overflow-hidden">
@@ -379,19 +399,35 @@ function ManagerApprovalCard({
             <span className="text-2xl font-black text-emerald-400">{totalSheets} sheets</span>
           </div>
 
-          {/* Stock Impact Preview */}
+          {/* Editable Stock Impact */}
           <div className="bg-amber-900/10 border border-amber-700/30 rounded-xl p-3">
-            <h4 className="text-sm font-bold text-amber-400 mb-2 flex items-center gap-2">
+            <h4 className="text-sm font-bold text-amber-400 mb-1 flex items-center gap-2">
               <TrendingUp size={14} /> Stock Impact (on approval)
             </h4>
+            <p className="text-[10px] text-slate-500 mb-2">Edit quantities if production list has changed.</p>
             <div className="space-y-1">
-              {stockImpact.map((item, i) => (
-                <div key={i} className="flex items-center justify-between text-xs py-1 px-2 bg-slate-800/50 rounded">
+              {stockImpactBase.map((item) => (
+                <div key={item.key} className="flex items-center justify-between text-xs py-1.5 px-2 bg-slate-800/50 rounded">
                   <span className="text-slate-300">{item.category} • {item.thickness}mm • {item.size}</span>
-                  <span className="text-emerald-400 font-bold">+{item.qty}</span>
+                  <div className="flex items-center gap-2">
+                    <span className="text-slate-500 text-[10px]">logged: {item.qty}</span>
+                    <span className="text-emerald-400 font-bold">+</span>
+                    <input
+                      type="number"
+                      value={stockOverrides[item.key] ?? item.qty}
+                      onChange={e => updateStockQty(item.key, parseInt(e.target.value) || 0)}
+                      className="w-14 px-1.5 py-0.5 bg-slate-900 border border-slate-600 rounded text-white text-xs text-center font-bold focus:ring-1 focus:ring-amber-500/50 outline-none"
+                      min={0}
+                    />
+                  </div>
                 </div>
               ))}
             </div>
+            {hasChanges && (
+              <p className="text-amber-300/70 text-[10px] mt-2 flex items-center gap-1">
+                <AlertTriangle size={10} /> Quantities modified from logged values.
+              </p>
+            )}
           </div>
         </div>
       )}
@@ -410,9 +446,11 @@ function ManagerApprovalCard({
             rows={2}
           />
           <div className="flex gap-2">
-            <button onClick={onConfirmReject}
-              className="flex-1 py-3 bg-red-600 text-white font-bold rounded-xl flex items-center justify-center gap-2">
-              <XCircle size={18} /> Confirm Reject
+            <button onClick={async () => { setRejecting(true); await onConfirmReject(); setRejecting(false); }}
+              disabled={rejecting}
+              className="flex-1 py-3 bg-red-600 text-white font-bold rounded-xl flex items-center justify-center gap-2 disabled:opacity-50">
+              {rejecting ? <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white" /> : <XCircle size={18} />}
+              {rejecting ? "Rejecting..." : "Confirm Reject"}
             </button>
             <button onClick={onCancelReject}
               className="px-6 py-3 bg-slate-700 text-slate-300 rounded-xl">
@@ -422,12 +460,15 @@ function ManagerApprovalCard({
         </div>
       ) : (
         <div className="p-4 flex gap-2">
-          <button onClick={onApprove}
-            className="flex-1 py-4 bg-gradient-to-r from-emerald-600 to-green-600 text-white text-lg font-bold rounded-2xl shadow-lg flex items-center justify-center gap-3 active:scale-[0.98]">
-            <CheckCircle2 size={22} /> Approve & Update Stock
+          <button onClick={async () => { setApproving(true); await onApprove(hasChanges ? stockOverrides : undefined); setApproving(false); }}
+            disabled={approving}
+            className="flex-1 py-4 bg-gradient-to-r from-emerald-600 to-green-600 text-white text-lg font-bold rounded-2xl shadow-lg flex items-center justify-center gap-3 active:scale-[0.98] disabled:opacity-50">
+            {approving ? <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white" /> : <CheckCircle2 size={22} />}
+            {approving ? "Approving..." : "Approve & Update Stock"}
           </button>
           <button onClick={onStartReject}
-            className="px-6 py-4 bg-red-900/50 border border-red-700/50 text-red-400 rounded-2xl text-sm font-bold flex items-center gap-2 active:scale-[0.98]">
+            disabled={approving}
+            className="px-6 py-4 bg-red-900/50 border border-red-700/50 text-red-400 rounded-2xl text-sm font-bold flex items-center gap-2 active:scale-[0.98] disabled:opacity-50">
             <XCircle size={18} /> Reject
           </button>
         </div>

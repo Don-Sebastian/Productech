@@ -196,7 +196,11 @@ export default function OperatorLogPage() {
 
   useEffect(() => { if (status === "authenticated" && assigned) fetchData(); }, [fetchData, status, assigned]);
 
+  const [actionLoading, setActionLoading] = useState(false);
+
   const doAction = async (action: string, extra: Record<string, any> = {}) => {
+    if (actionLoading) return; // prevent double-clicks
+    setActionLoading(true);
     try {
       const res = await fetch("/api/hotpress", {
         method: "POST",
@@ -209,6 +213,7 @@ export default function OperatorLogPage() {
         alert(err.error || "Action failed");
       }
     } catch { alert("Network error"); }
+    finally { setActionLoading(false); }
   };
 
   // Timer countdown effect
@@ -637,7 +642,8 @@ export default function OperatorLogPage() {
       <div className="grid grid-cols-3 gap-2">
         {sess.status === "RUNNING" ? (
           <LongPressButton onComplete={() => doAction("pause", { sessionId: sess.id })}
-            className="py-3 bg-blue-900/50 border border-blue-700/50 text-blue-300 rounded-xl text-sm font-bold">
+            disabled={!!isCooking}
+            className={`py-3 bg-blue-900/50 border border-blue-700/50 text-blue-300 rounded-xl text-sm font-bold ${isCooking ? "opacity-30 cursor-not-allowed" : ""}`}>
             <Pause size={16} /> Pause
           </LongPressButton>
         ) : (
@@ -648,7 +654,8 @@ export default function OperatorLogPage() {
         )}
         {sess.status !== "MAINTENANCE" ? (
           <LongPressButton onComplete={() => doAction("maintenance", { sessionId: sess.id })}
-            className="py-3 bg-orange-900/50 border border-orange-700/50 text-orange-300 rounded-xl text-sm font-bold">
+            disabled={!!isCooking}
+            className={`py-3 bg-orange-900/50 border border-orange-700/50 text-orange-300 rounded-xl text-sm font-bold ${isCooking ? "opacity-30 cursor-not-allowed" : ""}`}>
             <Wrench size={16} /> Maint.
           </LongPressButton>
         ) : (
@@ -658,10 +665,14 @@ export default function OperatorLogPage() {
           </LongPressButton>
         )}
         <LongPressButton onComplete={() => doAction("stop")}
-          className="py-3 bg-red-900/50 border border-red-700/50 text-red-300 rounded-xl text-sm font-bold">
+          disabled={!!isCooking}
+          className={`py-3 bg-red-900/50 border border-red-700/50 text-red-300 rounded-xl text-sm font-bold ${isCooking ? "opacity-30 cursor-not-allowed" : ""}`}>
           <PowerOff size={16} /> Stop
         </LongPressButton>
       </div>
+      {isCooking && (
+        <p className="text-center text-amber-400/70 text-xs">⚠️ Unload the press before stopping, pausing, or starting maintenance.</p>
+      )}
 
       {/* ==================== PRODUCTION LOG ==================== */}
       <div className="bg-slate-800/30 border border-slate-700/40 rounded-2xl overflow-hidden">

@@ -18,6 +18,8 @@ export const metadata: Metadata = {
   description: "Plywood production management system",
 };
 
+import GlobalActionLoader from "@/components/GlobalActionLoader";
+
 export default function RootLayout({
   children,
 }: Readonly<{
@@ -28,6 +30,7 @@ export default function RootLayout({
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}
       >
+        <GlobalActionLoader />
         <AuthProvider>{children}</AuthProvider>
       </body>
     </html>
