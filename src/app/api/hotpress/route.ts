@@ -24,7 +24,7 @@ export async function GET(req: Request) {
         include: {
           category: { select: { id: true, name: true } },
           thickness: { select: { id: true, value: true } },
-          size: { select: { id: true, label: true, length: true, width: true } },
+          size: { select: { id: true, label: true, length: true, width: true, sqft: true } },
         },
       },
       glueEntries: { orderBy: { time: "asc" as const } },
@@ -92,14 +92,21 @@ export async function GET(req: Request) {
         where.approvalStatus = statusParam;
       }
 
+      const isExport = searchParams.get("export") === "true";
+
+      const queryArgs: any = {
+        where,
+        include: sessionIncludes,
+        orderBy: { shiftDate: "desc" },
+      };
+
+      if (!isExport) {
+        queryArgs.skip = (page - 1) * pageSize;
+        queryArgs.take = pageSize;
+      }
+
       const [historySessions, totalCount] = await Promise.all([
-        prisma.hotPressSession.findMany({
-          where,
-          include: sessionIncludes,
-          orderBy: { shiftDate: "desc" },
-          skip: (page - 1) * pageSize,
-          take: pageSize,
-        }),
+        prisma.hotPressSession.findMany(queryArgs),
         prisma.hotPressSession.count({ where }),
       ]);
 

@@ -32,6 +32,7 @@ export default function NotificationsPage() {
       body: JSON.stringify({ markAllRead: true }),
     });
     fetchNotifications();
+    window.dispatchEvent(new Event("notifications_read"));
   };
 
   const markRead = async (id: string) => {
@@ -41,6 +42,7 @@ export default function NotificationsPage() {
       body: JSON.stringify({ notificationIds: [id] }),
     });
     fetchNotifications();
+    window.dispatchEvent(new Event("notifications_read"));
   };
 
   if (status === "loading" || !session?.user) {

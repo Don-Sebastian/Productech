@@ -7,8 +7,9 @@ import {
   ChevronDown, ChevronUp, User, Search,
   Calendar, Filter, CheckCircle2, XCircle,
   ShieldCheck, Send, AlertTriangle, FileText,
-  TrendingUp
+  TrendingUp, Download, Printer
 } from "lucide-react";
+import DownloadModal from "./DownloadModal";
 
 interface PressEntry {
   id: string;
@@ -18,7 +19,7 @@ interface PressEntry {
   quantity: number;
   category: { id: string; name: string };
   thickness: { id: string; value: number };
-  size: { id: string; label: string; length: number; width: number };
+  size: { id: string; label: string; length: number; width: number; sqft: number };
 }
 
 interface GlueEntry { id: string; time: string; barrels: number; }
@@ -70,12 +71,13 @@ function sessionDuration(s: HotPressSession) {
 }
 
 function buildSummary(entries: PressEntry[]) {
-  const summary: Record<string, { category: string; thickness: number; size: string; totalQty: number; cookCount: number; totalCookMs: number }> = {};
+  const summary: Record<string, { category: string; thickness: number; size: string; totalQty: number; cookCount: number; totalCookMs: number; totalSqft: number }> = {};
   entries.filter(e => e.type === "COOK" && e.unloadTime).forEach(e => {
     const k = `${e.category.name}|${e.thickness.value}|${e.size.length}x${e.size.width}`;
-    if (!summary[k]) summary[k] = { category: e.category.name, thickness: e.thickness.value, size: `${e.size.length}×${e.size.width}`, totalQty: 0, cookCount: 0, totalCookMs: 0 };
+    if (!summary[k]) summary[k] = { category: e.category.name, thickness: e.thickness.value, size: `${e.size.length}×${e.size.width}`, totalQty: 0, cookCount: 0, totalCookMs: 0, totalSqft: 0 };
     summary[k].totalQty += e.quantity;
     summary[k].cookCount += 1;
+    summary[k].totalSqft += e.quantity * (e.size.sqft || 0);
     if (e.loadTime && e.unloadTime) summary[k].totalCookMs += new Date(e.unloadTime).getTime() - new Date(e.loadTime).getTime();
   });
   const grouped: Record<string, Record<string, typeof summary[string][]>> = {};
@@ -111,6 +113,7 @@ export default function ProductionHistory({ showOperatorFilter = false }: Produc
   const [approvalFilter, setApprovalFilter] = useState("ALL");
   const [operatorFilter, setOperatorFilter] = useState("ALL");
   const [showFilters, setShowFilters] = useState(false);
+  const [isDownloadModalOpen, setIsDownloadModalOpen] = useState(false);
 
   // Pagination
   const [currentPage, setCurrentPage] = useState(1);
@@ -180,6 +183,8 @@ export default function ProductionHistory({ showOperatorFilter = false }: Produc
   const totalSessions = sessions.length;
   const totalSheets = sessions.reduce((s, sess) =>
     s + sess.entries.filter(e => e.type === "COOK" && e.unloadTime).reduce((a, e) => a + e.quantity, 0), 0);
+  const totalSqFt = sessions.reduce((s, sess) =>
+    s + sess.entries.filter(e => e.type === "COOK" && e.unloadTime).reduce((a, e) => a + (e.quantity * (e.size?.sqft || 0)), 0), 0);
   const totalGlue = sessions.reduce((s, sess) =>
     s + sess.glueEntries.reduce((a, e) => a + e.barrels, 0), 0);
   const approvedCount = sessions.filter(s => s.approvalStatus === "MANAGER_APPROVED").length;
@@ -193,18 +198,43 @@ export default function ProductionHistory({ showOperatorFilter = false }: Produc
   });
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 print:space-y-4 print:bg-white print:text-black">
+      <DownloadModal
+        isOpen={isDownloadModalOpen}
+        onClose={() => setIsDownloadModalOpen(false)}
+        approvalFilter={approvalFilter}
+        operatorFilter={operatorFilter}
+      />
       {/* Header */}
-      <div>
-        <h1 className="text-2xl font-bold text-white flex items-center gap-3">
-          <FileText className="text-blue-400" size={28} />
-          Production Log History
-        </h1>
-        <p className="text-slate-400 text-sm mt-1">View and search all past machine log sessions</p>
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 print:hidden">
+        <div>
+          <h1 className="text-2xl font-bold text-white print:text-black flex items-center gap-3">
+            <FileText className="text-blue-400 print:text-black" size={28} />
+            Production Log History
+          </h1>
+          <p className="text-slate-400 print:text-slate-600 text-sm mt-1">View and search all past machine log sessions</p>
+        </div>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => setIsDownloadModalOpen(true)}
+            className="flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-500 text-white rounded-xl transition font-medium text-sm shadow-lg shadow-blue-900/20"
+          >
+            <Download size={16} />
+            Download Data
+          </button>
+        </div>
+      </div>
+      
+      {/* Print Only Header */}
+      <div className="hidden print:block mb-6">
+        <h1 className="text-2xl font-bold text-black border-b pb-2">Production Log History</h1>
+        <p className="text-sm text-gray-600 mt-2">
+          {fromDate && toDate ? `Period: ${fromDate} to ${toDate}` : "Showing all logs"}
+        </p>
       </div>
 
       {/* Summary Stats */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+      <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
         <div className="bg-slate-800/50 border border-slate-700/50 rounded-xl p-4 text-center">
           <p className="text-2xl font-bold text-white">{totalSessions}</p>
           <p className="text-xs text-slate-500">Sessions</p>
@@ -212,6 +242,10 @@ export default function ProductionHistory({ showOperatorFilter = false }: Produc
         <div className="bg-slate-800/50 border border-slate-700/50 rounded-xl p-4 text-center">
           <p className="text-2xl font-bold text-emerald-400">{totalSheets}</p>
           <p className="text-xs text-slate-500">Total Sheets</p>
+        </div>
+        <div className="bg-slate-800/50 border border-slate-700/50 rounded-xl p-4 text-center">
+          <p className="text-2xl font-bold text-blue-400">{totalSqFt.toLocaleString(undefined, { maximumFractionDigits: 1 })}</p>
+          <p className="text-xs text-slate-500">Total Sq.Ft</p>
         </div>
         <div className="bg-slate-800/50 border border-slate-700/50 rounded-xl p-4 text-center">
           <p className="text-2xl font-bold text-cyan-400">{totalGlue}</p>
@@ -224,7 +258,7 @@ export default function ProductionHistory({ showOperatorFilter = false }: Produc
       </div>
 
       {/* Filter Bar */}
-      <div className="bg-slate-800/30 border border-slate-700/40 rounded-2xl overflow-hidden">
+      <div className="bg-slate-800/30 border border-slate-700/40 rounded-2xl overflow-hidden print:hidden">
         <button
           onClick={() => setShowFilters(!showFilters)}
           className="w-full px-4 py-3 flex items-center justify-between text-white font-medium text-sm"
@@ -340,7 +374,7 @@ export default function ProductionHistory({ showOperatorFilter = false }: Produc
 
       {/* Pagination */}
       {!loading && totalPages > 1 && (
-        <div className="flex items-center justify-between bg-slate-800/30 border border-slate-700/40 rounded-xl px-4 py-3">
+        <div className="flex items-center justify-between bg-slate-800/30 border border-slate-700/40 rounded-xl px-4 py-3 print:hidden">
           <p className="text-xs text-slate-400">
             Showing {((currentPage - 1) * 50) + 1}–{Math.min(currentPage * 50, totalCount)} of {totalCount} sessions
           </p>
@@ -377,49 +411,54 @@ function HistorySessionCard({ session }: { session: HotPressSession }) {
   const cooks = session.entries.filter(e => e.type === "COOK" && e.unloadTime);
   const represses = session.entries.filter(e => e.type === "REPRESS" && e.unloadTime);
   const totalSheets = cooks.reduce((s, e) => s + e.quantity, 0);
+  const totalSqFt = cooks.reduce((s, e) => s + (e.quantity * (e.size?.sqft || 0)), 0);
   const totalGlue = session.glueEntries.reduce((s, e) => s + e.barrels, 0);
   const summary = buildSummary(session.entries);
   const sc = statusConfig[session.approvalStatus] || statusConfig.PENDING;
   const StatusIcon = sc.icon;
 
   return (
-    <div className="bg-slate-800/50 border border-slate-700/50 rounded-2xl overflow-hidden">
+    <div className="bg-slate-800/50 border border-slate-700/50 rounded-2xl overflow-hidden print:border-gray-300 print:bg-white print:text-black print:page-break-inside-avoid">
       {/* Card Header */}
       <div className="p-4">
         <div className="flex items-center justify-between mb-2">
           <div className="flex items-center gap-2">
-            <User size={14} className="text-blue-400" />
-            <span className="text-white font-bold text-sm">{session.operator?.name || "Operator"}</span>
+            <User size={14} className="text-blue-400 print:text-gray-800" />
+            <span className="text-white print:text-black font-bold text-sm">{session.operator?.name || "Operator"}</span>
           </div>
-          <span className={`text-xs px-2 py-1 rounded-full flex items-center gap-1 ${sc.bg} ${sc.color}`}>
+          <span className={`text-xs px-2 py-1 rounded-full flex items-center gap-1 ${sc.bg} ${sc.color} print:bg-transparent print:text-gray-800 print:border print:border-gray-300`}>
             <StatusIcon size={10} />
             {sc.label}
           </span>
         </div>
-        <div className="flex items-center gap-3 text-xs text-slate-300 mb-3">
+        <div className="flex items-center gap-3 text-xs text-slate-300 print:text-gray-600 mb-3">
           <span className="flex items-center gap-1">
-            <Clock size={10} className="text-slate-500" />
+            <Clock size={10} className="text-slate-500 print:text-gray-500" />
             {fmt(session.startTime)} → {fmt(session.stopTime)}
           </span>
-          <span className="text-slate-500">•</span>
-          <span className="text-slate-400">{sessionDuration(session)}</span>
+          <span className="text-slate-500 print:text-gray-400">•</span>
+          <span className="text-slate-400 print:text-gray-600">{sessionDuration(session)}</span>
         </div>
-        <div className="grid grid-cols-4 gap-2">
-          <div className="bg-slate-900/50 rounded-lg p-2 text-center">
-            <p className="text-sm font-bold text-white">{cooks.length}</p>
-            <p className="text-[10px] text-slate-500">Cooks</p>
+        <div className="grid grid-cols-5 gap-2">
+          <div className="bg-slate-900/50 print:bg-gray-100 rounded-lg p-2 text-center border print:border-gray-200 border-transparent">
+            <p className="text-sm font-bold text-white print:text-black">{cooks.length}</p>
+            <p className="text-[10px] text-slate-500 print:text-gray-600">Cooks</p>
           </div>
-          <div className="bg-slate-900/50 rounded-lg p-2 text-center">
-            <p className="text-sm font-bold text-amber-400">{represses.length}</p>
-            <p className="text-[10px] text-slate-500">Repress</p>
+          <div className="bg-slate-900/50 print:bg-gray-100 rounded-lg p-2 text-center border print:border-gray-200 border-transparent">
+            <p className="text-sm font-bold text-amber-400 print:text-amber-700">{represses.length}</p>
+            <p className="text-[10px] text-slate-500 print:text-gray-600">Repress</p>
           </div>
-          <div className="bg-slate-900/50 rounded-lg p-2 text-center">
-            <p className="text-sm font-bold text-cyan-400">{totalGlue}</p>
-            <p className="text-[10px] text-slate-500">Glue</p>
+          <div className="bg-slate-900/50 print:bg-gray-100 rounded-lg p-2 text-center border print:border-gray-200 border-transparent">
+            <p className="text-sm font-bold text-cyan-400 print:text-cyan-700">{totalGlue}</p>
+            <p className="text-[10px] text-slate-500 print:text-gray-600">Glue</p>
           </div>
-          <div className="bg-slate-900/50 rounded-lg p-2 text-center">
-            <p className="text-sm font-bold text-emerald-400">{totalSheets}</p>
-            <p className="text-[10px] text-slate-500">Sheets</p>
+          <div className="bg-slate-900/50 print:bg-gray-100 rounded-lg p-2 text-center border print:border-gray-200 border-transparent">
+            <p className="text-sm font-bold text-emerald-400 print:text-emerald-700">{totalSheets}</p>
+            <p className="text-[10px] text-slate-500 print:text-gray-600">Sheets</p>
+          </div>
+          <div className="bg-slate-900/50 print:bg-gray-100 rounded-lg p-2 text-center border print:border-gray-200 border-transparent">
+            <p className="text-sm font-bold text-blue-400 print:text-blue-700">{totalSqFt.toLocaleString(undefined, { maximumFractionDigits: 1 })}</p>
+            <p className="text-[10px] text-slate-500 print:text-gray-600">Sq.Ft</p>
           </div>
         </div>
       </div>
@@ -449,6 +488,7 @@ function HistorySessionCard({ session }: { session: HotPressSession }) {
                 <tr className="text-slate-500 border-b border-slate-700/50">
                   <th className="text-left py-2 px-1">#</th>
                   <th className="text-left py-2 px-1">Type</th>
+                  <th className="text-left py-2 px-1">Category</th>
                   <th className="text-left py-2 px-1">Thick.</th>
                   <th className="text-left py-2 px-1">Size</th>
                   <th className="text-left py-2 px-1">Load</th>
@@ -475,6 +515,7 @@ function HistorySessionCard({ session }: { session: HotPressSession }) {
                       <tr key={entry.id} className={`border-b border-slate-700/30 ${entry.type === "REPRESS" ? "bg-amber-900/10" : ""}`}>
                         <td className="py-1.5 px-1 text-slate-400">{idx + 1}</td>
                         <td className="py-1.5 px-1">{entry.type === "REPRESS" ? <span className="text-amber-400">R</span> : <span className="text-emerald-400">C</span>}</td>
+                        <td className="py-1.5 px-1 text-slate-300 break-words">{entry.category?.name}</td>
                         <td className="py-1.5 px-1 text-white font-medium">{entry.thickness.value}mm</td>
                         <td className="py-1.5 px-1 text-slate-300">{entry.size.length}×{entry.size.width}</td>
                         <td className="py-1.5 px-1 text-slate-300">{fmt(entry.loadTime)}</td>
@@ -526,6 +567,7 @@ function HistorySessionCard({ session }: { session: HotPressSession }) {
                       <span className="text-slate-300">{item.size}</span>
                       <div className="flex items-center gap-4">
                         <span className="text-white font-bold">{item.totalQty} sheets</span>
+                        <span className="text-blue-400 font-bold">{item.totalSqft.toLocaleString(undefined, { maximumFractionDigits: 1 })} sqft</span>
                         <span className="text-slate-500">{item.cookCount} cooks</span>
                         <span className="text-cyan-400">{durStr(item.totalCookMs)}</span>
                       </div>
@@ -535,9 +577,12 @@ function HistorySessionCard({ session }: { session: HotPressSession }) {
               ))}
             </div>
           ))}
-          <div className="bg-emerald-900/20 border border-emerald-700/30 rounded-xl p-3 flex justify-between items-center">
+          <div className="bg-emerald-900/20 border border-emerald-700/30 rounded-xl p-3 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2">
             <span className="text-white font-bold">Total Production</span>
-            <span className="text-2xl font-black text-emerald-400">{totalSheets} sheets</span>
+            <div className="flex gap-4">
+              <span className="text-xl font-black text-blue-400">{totalSqFt.toLocaleString(undefined, { maximumFractionDigits: 1 })} sqft</span>
+              <span className="text-xl font-black text-emerald-400">{totalSheets} sheets</span>
+            </div>
           </div>
         </div>
       )}

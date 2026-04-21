@@ -101,6 +101,7 @@ export async function POST(request: NextRequest) {
             label: data.label,
             length: parseFloat(data.length),
             width: parseFloat(data.width),
+            sqft: parseFloat(data.sqft) || 0,
             companyId,
             isActive: true,
             sortOrder: data.sortOrder || 0,

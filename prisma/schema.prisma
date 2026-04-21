@@ -48,6 +48,10 @@ model Company {
   peelingSessions     PeelingSession[]
   dryerSessions       DryerSession[]
   finishingLogs       FinishingLog[]
+  subDepartments      SubDepartment[]
+  shifts              Shift[]
+  employees           Employee[]
+  attendanceRegisters AttendanceRegister[]
 }
 
 model Section {
@@ -101,6 +105,10 @@ model User {
   createdBy              User?                @relation("CreatedUsers", fields: [createdById], references: [id])
   createdUsers           User[]               @relation("CreatedUsers")
   sections               Section[]            @relation("UserSections")
+  supervisorRegisters    AttendanceRegister[] @relation("SupervisorRegister")
+  managerRegisters       AttendanceRegister[] @relation("ManagerRegister")
+  wageAdjustments        WageAdjustmentLog[]
+  subDepartmentAssignments SubDepartmentAssignment[]
 
   @@index([companyId])
   @@index([createdById])
@@ -186,6 +194,7 @@ model PlywoodSize {
   label             String
   length            Float
   width             Float
+  sqft              Float                @default(0)
   isActive          Boolean              @default(true)
   sortOrder         Int                  @default(0)
   createdAt         DateTime             @default(now())
@@ -678,6 +687,9 @@ model Machine {
   section          Section             @relation(fields: [sectionId], references: [id])
   assignments      MachineAssignment[]
   hotPressSessions HotPressSession[]
+  subDepartments   SubDepartment[]
+  shifts           Shift[]
+  employees        Employee[]
 
   @@unique([companyId, code])
   @@index([companyId])
@@ -955,4 +967,164 @@ model FinishingEntry {
   finishingLog   FinishingLog     @relation(fields: [finishingLogId], references: [id], onDelete: Cascade)
 
   @@index([finishingLogId])
+}
+
+// ==================== ATTENDANCE & HR ====================
+
+model SubDepartment {
+  id        String     @id @default(cuid())
+  name      String     // e.g., "Glue Mixer", "Assembly"
+  isActive  Boolean    @default(true)
+  createdAt DateTime   @default(now())
+  updatedAt DateTime   @updatedAt
+  companyId String
+  machineId String?
+
+  company   Company    @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  machine   Machine?   @relation(fields: [machineId], references: [id], onDelete: SetNull)
+  employees Employee[]
+  shifts    Shift[]
+  supervisorAssignments SubDepartmentAssignment[]
+
+  @@index([companyId])
+  @@index([machineId])
+}
+
+model SubDepartmentAssignment {
+  id              String        @id @default(cuid())
+  userId          String
+  subDepartmentId String
+  createdAt       DateTime      @default(now())
+
+  user          User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  subDepartment SubDepartment @relation(fields: [subDepartmentId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, subDepartmentId])
+  @@index([userId])
+  @@index([subDepartmentId])
+}
+
+model Shift {
+  id          String               @id @default(cuid())
+  name        String               // e.g., "Morning", "Night"
+  startTime   String               // "08:00"
+  endTime     String               // "16:00"
+  isActive    Boolean              @default(true)
+  createdAt   DateTime             @default(now())
+  updatedAt   DateTime             @updatedAt
+  companyId   String
+  machineId   String?
+  subDepartmentId String?
+
+  company       Company              @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  machine       Machine?             @relation(fields: [machineId], references: [id], onDelete: Cascade)
+  subDepartment SubDepartment?       @relation(fields: [subDepartmentId], references: [id], onDelete: Cascade)
+  registers     AttendanceRegister[]
+
+  @@index([companyId])
+  @@index([machineId])
+}
+
+enum WageType {
+  DAILY
+  WEEKLY
+  MONTHLY
+}
+
+model Employee {
+  id                 String              @id @default(cuid())
+  name               String
+  phone              String?
+  photoData          String?             @db.Text
+  wageType           WageType            @default(DAILY)
+  wageAmount         Float               @default(0)
+  isActive           Boolean             @default(true)
+  createdAt          DateTime            @default(now())
+  updatedAt          DateTime            @updatedAt
+  companyId          String
+  machineId          String?
+  subDepartmentId    String?
+  wageLastAdjustedBy String?
+  wageLastAdjustedAt DateTime?
+
+  company            Company             @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  machine            Machine?            @relation(fields: [machineId], references: [id], onDelete: SetNull)
+  subDepartment      SubDepartment?      @relation(fields: [subDepartmentId], references: [id], onDelete: SetNull)
+  attendanceEntries  AttendanceEntry[]
+  wageLogs           WageAdjustmentLog[]
+
+  @@index([companyId])
+  @@index([machineId])
+  @@index([subDepartmentId])
+}
+
+enum AttendanceStatus {
+  PRESENT
+  ABSENT
+  HALF_DAY
+}
+
+enum RegisterStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+model AttendanceRegister {
+  id           String            @id @default(cuid())
+  date         DateTime
+  status       RegisterStatus    @default(PENDING)
+  notes        String?
+  createdAt    DateTime          @default(now())
+  updatedAt    DateTime          @updatedAt
+  companyId    String
+  shiftId      String
+  supervisorId String
+  managerId    String?
+
+  company      Company           @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  shift        Shift             @relation(fields: [shiftId], references: [id], onDelete: Cascade)
+  supervisor   User              @relation("SupervisorRegister", fields: [supervisorId], references: [id])
+  manager      User?             @relation("ManagerRegister", fields: [managerId], references: [id])
+  entries      AttendanceEntry[]
+
+  @@unique([shiftId, date, supervisorId])
+  @@index([companyId])
+  @@index([shiftId])
+  @@index([supervisorId])
+}
+
+model AttendanceEntry {
+  id            String             @id @default(cuid())
+  status        AttendanceStatus   @default(PRESENT)
+  overtimeHours Float              @default(0)
+  notes         String?
+  createdAt     DateTime           @default(now())
+  updatedAt     DateTime           @updatedAt
+  registerId    String
+  employeeId    String
+
+  register      AttendanceRegister @relation(fields: [registerId], references: [id], onDelete: Cascade)
+  employee      Employee           @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+
+  @@unique([registerId, employeeId])
+  @@index([registerId])
+  @@index([employeeId])
+}
+
+model WageAdjustmentLog {
+  id           String    @id @default(cuid())
+  beforeAmount Float
+  afterAmount  Float
+  wageType     WageType
+  reason       String?
+  timestamp    DateTime  @default(now())
+  employeeId   String
+  changedById  String
+
+  employee     Employee  @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  changedBy    User      @relation(fields: [changedById], references: [id])
+
+  @@index([employeeId])
+  @@index([changedById])
 }

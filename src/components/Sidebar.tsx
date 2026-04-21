@@ -25,6 +25,8 @@ import {
   History,
   Settings,
   Truck,
+  UserCheck,
+  Banknote,
 } from "lucide-react";
 
 interface SidebarProps {
@@ -56,7 +58,9 @@ const roleConfigs: Record<string, { label: string; color: string; links: { href:
       // { href: "/owner/approvals", label: "Approve Production", icon: ClipboardCheck },
       { href: "/owner/dispatch-history", label: "Dispatch History", icon: Truck },
       { href: "/owner/managers", label: "Managers", icon: Users },
-      
+      { href: "/owner/employees", label: "Employees", icon: Users },
+      { href: "/owner/attendance", label: "Attendance View", icon: UserCheck },
+      { href: "/owner/expenses", label: "Salary Expenses", icon: Banknote },
     ],
   },
   MANAGER: {
@@ -68,7 +72,9 @@ const roleConfigs: Record<string, { label: string; color: string; links: { href:
       { href: "/manager/production", label: "Production Lists", icon: ListChecks },
       { href: "/manager/inventory", label: "Inventory", icon: Package },
       { href: "/manager/approvals", label: "Approve Production", icon: ClipboardCheck },
+      { href: "/manager/attendance", label: "Attendance Approvals", icon: UserCheck },
       { href: "/manager/dispatch", label: "Dispatch", icon: Truck },
+      { href: "/manager/employees", label: "Employee Log", icon: Users },
       { href: "/manager/log-history", label: "Log History", icon: History },
       { href: "/manager/settings", label: "Settings", icon: Settings },
     ],
@@ -80,7 +86,9 @@ const roleConfigs: Record<string, { label: string; color: string; links: { href:
       { href: "/supervisor", label: "Dashboard", icon: LayoutDashboard },
       { href: "/supervisor/orders", label: "Orders", icon: ShoppingCart },
       { href: "/supervisor/approvals", label: "Approve Production", icon: ClipboardCheck },
+      { href: "/supervisor/attendance", label: "Mark Attendance", icon: UserCheck },
       { href: "/supervisor/production-list", label: "Production List", icon: ListChecks },
+      { href: "/supervisor/employees", label: "My Workers", icon: Users },
       { href: "/supervisor/dispatch", label: "Dispatch", icon: Truck },
       { href: "/supervisor/log-history", label: "Log History", icon: History },
     ],
@@ -152,7 +160,16 @@ export default function Sidebar({ user }: SidebarProps) {
     const interval = setInterval(() => {
       fetch("/api/notifications").then((r) => r.json()).then(updateNotifs).catch(() => {});
     }, 30000);
-    return () => clearInterval(interval);
+
+    const handleReadEvent = () => {
+      fetch("/api/notifications").then((r) => r.json()).then(updateNotifs).catch(() => {});
+    };
+    window.addEventListener("notifications_read", handleReadEvent);
+
+    return () => {
+      clearInterval(interval);
+      window.removeEventListener("notifications_read", handleReadEvent);
+    };
   }, [role]);
 
   const navLinks = role === "OPERATOR" && operatorSection

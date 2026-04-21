@@ -25,6 +25,7 @@ export default function ManagerCatalog() {
   const [newThickVal, setNewThickVal] = useState("");
   const [newSizeLength, setNewSizeLength] = useState("");
   const [newSizeWidth, setNewSizeWidth] = useState("");
+  const [newSizeSqft, setNewSizeSqft] = useState("");
 
   // Sync tab with URL
   useEffect(() => {
@@ -186,8 +187,8 @@ export default function ManagerCatalog() {
       if (!newThickVal) return;
       body = { type: "thickness", action: "create", data: { value: newThickVal } };
     } else {
-      if (!newSizeLength || !newSizeWidth) return;
-      body = { type: "size", action: "create", data: { label: `${newSizeLength}×${newSizeWidth}`, length: newSizeLength, width: newSizeWidth } };
+      if (!newSizeLength || !newSizeWidth || !newSizeSqft) return;
+      body = { type: "size", action: "create", data: { label: `${newSizeLength}×${newSizeWidth}`, length: newSizeLength, width: newSizeWidth, sqft: newSizeSqft } };
     }
     const res = await fetch("/api/catalog", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
     if (res.ok) {
@@ -197,7 +198,7 @@ export default function ManagerCatalog() {
       const d = await res.json();
       setError(d.error || "Failed to add");
     }
-    setNewCatName(""); setNewThickVal(""); setNewSizeLength(""); setNewSizeWidth("");
+    setNewCatName(""); setNewThickVal(""); setNewSizeLength(""); setNewSizeWidth(""); setNewSizeSqft("");
     fetchData();
   };
 
@@ -504,6 +505,8 @@ export default function ManagerCatalog() {
               <span className="text-slate-400 text-2xl">×</span>
               <input type="number" step="0.25" value={newSizeWidth} onChange={(e) => setNewSizeWidth(e.target.value)} placeholder="Width"
                 className="flex-1 px-4 py-3 bg-slate-900/50 border border-slate-600 rounded-xl text-white outline-none focus:ring-2 focus:ring-blue-500/50" />
+              <input type="number" step="0.1" value={newSizeSqft} onChange={(e) => setNewSizeSqft(e.target.value)} placeholder="Sq.Ft (e.g 32)"
+                className="flex-1 px-4 py-3 bg-slate-900/50 border border-slate-600 rounded-xl text-white outline-none focus:ring-2 focus:ring-emerald-500/50" />
               <button onClick={() => addCatalogItem("size")} className="px-5 py-3 bg-blue-600 text-white font-semibold rounded-xl active:scale-[0.97]">Add</button>
             </div>
             <div className="grid grid-cols-3 sm:grid-cols-4 gap-3">
@@ -518,6 +521,7 @@ export default function ManagerCatalog() {
                   </button>
                   <p className="text-2xl font-black text-white">{s.label}</p>
                   <p className="text-slate-400 text-xs">{s.length}ft × {s.width}ft</p>
+                  <p className="text-emerald-400 font-bold text-xs mt-1 border-t border-slate-700/50 pt-1">{s.sqft} Sq.Ft</p>
                 </div>
               ))}
             </div>

@@ -333,7 +333,7 @@ export default function PeelingDashboard() {
                 {!selMaterial ? (
                   <div className="space-y-4">
                     <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Select Material</p>
-                    {treeTypes.map((tree: string) => (
+                    {(treeTypes as string[]).map((tree: string) => (
                       <div key={tree}>
                         <p className="text-yellow-400 font-black text-xs mb-2 uppercase">{tree}</p>
                         <div className="grid grid-cols-3 gap-2">

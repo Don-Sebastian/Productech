@@ -32,10 +32,15 @@ export async function GET(request: NextRequest) {
     });
 
     // Map `isRead` based on if the user ID is in readByUsers (for role-based) or absolute isRead flag
-    const notifications = dbNotifs.map((n: any) => ({
-      ...n,
-      isRead: n.userId === userId ? n.isRead : n.readByUsers?.includes(userId),
-    }));
+    const notifications = dbNotifs.map((n: any) => {
+      let isRead = false;
+      if (n.userId === userId) {
+        isRead = n.isRead;
+      } else if (n.targetRole === role) {
+        isRead = (n.readByUsers || []).includes(userId);
+      }
+      return { ...n, isRead };
+    });
 
     return NextResponse.json(notifications);
   } catch (error) {
@@ -61,18 +66,16 @@ export async function PUT(request: NextRequest) {
         where: { companyId, userId, isRead: false },
         data: { isRead: true },
       });
-      // Role-based notifications: fetch unread ones and append userId to readByUsers
-      const unreadRoleNotifs = await prisma.notification.findMany({
-        where: {
-          companyId,
-          targetRole: role,
-          NOT: { readByUsers: { has: userId } },
-        },
+      // Role-based notifications: fetch all for role, filter unread in js to avoid array null issues
+      const roleNotifs = await prisma.notification.findMany({
+        where: { companyId, targetRole: role }
       });
+      const unreadRoleNotifs = roleNotifs.filter(n => !(n.readByUsers || []).includes(userId));
+      
       for (const notif of unreadRoleNotifs) {
         await prisma.notification.update({
           where: { id: notif.id },
-          data: { readByUsers: { push: userId } },
+          data: { readByUsers: { set: [...(notif.readByUsers || []), userId] } },
         });
       }
     } else if (notificationIds?.length) {
@@ -83,8 +86,11 @@ export async function PUT(request: NextRequest) {
       for (const notif of notifs) {
         if (notif.userId === userId) {
           await prisma.notification.update({ where: { id: notif.id }, data: { isRead: true } });
-        } else if (notif.targetRole === role && !notif.readByUsers.includes(userId)) {
-          await prisma.notification.update({ where: { id: notif.id }, data: { readByUsers: { push: userId } } });
+        } else if (notif.targetRole === role && !(notif.readByUsers || []).includes(userId)) {
+          await prisma.notification.update({ 
+            where: { id: notif.id }, 
+            data: { readByUsers: { set: [...(notif.readByUsers || []), userId] } } 
+          });
         }
       }
     }
