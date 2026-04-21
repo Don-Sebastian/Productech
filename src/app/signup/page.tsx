@@ -2,16 +2,13 @@
 
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { AlertCircle, CheckCircle, Shield, Building2, User, Loader2, ArrowRight, Lock, Mail } from "lucide-react";
+import { AlertCircle, CheckCircle, Shield, Loader2, ArrowRight, Lock, Mail, User } from "lucide-react";
 
 export default function Signup() {
   const [formData, setFormData] = useState({
     name: "",
     email: "",
     password: "",
-    companyName: "",
-    companyEmail: "",
-    companyPhone: "",
   });
   const [error, setError] = useState("");
   const [success, setSuccess] = useState(false);
@@ -28,14 +25,10 @@ export default function Signup() {
         const data = await res.json();
         if (data.isSetUp) {
           setAlreadySetUp(true);
-          // System already has users — redirect to login after a brief moment
           setTimeout(() => router.replace("/login"), 2000);
         }
-      } catch {
-        // allow signup on error (fresh DB may not even have the table yet)
-      } finally {
-        setChecking(false);
-      }
+      } catch {}
+      finally { setChecking(false); }
     }
     check();
   }, [router]);
@@ -75,7 +68,6 @@ export default function Signup() {
     }
   };
 
-  // Loading state while checking setup
   if (checking) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-slate-900 via-blue-950 to-slate-900 flex items-center justify-center">
@@ -87,7 +79,6 @@ export default function Signup() {
     );
   }
 
-  // Already set up — block access
   if (alreadySetUp) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-slate-900 via-blue-950 to-slate-900 flex items-center justify-center p-4">
@@ -96,14 +87,13 @@ export default function Signup() {
             <Shield className="text-amber-400" size={28} />
           </div>
           <h2 className="text-2xl font-bold text-white mb-2">System Already Configured</h2>
-          <p className="text-blue-300/60 text-sm mb-6">An owner account already exists. Redirecting to login...</p>
+          <p className="text-blue-300/60 text-sm mb-6">An admin account already exists. Redirecting to login...</p>
           <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-400 mx-auto"></div>
         </div>
       </div>
     );
   }
 
-  // Success state
   if (success) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-slate-900 via-blue-950 to-slate-900 flex items-center justify-center p-4">
@@ -112,8 +102,8 @@ export default function Signup() {
             <div className="inline-flex items-center justify-center w-16 h-16 bg-emerald-500/20 rounded-2xl mb-4 border border-emerald-500/30">
               <CheckCircle className="text-emerald-400" size={32} />
             </div>
-            <h2 className="text-2xl font-bold text-white mb-2">System Initialized!</h2>
-            <p className="text-blue-300/60 text-sm mb-2">Your company and owner account have been created.</p>
+            <h2 className="text-2xl font-bold text-white mb-2">Admin Account Created!</h2>
+            <p className="text-blue-300/60 text-sm mb-2">Log in to create your first company and owner.</p>
             <p className="text-blue-300/40 text-xs">Redirecting to login...</p>
             <div className="mt-6 animate-spin rounded-full h-6 w-6 border-b-2 border-emerald-400 mx-auto"></div>
           </div>
@@ -127,8 +117,8 @@ export default function Signup() {
       <div className="w-full max-w-md">
         {/* Logo + First Run Badge */}
         <div className="text-center mb-8">
-          <div className="inline-flex items-center justify-center w-16 h-16 bg-blue-600/20 rounded-2xl mb-4 backdrop-blur-sm border border-blue-500/30">
-            <span className="text-2xl font-bold text-blue-400">C</span>
+          <div className="inline-flex items-center justify-center w-16 h-16 bg-violet-600/20 rounded-2xl mb-4 backdrop-blur-sm border border-violet-500/30">
+            <Shield className="text-violet-400" size={28} />
           </div>
           <h1 className="text-4xl font-bold text-white mb-2 tracking-tight">CRPLY</h1>
           <p className="text-blue-300/70 text-sm">Production Management System</p>
@@ -140,8 +130,8 @@ export default function Signup() {
 
         {/* Setup Card */}
         <div className="bg-white/5 backdrop-blur-xl rounded-2xl shadow-2xl p-8 border border-white/10">
-          <h2 className="text-2xl font-bold text-white mb-1">Initialize System</h2>
-          <p className="text-blue-300/60 text-sm mb-6">Create the owner account and register your company</p>
+          <h2 className="text-2xl font-bold text-white mb-1">Create Admin Account</h2>
+          <p className="text-blue-300/60 text-sm mb-6">The admin manages companies and assigns owners. You can create your first company after logging in.</p>
 
           {error && (
             <div className="mb-6 p-4 bg-red-500/10 border border-red-500/30 rounded-xl flex gap-3 items-start">
@@ -150,81 +140,56 @@ export default function Signup() {
             </div>
           )}
 
-          <form onSubmit={handleSubmit} className="space-y-6">
-            {/* Owner Section */}
-            <div className="space-y-4">
-              <div className="flex items-center gap-2 mb-1">
-                <User size={14} className="text-blue-400" />
-                <h3 className="text-xs font-bold text-blue-300 uppercase tracking-widest">Owner Account</h3>
-              </div>
-
+          <form onSubmit={handleSubmit} className="space-y-5">
+            <div>
+              <label className="block text-sm font-medium text-blue-200/80 mb-2">Full Name</label>
               <div className="relative">
-                <User className="absolute left-3.5 top-1/2 -translate-y-1/2 text-blue-400/50" size={16} />
+                <User className="absolute left-3.5 top-1/2 -translate-y-1/2 text-violet-400/50" size={16} />
                 <input
-                  type="text" name="name" placeholder="Owner Full Name" required
+                  type="text" name="name" placeholder="Admin Name" required
                   value={formData.name} onChange={handleChange}
-                  className="w-full pl-11 pr-4 py-3 bg-white/5 border border-white/10 rounded-xl text-white placeholder-blue-300/30 focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500/50 outline-none transition"
-                />
-              </div>
-
-              <div className="relative">
-                <Mail className="absolute left-3.5 top-1/2 -translate-y-1/2 text-blue-400/50" size={16} />
-                <input
-                  type="email" name="email" placeholder="owner@company.com" required
-                  value={formData.email} onChange={handleChange}
-                  className="w-full pl-11 pr-4 py-3 bg-white/5 border border-white/10 rounded-xl text-white placeholder-blue-300/30 focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500/50 outline-none transition"
-                />
-              </div>
-
-              <div className="relative">
-                <Lock className="absolute left-3.5 top-1/2 -translate-y-1/2 text-blue-400/50" size={16} />
-                <input
-                  type="password" name="password" placeholder="Password (min 6 chars)" required minLength={6}
-                  value={formData.password} onChange={handleChange}
-                  className="w-full pl-11 pr-4 py-3 bg-white/5 border border-white/10 rounded-xl text-white placeholder-blue-300/30 focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500/50 outline-none transition"
+                  className="w-full pl-11 pr-4 py-3 bg-white/5 border border-white/10 rounded-xl text-white placeholder-blue-300/30 focus:ring-2 focus:ring-violet-500/50 focus:border-violet-500/50 outline-none transition"
                 />
               </div>
             </div>
 
-            {/* Company Section */}
-            <div className="space-y-4 pt-2 border-t border-white/10">
-              <div className="flex items-center gap-2 mb-1 pt-4">
-                <Building2 size={14} className="text-emerald-400" />
-                <h3 className="text-xs font-bold text-emerald-300 uppercase tracking-widest">Company Details</h3>
+            <div>
+              <label className="block text-sm font-medium text-blue-200/80 mb-2">Email Address</label>
+              <div className="relative">
+                <Mail className="absolute left-3.5 top-1/2 -translate-y-1/2 text-violet-400/50" size={16} />
+                <input
+                  type="email" name="email" placeholder="admin@crply.com" required
+                  value={formData.email} onChange={handleChange}
+                  className="w-full pl-11 pr-4 py-3 bg-white/5 border border-white/10 rounded-xl text-white placeholder-blue-300/30 focus:ring-2 focus:ring-violet-500/50 focus:border-violet-500/50 outline-none transition"
+                />
               </div>
+            </div>
 
-              <input
-                type="text" name="companyName" placeholder="Company Name" required
-                value={formData.companyName} onChange={handleChange}
-                className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-white placeholder-blue-300/30 focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500/50 outline-none transition"
-              />
-
-              <input
-                type="email" name="companyEmail" placeholder="company@email.com" required
-                value={formData.companyEmail} onChange={handleChange}
-                className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-white placeholder-blue-300/30 focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500/50 outline-none transition"
-              />
-
-              <input
-                type="tel" name="companyPhone" placeholder="Company Phone (optional)"
-                value={formData.companyPhone} onChange={handleChange}
-                className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-white placeholder-blue-300/30 focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500/50 outline-none transition"
-              />
+            <div>
+              <label className="block text-sm font-medium text-blue-200/80 mb-2">Password</label>
+              <div className="relative">
+                <Lock className="absolute left-3.5 top-1/2 -translate-y-1/2 text-violet-400/50" size={16} />
+                <input
+                  type="password" name="password" placeholder="Min 6 characters" required minLength={6}
+                  value={formData.password} onChange={handleChange}
+                  className="w-full pl-11 pr-4 py-3 bg-white/5 border border-white/10 rounded-xl text-white placeholder-blue-300/30 focus:ring-2 focus:ring-violet-500/50 focus:border-violet-500/50 outline-none transition"
+                />
+              </div>
             </div>
 
             <button
               type="submit"
               disabled={loading}
-              className="w-full bg-gradient-to-r from-blue-600 to-blue-500 hover:from-blue-500 hover:to-blue-400 text-white font-semibold py-3.5 rounded-xl transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 shadow-lg shadow-blue-600/25"
+              className="w-full bg-gradient-to-r from-violet-600 to-indigo-600 hover:from-violet-500 hover:to-indigo-500 text-white font-semibold py-3.5 rounded-xl transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 shadow-lg shadow-violet-600/25"
             >
               {loading ? (
                 <>
                   <Loader2 className="animate-spin" size={18} />
-                  Creating...
+                  Creating Admin...
                 </>
               ) : (
                 <>
-                  Initialize System
+                  Create Admin Account
                   <ArrowRight size={18} />
                 </>
               )}
@@ -232,7 +197,7 @@ export default function Signup() {
           </form>
         </div>
 
-        <p className="text-center text-blue-300/30 text-xs mt-6">This page is only accessible on first-time setup.</p>
+        <p className="text-center text-blue-300/30 text-xs mt-6">This page is only accessible during first-time setup.</p>
       </div>
     </div>
   );

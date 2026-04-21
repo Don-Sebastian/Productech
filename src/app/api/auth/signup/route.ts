@@ -4,7 +4,7 @@ import bcrypt from "bcryptjs";
 
 export async function POST(request: NextRequest) {
   try {
-    // GUARD: Block signup if system is already set up
+    // GUARD: Block signup if system is already set up (any user exists)
     const existingUserCount = await prisma.user.count({ take: 1 });
     if (existingUserCount > 0) {
       return NextResponse.json(
@@ -13,12 +13,12 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const { email, password, name, companyName, companyEmail, companyPhone } = await request.json();
+    const { email, password, name } = await request.json();
 
     // Validate required fields
-    if (!email || !password || !name || !companyName || !companyEmail) {
+    if (!email || !password || !name) {
       return NextResponse.json(
-        { error: "All required fields must be provided" },
+        { error: "Name, email and password are required" },
         { status: 400 }
       );
     }
@@ -30,65 +30,28 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Check if company already exists
-    const existingCompany = await prisma.company.findUnique({
-      where: { email: companyEmail },
-    });
-
-    if (existingCompany) {
-      return NextResponse.json(
-        { error: "Company already registered" },
-        { status: 400 }
-      );
-    }
-
-    // Check if user already exists
-    const existingUser = await prisma.user.findUnique({
-      where: { email },
-    });
-
-    if (existingUser) {
-      return NextResponse.json(
-        { error: "Email already registered" },
-        { status: 400 }
-      );
-    }
-
     // Hash password
     const hashedPassword = await bcrypt.hash(password, 10);
 
-    // Create company and owner in transaction
-    const result = await prisma.$transaction(async (tx) => {
-      const company = await tx.company.create({
-        data: {
-          name: companyName,
-          email: companyEmail,
-          phone: companyPhone || null,
-          location: "",
-        },
-      });
-
-      const user = await tx.user.create({
-        data: {
-          email,
-          password: hashedPassword,
-          name,
-          role: "OWNER", // Self-signup creates an Owner
-          companyId: company.id,
-        },
-      });
-
-      return { company, user };
+    // Create ADMIN user (no company — admin creates companies later)
+    const user = await prisma.user.create({
+      data: {
+        email,
+        password: hashedPassword,
+        name,
+        role: "ADMIN",
+        // companyId is null for ADMIN
+      },
     });
 
     return NextResponse.json(
       {
-        message: "Company and owner account created successfully",
+        message: "Admin account created successfully",
         user: {
-          id: result.user.id,
-          email: result.user.email,
-          name: result.user.name,
-          role: result.user.role,
+          id: user.id,
+          email: user.email,
+          name: user.name,
+          role: user.role,
         },
       },
       { status: 201 }
@@ -96,7 +59,7 @@ export async function POST(request: NextRequest) {
   } catch (error) {
     console.error("Signup error:", error);
     return NextResponse.json(
-      { error: "Failed to create account" },
+      { error: "Failed to create admin account" },
       { status: 500 }
     );
   }
