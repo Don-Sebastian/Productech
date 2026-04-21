@@ -202,17 +202,68 @@ export default function OperatorLogPage() {
     if (actionLoading) return; // prevent double-clicks
     setActionLoading(true);
     try {
+      // ⚡ Optimistic UI Update: Make the change instantly visible before the heavy refetch
+      setData(prev => {
+        if (!prev || !prev.activeSession) return prev;
+        const s = { ...prev.activeSession };
+        
+        if (action === "pause") s.status = "PAUSED";
+        else if (action === "resume") s.status = "RUNNING";
+        else if (action === "maintenance") s.status = "MAINTENANCE";
+        else if (action === "stop") {
+          s.status = "STOPPED";
+          s.stopTime = new Date().toISOString();
+        }
+        else if (action === "load") {
+          const catName = prev.products.find(p => p.category.id === s.currentCategoryId)?.category.name || "";
+          const pThick = prev.products.find(p => p.thickness.id === s.currentThicknessId)?.thickness.value || 0;
+          const pSize = prev.products.find(p => p.size.id === s.currentSizeId)?.size || { length: 0, width: 0, label: "" };
+          
+          s.entries = [...s.entries, {
+            id: `temp-${Date.now()}`,
+            type: extra.type as "COOK" | "REPRESS",
+            loadTime: new Date().toISOString(),
+            unloadTime: null,
+            quantity: s.numDaylights,
+            notes: null,
+            createdAt: new Date().toISOString(),
+            category: { id: s.currentCategoryId!, name: catName },
+            thickness: { id: s.currentThicknessId!, value: pThick },
+            size: { id: s.currentSizeId!, ...pSize }
+          }];
+        }
+        else if (action === "unload") {
+          s.entries = s.entries.map(e => 
+            e.id === extra.entryId ? { ...e, unloadTime: new Date().toISOString() } : e
+          );
+        }
+        else if (action === "glue") {
+          s.glueEntries = [...s.glueEntries, {
+            id: `temp-${Date.now()}`,
+            time: new Date().toISOString(),
+            barrels: extra.barrels
+          }];
+        }
+        return { ...prev, activeSession: s };
+      });
+
       const res = await fetch("/api/hotpress", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ action, ...extra }),
       });
-      if (res.ok) await fetchData();
-      else {
+      
+      if (res.ok) {
+        fetchData(); // Silently sync background
+      } else {
         const err = await res.json();
         alert(err.error || "Action failed");
+        fetchData(); // Rollback UI if failed
       }
-    } catch { alert("Network error"); }
+    } catch { 
+      alert("Network error"); 
+      fetchData(); // Rollback UI
+    }
     finally { setActionLoading(false); }
   };
 
@@ -642,7 +693,7 @@ export default function OperatorLogPage() {
       <div className="grid grid-cols-3 gap-2">
         {sess.status === "RUNNING" ? (
           <LongPressButton onComplete={() => doAction("pause", { sessionId: sess.id })}
-            disabled={!!isCooking}
+            // disabled={!!isCooking}
             className={`py-3 bg-blue-900/50 border border-blue-700/50 text-blue-300 rounded-xl text-sm font-bold ${isCooking ? "opacity-30 cursor-not-allowed" : ""}`}>
             <Pause size={16} /> Pause
           </LongPressButton>
@@ -654,7 +705,7 @@ export default function OperatorLogPage() {
         )}
         {sess.status !== "MAINTENANCE" ? (
           <LongPressButton onComplete={() => doAction("maintenance", { sessionId: sess.id })}
-            disabled={!!isCooking}
+            // disabled={!!isCooking}
             className={`py-3 bg-orange-900/50 border border-orange-700/50 text-orange-300 rounded-xl text-sm font-bold ${isCooking ? "opacity-30 cursor-not-allowed" : ""}`}>
             <Wrench size={16} /> Maint.
           </LongPressButton>
@@ -671,7 +722,7 @@ export default function OperatorLogPage() {
         </LongPressButton>
       </div>
       {isCooking && (
-        <p className="text-center text-amber-400/70 text-xs">⚠️ Unload the press before stopping, pausing, or starting maintenance.</p>
+        <p className="text-center text-amber-400/70 text-xs">⚠️ Unload the press before stopping.</p>
       )}
 
       {/* ==================== PRODUCTION LOG ==================== */}
