@@ -24,7 +24,7 @@ export default async function SettingsLayout({
           <p className="text-slate-400 text-sm">Manage configuration, catalog, customizations, and personnel</p>
         </div>
 
-        <div className="flex flex-1 overflow-hidden bg-slate-900 border border-slate-800 rounded-2xl shadow-xl">
+        <div className="flex flex-col md:flex-row flex-1 overflow-hidden bg-slate-900 border border-slate-800 rounded-2xl shadow-xl">
           <SettingsNav />
           <div className="flex-1 overflow-y-auto p-4 md:p-6 bg-slate-900/50">
             {children}

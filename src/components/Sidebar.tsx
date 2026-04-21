@@ -302,7 +302,7 @@ export default function Sidebar({ user }: SidebarProps) {
       {/* Mobile menu button */}
       <button
         onClick={() => setMobileOpen(!mobileOpen)}
-        className="md:hidden fixed top-4 left-4 z-[60] p-2 bg-slate-800 border border-slate-700 rounded-xl text-white shadow-xl"
+        className="md:hidden fixed bottom-4 left-4 z-[60] p-2 bg-slate-800 border border-slate-700 rounded-xl text-white shadow-xl"
       >
         {mobileOpen ? <X size={20} /> : <Menu size={20} />}
       </button>

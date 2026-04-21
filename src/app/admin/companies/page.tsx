@@ -196,7 +196,7 @@ export default function AdminCompanies() {
     <div className="min-h-screen bg-slate-950">
       <Sidebar user={session.user} />
 
-      <main className="ml-64 p-8">
+      <main className="ml-0 md:ml-64 p-4 md:p-8 pb-24">
         {/* Header */}
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-8">
           <div>

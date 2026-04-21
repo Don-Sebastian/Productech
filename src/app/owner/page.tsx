@@ -73,7 +73,7 @@ export default function OwnerDashboard() {
     <div className="min-h-screen bg-slate-950">
       <Sidebar user={session.user} />
 
-      <main className="ml-64 p-8">
+      <main className="ml-0 md:ml-64 p-4 md:p-8 pb-24">
         <div className="mb-8">
           <h1 className="text-3xl font-bold text-white mb-1">Welcome, {session.user.name}</h1>
           <p className="text-slate-400">Company production overview and statistics</p>

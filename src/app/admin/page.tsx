@@ -45,7 +45,7 @@ export default function AdminDashboard() {
     <div className="min-h-screen bg-slate-950">
       <Sidebar user={session.user} />
 
-      <main className="ml-64 p-8">
+      <main className="ml-0 md:ml-64 p-4 md:p-8 pb-24">
         {/* Header */}
         <div className="mb-8">
           <h1 className="text-3xl font-bold text-white mb-1">Admin Dashboard</h1>

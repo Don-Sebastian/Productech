@@ -449,20 +449,19 @@ export default function UserManagement({
 
               {showSection && (
                 <div>
-                  <label className="block text-sm font-medium text-slate-300 mb-1.5">Section *</label>
+                  <label className="block text-sm font-medium text-slate-300 mb-1.5">Section (optional)</label>
                   <select
                     value={formData.section}
                     onChange={(e) => setFormData({ ...formData, section: e.target.value })}
                     className="w-full px-4 py-2.5 bg-slate-900/50 border border-slate-600 rounded-xl text-white focus:ring-2 focus:ring-blue-500/50 outline-none transition"
-                    required
                   >
-                    <option value="">Select section</option>
+                    <option value="">No section</option>
                     {sections.map((s) => (
                       <option key={s.id} value={s.slug}>{s.name}</option>
                     ))}
                   </select>
                   {sections.length === 0 && (
-                    <p className="text-amber-400 text-xs mt-1">No sections found. Add sections in Manager → Sections first.</p>
+                    <p className="text-amber-400 text-xs mt-1">No sections found. Add sections in Settings → Sections first.</p>
                   )}
                 </div>
               )}

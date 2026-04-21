@@ -137,6 +137,17 @@ export async function POST(request: NextRequest) {
 
     const hashedPassword = await bcrypt.hash(password, 10);
 
+    // If section slug is provided, look up the actual section ID
+    let sectionConnect = undefined;
+    if (role === "SUPERVISOR" && section) {
+      const sectionRecord = await prisma.section.findFirst({
+        where: { slug: section, companyId: companyId },
+      });
+      if (sectionRecord) {
+        sectionConnect = { connect: [{ id: sectionRecord.id }] };
+      }
+    }
+
     const newUser = await prisma.user.create({
       data: {
         name,
@@ -145,7 +156,7 @@ export async function POST(request: NextRequest) {
         phone: phone || null,
         role,
         companyId: companyId,
-        sections: role === "SUPERVISOR" && section ? { connect: [{ id: section }] } : undefined,
+        sections: sectionConnect,
         createdById: session.user.id,
       },
       select: {
