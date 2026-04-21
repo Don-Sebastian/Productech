@@ -1,41 +1,52 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useSession } from "next-auth/react";
 
 export default function Home() {
   const router = useRouter();
   const { data: session, status } = useSession();
+  const [checking, setChecking] = useState(true);
 
   useEffect(() => {
-    if (status === "loading") return;
+    async function checkSetup() {
+      try {
+        // First: check if any users exist in the DB at all
+        const res = await fetch("/api/setup/check");
+        const data = await res.json();
 
-    if (session?.user) {
-      // Redirect to role-specific dashboard
-      const role = (session.user as any).role;
-      switch (role) {
-        case "ADMIN":
-          router.push("/admin");
-          break;
-        case "OWNER":
-          router.push("/owner");
-          break;
-        case "MANAGER":
-          router.push("/manager");
-          break;
-        case "SUPERVISOR":
-          router.push("/supervisor");
-          break;
-        case "OPERATOR":
-          router.push("/operator");
-          break;
-        default:
-          router.push("/login");
+        if (!data.isSetUp) {
+          // Fresh install — no users exist, go to signup
+          router.replace("/signup");
+          return;
+        }
+
+        // System is set up — route based on session
+        if (status === "loading") return;
+
+        if (session?.user) {
+          const role = (session.user as any).role;
+          const paths: Record<string, string> = {
+            ADMIN: "/admin",
+            OWNER: "/owner",
+            MANAGER: "/manager",
+            SUPERVISOR: "/supervisor",
+            OPERATOR: "/operator",
+          };
+          router.replace(paths[role] || "/login");
+        } else {
+          router.replace("/login");
+        }
+      } catch {
+        // If check fails, default to login
+        router.replace("/login");
+      } finally {
+        setChecking(false);
       }
-    } else {
-      router.push("/login");
     }
+
+    checkSetup();
   }, [session, status, router]);
 
   return (

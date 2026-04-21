@@ -4,6 +4,15 @@ import bcrypt from "bcryptjs";
 
 export async function POST(request: NextRequest) {
   try {
+    // GUARD: Block signup if system is already set up
+    const existingUserCount = await prisma.user.count({ take: 1 });
+    if (existingUserCount > 0) {
+      return NextResponse.json(
+        { error: "System is already initialized. Contact your administrator." },
+        { status: 403 }
+      );
+    }
+
     const { email, password, name, companyName, companyEmail, companyPhone } = await request.json();
 
     // Validate required fields

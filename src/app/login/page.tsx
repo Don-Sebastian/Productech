@@ -1,11 +1,9 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { signIn, useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
-import Link from "next/link";
-import { AlertCircle, Lock, Mail, ArrowRight } from "lucide-react";
-import { useEffect } from "react";
+import { AlertCircle, Lock, Mail, ArrowRight, Loader2 } from "lucide-react";
 
 export default function Login() {
   const [email, setEmail] = useState("");
@@ -14,6 +12,21 @@ export default function Login() {
   const [loading, setLoading] = useState(false);
   const router = useRouter();
   const { data: session, status } = useSession();
+
+  // Check if system is set up; if not, redirect to signup
+  useEffect(() => {
+    async function checkSetup() {
+      try {
+        const res = await fetch("/api/setup/check");
+        const data = await res.json();
+        if (!data.isSetUp) {
+          router.replace("/signup");
+          return;
+        }
+      } catch {}
+    }
+    checkSetup();
+  }, [router]);
 
   // If already logged in, redirect to role dashboard
   useEffect(() => {
@@ -169,56 +182,6 @@ export default function Login() {
             </button>
           </form>
 
-          <div className="mt-6 pt-6 border-t border-white/10">
-            <p className="text-center text-blue-300/50 text-sm">
-              Don&apos;t have an account?{" "}
-              <Link
-                href="/signup"
-                className="text-blue-400 hover:text-blue-300 font-semibold transition"
-              >
-                Sign up here
-              </Link>
-            </p>
-          </div>
-        </div>
-
-        {/* Demo Credentials */}
-        <div className="mt-6 p-4 bg-blue-500/10 rounded-xl border border-blue-500/20 backdrop-blur-sm">
-          <p className="text-sm text-blue-300 font-semibold mb-2">
-            Demo Credentials:
-          </p>
-          <div className="grid grid-cols-2 gap-x-4 gap-y-1">
-            <p className="text-xs text-blue-300/70">
-              <span className="text-violet-400 font-medium">Admin:</span> admin@crply.com
-            </p>
-            <p className="text-xs text-blue-300/70">
-              pw: admin123
-            </p>
-            <p className="text-xs text-blue-300/70">
-              <span className="text-emerald-400 font-medium">Owner:</span> owner@demo.com
-            </p>
-            <p className="text-xs text-blue-300/70">
-              pw: demo123
-            </p>
-            <p className="text-xs text-blue-300/70">
-              <span className="text-blue-400 font-medium">Manager:</span> manager@demo.com
-            </p>
-            <p className="text-xs text-blue-300/70">
-              pw: demo123
-            </p>
-            <p className="text-xs text-blue-300/70">
-              <span className="text-amber-400 font-medium">Supervisor:</span> supervisor@demo.com
-            </p>
-            <p className="text-xs text-blue-300/70">
-              pw: demo123
-            </p>
-            <p className="text-xs text-blue-300/70">
-              <span className="text-rose-400 font-medium">Press Op:</span> press@demo.com
-            </p>
-            <p className="text-xs text-blue-300/70">
-              pw: demo123
-            </p>
-          </div>
         </div>
       </div>
     </div>
