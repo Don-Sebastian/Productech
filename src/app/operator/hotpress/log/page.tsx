@@ -670,13 +670,13 @@ export default function OperatorLogPage() {
             value={glueBarrels}
             onChange={e => setGlueBarrels(parseFloat(e.target.value) || 1)}
             className="w-20 px-3 py-2 bg-slate-900 border border-slate-600 rounded-xl text-white text-center"
-            min={0.5}
-            step={0.5}
+            min={1}
+            step={1}
           />
           <span className="text-slate-400 text-sm">barrels</span>
           <LongPressButton
             onComplete={async () => { await doAction("glue", { sessionId: sess.id, barrels: glueBarrels }); setShowGlueInput(false); }}
-            className="ml-auto px-4 py-2 bg-cyan-600 text-white rounded-xl text-sm font-bold"
+            className="ml-auto px-12 py-2 bg-cyan-600 text-white rounded-xl text-sm font-bold"
           >Add</LongPressButton>
           <button onClick={() => setShowGlueInput(false)} className="text-slate-400"><X size={18} /></button>
         </div>
@@ -693,8 +693,7 @@ export default function OperatorLogPage() {
       <div className="grid grid-cols-3 gap-2">
         {sess.status === "RUNNING" ? (
           <LongPressButton onComplete={() => doAction("pause", { sessionId: sess.id })}
-            // disabled={!!isCooking}
-            className={`py-3 bg-blue-900/50 border border-blue-700/50 text-blue-300 rounded-xl text-sm font-bold ${isCooking ? "opacity-30 cursor-not-allowed" : ""}`}>
+            className="py-3 bg-blue-900/50 border border-blue-700/50 text-blue-300 rounded-xl text-sm font-bold">
             <Pause size={16} /> Pause
           </LongPressButton>
         ) : (
@@ -705,8 +704,7 @@ export default function OperatorLogPage() {
         )}
         {sess.status !== "MAINTENANCE" ? (
           <LongPressButton onComplete={() => doAction("maintenance", { sessionId: sess.id })}
-            // disabled={!!isCooking}
-            className={`py-3 bg-orange-900/50 border border-orange-700/50 text-orange-300 rounded-xl text-sm font-bold ${isCooking ? "opacity-30 cursor-not-allowed" : ""}`}>
+            className="py-3 bg-orange-900/50 border border-orange-700/50 text-orange-300 rounded-xl text-sm font-bold">
             <Wrench size={16} /> Maint.
           </LongPressButton>
         ) : (

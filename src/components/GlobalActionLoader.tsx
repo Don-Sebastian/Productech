@@ -8,18 +8,25 @@ export default function GlobalActionLoader() {
 
   useEffect(() => {
     let activeMutations = 0;
+    let lastMutationTime = 0;
     const originalFetch = window.fetch;
 
     window.fetch = async function (...args) {
       const url = typeof args[0] === 'string' ? args[0] : (args[0] && 'url' in (args[0] as any) ? (args[0] as any).url : '');
       const method = (args[1]?.method?.toUpperCase()) || 'GET';
-      
-      // We only want to block the screen for modifying actions to prevent duplicate submissions.
-      // background polling or page navigations (GETs) shouldn't block the UI.
-      const isMutation = ["POST", "PUT", "PATCH", "DELETE"].includes(method);
       const isInternal = url.includes('/_next/') || url.includes('/__nextjs');
+      const isMutation = ["POST", "PUT", "PATCH", "DELETE"].includes(method);
       
-      const shouldShowLoader = isMutation && !isInternal;
+      // Track mutations, OR a GET request if it fires within 500ms of a mutation 
+      // (this catches sequential fetchData() refetches after an action)
+      let shouldShowLoader = false;
+      if (!isInternal && url.includes('/api/')) {
+        if (isMutation) {
+          shouldShowLoader = true;
+        } else if (Date.now() - lastMutationTime < 1500) {
+          shouldShowLoader = true;
+        }
+      }
 
       if (shouldShowLoader) {
         activeMutations++;
@@ -28,14 +35,18 @@ export default function GlobalActionLoader() {
 
       try {
         const response = await originalFetch.apply(this, args);
+        if (isMutation) lastMutationTime = Date.now();
         return response;
       } finally {
         if (shouldShowLoader) {
-          activeMutations--;
-          if (activeMutations <= 0) {
-            activeMutations = 0;
-            setLoading(false);
-          }
+          // Debounce removal to bridge the gap between POST ending and GET starting
+          setTimeout(() => {
+            activeMutations--;
+            if (activeMutations <= 0) {
+              activeMutations = 0;
+              setLoading(false);
+            }
+          }, 300);
         }
       }
     };
