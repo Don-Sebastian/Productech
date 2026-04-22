@@ -136,7 +136,7 @@ export default function OperatorLogPage() {
   const { data: session, status } = useSession();
   const router = useRouter();
   const role = (session?.user as any)?.role;
-  const { assigned, loading: assignmentLoading, error: assignmentError } = useMachineAssignment(role, status);
+  const { assigned, loading: assignmentLoading, error: assignmentError, machine } = useMachineAssignment(role, status);
   const [data, setData] = useState<{
     activeSession: HotPressSession | null;
     todaySessions: HotPressSession[];
@@ -463,8 +463,12 @@ export default function OperatorLogPage() {
         <div className="flex items-center gap-3">
           <span className="text-3xl">🔥</span>
           <div>
-            <h1 className="text-2xl font-bold text-white">Hot Press</h1>
-            <p className="text-slate-400 text-sm">Machine is OFF</p>
+            <h1 className="text-2xl font-bold text-white">Hot Press Log</h1>
+            <div className="flex items-center gap-2 mt-1">
+              <span className="bg-slate-800 text-slate-300 text-xs font-bold px-2 py-0.5 rounded-lg border border-slate-700">Machine: {machine?.name || "Hot Press"}</span>
+              <span className="bg-amber-500/20 text-amber-300 text-xs font-bold px-2 py-0.5 rounded-lg border border-amber-500/30">Sup: {machine?.assignments?.find((a: any) => a.role === "SUPERVISOR")?.user?.name || "Unassigned"}</span>
+            </div>
+            <p className="text-slate-400 text-sm mt-1">Machine is OFF</p>
           </div>
         </div>
 
@@ -503,17 +507,21 @@ export default function OperatorLogPage() {
         <div className="flex items-center gap-3">
           <span className="text-3xl">🔥</span>
           <div>
-            <h1 className="text-2xl font-bold text-white">
-              Hot Press
-              <span className={`ml-3 text-xs px-2 py-1 rounded-full ${
-                sess.status === "RUNNING" ? "bg-emerald-500/20 text-emerald-400" :
-                sess.status === "PAUSED" ? "bg-amber-500/20 text-amber-400" :
-                "bg-orange-500/20 text-orange-400"
+            <h1 className="text-2xl font-bold text-white flex items-center gap-3">
+              Hot Press Log
+              <span className={`text-xs px-2 py-1 rounded-full ${
+                sess.status === "RUNNING" ? "bg-emerald-500/20 text-emerald-400 border border-emerald-500/30" :
+                sess.status === "PAUSED" ? "bg-amber-500/20 text-amber-400 border border-amber-500/30" :
+                "bg-orange-500/20 text-orange-400 border border-orange-500/30"
               }`}>
                 {sess.status}
               </span>
             </h1>
-            <p className="text-slate-400 text-sm">Started {fmt(sess.startTime)}</p>
+            <div className="flex items-center gap-2 mt-1">
+              <span className="bg-slate-800 text-slate-300 text-xs font-bold px-2 py-0.5 rounded-lg border border-slate-700">Machine: {machine?.name || "Hot Press"}</span>
+              <span className="bg-amber-500/20 text-amber-300 text-xs font-bold px-2 py-0.5 rounded-lg border border-amber-500/30">Sup: {machine?.assignments?.find((a: any) => a.role === "SUPERVISOR")?.user?.name || "Unassigned"}</span>
+            </div>
+            <p className="text-slate-400 text-sm mt-1">Started {fmt(sess.startTime)}</p>
           </div>
         </div>
         <div className="text-right">
@@ -1026,9 +1034,14 @@ function SessionCard({
       {/* Session header */}
       <div className="p-4">
         <div className="flex items-center justify-between mb-2">
-          <div className="flex items-center gap-2">
-            <Clock size={16} className="text-slate-400" />
-            <span className="text-white font-bold">{fmt(session.startTime)} → {fmt(session.stopTime)}</span>
+          <div className="flex flex-col gap-1">
+            <div className="flex items-center gap-2">
+              <Clock size={16} className="text-slate-400" />
+              <span className="text-white font-bold">{fmt(session.startTime)} → {fmt(session.stopTime)}</span>
+            </div>
+            {session.operator?.name && (
+              <span className="text-[10px] text-slate-400 font-medium">Op: <span className="text-slate-300">{session.operator.name}</span></span>
+            )}
           </div>
           <span className={`text-xs px-2 py-1 rounded-full ${statusBadge.color}`}>{statusBadge.text}</span>
         </div>

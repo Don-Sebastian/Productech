@@ -14,9 +14,30 @@ export async function GET(request: NextRequest) {
     const [lists, company, productTimings] = await Promise.all([
       prisma.productionList.findMany({
         where: { companyId },
-        include: {
+        select: {
+          id: true,
+          listNumber: true,
+          priority: true,
+          status: true,
+          notes: true,
+          estimatedProductionMinutes: true,
+          createdAt: true,
           items: {
-            include: { category: true, thickness: true, size: true },
+            select: {
+              id: true,
+              quantity: true,
+              producedQuantity: true,
+              layers: true,
+              brandSeal: true,
+              varnish: true,
+              notes: true,
+              categoryId: true,
+              thicknessId: true,
+              sizeId: true,
+              category: { select: { id: true, name: true } },
+              thickness: { select: { id: true, value: true } },
+              size: { select: { id: true, label: true } },
+            },
           },
           order: {
             select: {
@@ -32,7 +53,7 @@ export async function GET(request: NextRequest) {
         },
         orderBy: [{ priority: "asc" } as any, { createdAt: "desc" } as any],
       }),
-      prisma.company.findUnique({ where: { id: companyId } }),
+      prisma.company.findUnique({ where: { id: companyId }, select: { workingHoursPerDay: true, numHotPresses: true, pressCapacityPerPress: true } }),
       (prisma as any).productTiming.findMany({ where: { companyId } }),
     ]);
 
@@ -71,15 +92,13 @@ export async function POST(request: NextRequest) {
     // Validate priority (1-5, default 3)
     const listPriority = priority ? Math.max(1, Math.min(5, parseInt(priority))) : 3;
 
-    // Fetch company settings and product timings for calculation
-    // Generate list number
-    const count = await prisma.productionList.count({ where: { companyId } });
-    const listNumber = `PROD-${new Date().getFullYear()}-${String(count + 1).padStart(3, "0")}`;
-
-    const [company, productTimings] = await Promise.all([
-      prisma.company.findUnique({ where: { id: companyId } }),
+    // Fetch everything in parallel — was 3 sequential queries, now 1 parallel batch
+    const [count, company, productTimings] = await Promise.all([
+      prisma.productionList.count({ where: { companyId } }),
+      prisma.company.findUnique({ where: { id: companyId }, select: { workingHoursPerDay: true, numHotPresses: true, pressCapacityPerPress: true } }),
       prisma.productTiming.findMany({ where: { companyId } }),
     ]);
+    const listNumber = `PROD-${new Date().getFullYear()}-${String(count + 1).padStart(3, "0")}`;
 
     const pressSettings = {
       workingHoursPerDay: (company as any)?.workingHoursPerDay ?? 8,

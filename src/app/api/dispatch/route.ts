@@ -19,7 +19,20 @@ export async function GET(request: NextRequest) {
     const loads = await prisma.dispatchLoad.findMany({
       where: whereClause,
       include: {
-        order: { select: { id: true, orderNumber: true, customer: { select: { name: true } } } },
+        order: { 
+          select: { 
+            id: true, 
+            orderNumber: true, 
+            customer: { select: { name: true } },
+            items: {
+              include: {
+                category: { select: { name: true } },
+                thickness: { select: { value: true } },
+                size: { select: { label: true } }
+              }
+            } 
+          } 
+        },
         createdBy: { select: { name: true } },
         manager: { select: { name: true } },
         items: {
@@ -31,6 +44,7 @@ export async function GET(request: NextRequest) {
         }
       },
       orderBy: { createdAt: "desc" },
+      take: 50,
     });
 
     return NextResponse.json(loads);
@@ -102,6 +116,16 @@ export async function POST(request: NextRequest) {
     await prisma.order.update({
       where: { id: orderId },
       data: { status: "READY_FOR_DISPATCH" }
+    });
+
+    await prisma.orderTimelineEvent.create({
+      data: {
+        companyId,
+        orderId,
+        action: "Dispatch Load Submitted",
+        details: `Supervisor ${(session.user as any).name} submitted dispatch load ${loadNumber}.`,
+        userId,
+      }
     });
 
     return NextResponse.json(load, { status: 201 });

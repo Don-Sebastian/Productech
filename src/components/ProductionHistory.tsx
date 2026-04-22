@@ -40,6 +40,7 @@ interface HotPressSession {
   glueEntries: GlueEntry[];
   pauseEvents: PauseEvent[];
   operator?: { id: string; name: string; email: string };
+  machine?: { id: string; name: string; code: string; assignments?: { user: { name: string } }[] };
 }
 
 function fmt(d: string | null | undefined) {
@@ -425,6 +426,12 @@ function HistorySessionCard({ session }: { session: HotPressSession }) {
           <div className="flex items-center gap-2">
             <User size={14} className="text-blue-400 print:text-gray-800" />
             <span className="text-white print:text-black font-bold text-sm">{session.operator?.name || "Operator"}</span>
+            <span className="text-[10px] bg-slate-800 text-slate-300 font-bold px-1.5 py-0.5 rounded-md border border-slate-700 print:border-gray-300 print:text-black print:bg-transparent ml-2 hidden sm:inline-block">
+              {session.machine?.name || "Unknown Machine"}
+            </span>
+            <span className="text-[10px] bg-amber-500/20 text-amber-300 font-bold px-1.5 py-0.5 rounded-md border border-amber-500/30 print:border-gray-300 print:text-black print:bg-transparent hidden sm:inline-block">
+              Sup: {session.machine?.assignments?.find(a => a.user)?.user?.name || "Unassigned"}
+            </span>
           </div>
           <span className={`text-xs px-2 py-1 rounded-full flex items-center gap-1 ${sc.bg} ${sc.color} print:bg-transparent print:text-gray-800 print:border print:border-gray-300`}>
             <StatusIcon size={10} />

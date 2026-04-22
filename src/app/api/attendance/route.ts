@@ -107,9 +107,9 @@ export async function POST(request: NextRequest) {
         return NextResponse.json({ error: "Cannot edit a submitted register" }, { status: 400 });
       }
 
-      // Upsert entries
-      for (const entry of entries) {
-        await prisma.attendanceEntry.upsert({
+      // Batch upsert entries in a single transaction
+      const upsertOps = entries.map((entry: any) =>
+        prisma.attendanceEntry.upsert({
           where: { registerId_employeeId: { registerId: register.id, employeeId: entry.employeeId } },
           update: { status: entry.status, overtimeHours: entry.overtimeHours || 0, notes: entry.notes || null },
           create: {
@@ -119,8 +119,9 @@ export async function POST(request: NextRequest) {
             overtimeHours: entry.overtimeHours || 0,
             notes: entry.notes || null,
           },
-        });
-      }
+        })
+      );
+      await prisma.$transaction(upsertOps);
 
       const updated = await prisma.attendanceRegister.findUnique({
         where: { id: register.id },

@@ -50,35 +50,42 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
     }),
   ],
   callbacks: {
-    async jwt({ token, user }) {
+    async jwt({ token, user, trigger }) {
+      // Only query DB on sign-in or explicit update — never on every request
       if (user) {
         token.id = user.id as string;
+        token.name = user.name;
         token.role = (user as any).role;
         token.companyId = (user as any).companyId;
         token.sections = (user as any).sections || [];
       }
+      // Allow manual refresh via update() trigger (e.g. after role change)
+      if (trigger === "update") {
+        try {
+          const dbUser = await prisma.user.findUnique({
+            where: { id: token.id as string },
+            select: { id: true, name: true, role: true, companyId: true, sections: { select: { slug: true } }, isActive: true },
+          });
+          if (dbUser && dbUser.isActive) {
+            token.name = dbUser.name;
+            token.role = dbUser.role;
+            token.companyId = dbUser.companyId;
+            token.sections = dbUser.sections.map((s: any) => s.slug);
+          }
+        } catch {
+          // Keep existing token data on error
+        }
+      }
       return token;
     },
     async session({ session, token }) {
+      // Read directly from JWT — no DB query
       if (session.user) {
-        // Always refresh user data from DB to prevent stale JWT issues
-        const dbUser = await prisma.user.findUnique({
-          where: { id: token.id as string },
-          select: { id: true, name: true, role: true, companyId: true, sections: true, isActive: true },
-        });
-        if (dbUser) {
-          session.user.id = dbUser.id;
-          (session.user as any).role = dbUser.role;
-          (session.user as any).companyId = dbUser.companyId;
-          (session.user as any).sections = dbUser.sections.map((s: any) => s.slug);
-          session.user.name = dbUser.name;
-        } else {
-          // Fallback to token data
-          session.user.id = token.id as string;
-          (session.user as any).role = token.role;
-          (session.user as any).companyId = token.companyId;
-          (session.user as any).sections = token.sections || [];
-        }
+        session.user.id = token.id as string;
+        session.user.name = token.name as string;
+        (session.user as any).role = token.role;
+        (session.user as any).companyId = token.companyId;
+        (session.user as any).sections = token.sections || [];
       }
       return session;
     },

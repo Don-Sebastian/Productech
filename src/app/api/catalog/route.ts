@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { auth } from "@/lib/auth";
+import { cachedJson } from "@/lib/cache";
 
 // GET - Fetch catalog (categories, thicknesses, sizes) for a company
 export async function GET(request: NextRequest) {
@@ -33,7 +34,8 @@ export async function GET(request: NextRequest) {
       console.warn("[CATALOG] Could not fetch productTimings:", e);
     }
 
-    return NextResponse.json({ categories, thicknesses, sizes, productTimings });
+    // Cache catalog for 5 minutes — it changes very rarely
+    return cachedJson({ categories, thicknesses, sizes, productTimings }, 300);
   } catch (error: any) {
     console.error("Error fetching catalog:", error);
     return NextResponse.json({ error: "Failed to fetch catalog", details: error.message }, { status: 500 });

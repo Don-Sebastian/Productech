@@ -385,6 +385,7 @@ model Order {
   @@index([createdById])
   @@index([customerId])
   @@index([status])
+  @@index([companyId, status])
 }
 
 model OrderCustomization {
@@ -461,6 +462,7 @@ model DispatchLoad {
   @@index([orderId])
   @@index([createdById])
   @@index([status])
+  @@index([companyId, orderId])
 }
 
 model DispatchLoadItem {
@@ -549,6 +551,8 @@ model Notification {
   @@index([companyId])
   @@index([userId])
   @@index([isRead])
+  @@index([companyId, targetRole])
+  @@index([companyId, userId])
 }
 
 model ProductType {
@@ -1092,6 +1096,7 @@ model AttendanceRegister {
   @@index([companyId])
   @@index([shiftId])
   @@index([supervisorId])
+  @@index([companyId, date])
 }
 
 model AttendanceEntry {

@@ -30,7 +30,7 @@ export async function GET(req: Request) {
       glueEntries: { orderBy: { time: "asc" as const } },
       pauseEvents: { orderBy: { startTime: "asc" as const } },
       operator: { select: { id: true, name: true, email: true, role: true } },
-      machine: { select: { id: true, name: true, code: true, section: { select: { name: true, slug: true } } } },
+      machine: { select: { id: true, name: true, code: true, section: { select: { name: true, slug: true } }, assignments: { where: { role: "SUPERVISOR", removedAt: null }, include: { user: { select: { name: true } } } } } },
     };
 
     // Supervisor view: sessions awaiting supervisor approval

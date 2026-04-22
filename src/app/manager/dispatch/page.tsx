@@ -4,7 +4,7 @@ import { useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import { useEffect, useState, Suspense } from "react";
 import Sidebar from "@/components/Sidebar";
-import { Truck, Check, Package, X, CheckSquare, Clock } from "lucide-react";
+import { Truck, Check, Package, X, CheckSquare, Clock, AlertTriangle } from "lucide-react";
 
 function ManagerDispatchContent() {
   const { data: session, status } = useSession();
@@ -36,6 +36,8 @@ function ManagerDispatchContent() {
     if (status === "authenticated") fetchLoads();
   }, [status]);
 
+  const [stockShortages, setStockShortages] = useState<any[] | null>(null);
+
   const updateStatus = async (id: string, newStatus: string) => {
     setActionLoading(id);
     try {
@@ -44,7 +46,14 @@ function ManagerDispatchContent() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ status: newStatus }),
       });
-      if (res.ok) fetchLoads();
+      if (res.ok) {
+        fetchLoads();
+      } else if (res.status === 409) {
+        const data = await res.json();
+        if (data.error === "INSUFFICIENT_STOCK" && data.shortages) {
+          setStockShortages(data.shortages);
+        }
+      }
     } catch (error) {
       console.error("Failed to update status", error);
     }
@@ -156,6 +165,50 @@ function ManagerDispatchContent() {
           </div>
         )}
       </main>
+
+      {/* Stock Shortage Modal */}
+      {stockShortages && (
+        <div className="fixed inset-0 z-[99999] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
+          <div className="bg-slate-900 border border-red-500/40 rounded-2xl shadow-2xl max-w-md w-full p-6">
+            <div className="flex items-center gap-3 mb-4">
+              <div className="w-10 h-10 rounded-xl bg-red-500/20 flex items-center justify-center flex-shrink-0">
+                <AlertTriangle size={22} className="text-red-400" />
+              </div>
+              <div>
+                <h3 className="text-white font-black text-lg">Insufficient Stock</h3>
+                <p className="text-slate-400 text-xs">Cannot dispatch — the following items exceed available inventory.</p>
+              </div>
+            </div>
+
+            <div className="space-y-2 mb-5">
+              {stockShortages.map((s: any, idx: number) => (
+                <div key={idx} className="bg-red-950/40 border border-red-500/20 rounded-xl p-3 flex items-center justify-between">
+                  <span className="text-white text-sm font-medium">{s.product}</span>
+                  <div className="text-right">
+                    <p className="text-red-400 font-bold text-sm">Need {s.requested}</p>
+                    <p className="text-slate-500 text-[10px]">In stock: {s.currentStock}</p>
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            <div className="flex gap-2">
+              <button
+                onClick={() => { setStockShortages(null); router.push("/manager/inventory"); }}
+                className="flex-1 py-3 bg-red-600 hover:bg-red-500 text-white font-bold rounded-xl shadow-lg transition active:scale-[0.97]"
+              >
+                Go to Inventory
+              </button>
+              <button
+                onClick={() => setStockShortages(null)}
+                className="px-5 py-3 bg-slate-800 hover:bg-slate-700 text-slate-300 font-bold rounded-xl transition"
+              >
+                Close
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 
@@ -188,25 +241,47 @@ function ManagerDispatchContent() {
               <span className="text-[10px] mt-1 block text-slate-500 font-bold tracking-tight">Created by: {load.createdBy?.name} on {new Date(load.createdAt).toLocaleString()}</span>
             </p>
 
-            <div className="space-y-1 mt-3">
-              {load.items?.map((item: any, idx: number) => (
-                <div key={idx} className="bg-slate-900/40 rounded-lg p-2 text-sm flex gap-4 items-center">
-                  <span className="text-white font-medium flex-1">{item.category?.name} • {item.thickness?.value}mm • {item.size?.label}</span>
-                  {editingLoadId === load.id ? (
-                    <div className="flex items-center gap-2">
-                      <span className="text-slate-400">Qty:</span>
-                      <input 
-                        type="number" 
-                        className="w-16 px-2 py-1 bg-slate-900 border border-slate-600 rounded text-emerald-400 font-bold outline-none focus:border-emerald-500" 
-                        value={editData[item.id] || item.quantity} 
-                        onChange={(e) => setEditData({...editData, [item.id]: e.target.value})} 
-                      />
-                    </div>
-                  ) : (
-                    <span className="text-emerald-400 font-bold">Qty: {item.quantity}</span>
-                  )}
-                </div>
-              ))}
+            <div className="mt-4 bg-slate-900 border border-slate-700/50 rounded-xl overflow-hidden text-sm">
+              <table className="w-full text-left">
+                <thead className="bg-slate-800/80 text-slate-400 text-xs">
+                  <tr>
+                    <th className="p-2 pl-3">Product</th>
+                    <th className="p-2 text-right">Ordered Qty</th>
+                    <th className="p-2 text-right pr-3">Dispatching Qty</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-700/50">
+                  {load.items?.map((item: any, idx: number) => {
+                    const matchOrder = load.order?.items?.find((oi: any) => 
+                      oi.category.name === item.category?.name && 
+                      oi.thickness.value === item.thickness?.value && 
+                      oi.size.label === item.size?.label
+                    );
+                    const orderedQty = matchOrder ? matchOrder.quantity : 0;
+                    
+                    return (
+                    <tr key={idx} className="bg-slate-900/40">
+                      <td className="p-2 pl-3 text-white font-medium text-xs sm:text-sm">{item.category?.name} • {item.thickness?.value}mm • {item.size?.label}</td>
+                      <td className="p-2 text-right font-bold text-slate-500">{orderedQty || "-"}</td>
+                      <td className="p-2 text-right pr-3">
+                        {editingLoadId === load.id ? (
+                          <input 
+                            type="number" 
+                            className="w-16 px-2 py-1 bg-slate-950 border border-slate-600 rounded text-emerald-400 font-bold outline-none focus:border-emerald-500 text-right" 
+                            value={editData[item.id] || item.quantity} 
+                            onChange={(e) => setEditData({...editData, [item.id]: e.target.value})} 
+                          />
+                        ) : (
+                          <span className={`font-bold ${item.quantity < orderedQty ? "text-amber-400" : "text-emerald-400"}`}>
+                            {item.quantity}
+                          </span>
+                        )}
+                      </td>
+                    </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
             </div>
             {load.notes && (
               <p className="mt-3 text-sm text-amber-200/80 bg-amber-500/10 p-2 rounded-lg italic">Notes: {load.notes}</p>
@@ -243,13 +318,21 @@ function ManagerDispatchContent() {
                   </button>
                 )}
                 {load.status === "MANAGER_CONFIRMED" && (
-                  <button 
-                    onClick={() => updateStatus(load.id, "DISPATCHED")}
-                    disabled={isUpdating}
-                    className="w-full py-2.5 bg-emerald-600 hover:bg-emerald-500 text-white font-bold rounded-xl shadow-lg disabled:opacity-50 transition"
-                  >
-                    {isUpdating ? "..." : "Mark Dispatched"}
-                  </button>
+                  <div className="flex flex-col gap-1.5 mt-2">
+                    <div className="bg-amber-500/10 border border-amber-500/30 p-2 rounded-lg">
+                      <p className="text-[10px] text-amber-500/90 text-center font-bold tracking-tight leading-tight flex flex-col items-center gap-1">
+                        <AlertTriangle size={12} />
+                        Final dispatch will permanently deduct quantities from active stock!
+                      </p>
+                    </div>
+                    <button 
+                      onClick={() => updateStatus(load.id, "DISPATCHED")}
+                      disabled={isUpdating}
+                      className="w-full py-2.5 bg-emerald-600 hover:bg-emerald-500 text-white font-bold rounded-xl shadow-lg disabled:opacity-50 transition"
+                    >
+                      {isUpdating ? "..." : "Mark Dispatched"}
+                    </button>
+                  </div>
                 )}
                 
                 {(load.status === "SUPERVISOR_SUBMITTED" || load.status === "MANAGER_CONFIRMED") && (

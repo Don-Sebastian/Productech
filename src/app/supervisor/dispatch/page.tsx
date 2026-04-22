@@ -372,6 +372,53 @@ function DispatchListContent() {
             </div>
           </div>
         )}
+
+        {/* Display Dispatch Loads History */}
+        {!showCreate && dispatchLoads.length > 0 && (
+          <div>
+             <h2 className="text-slate-400 font-bold text-sm mb-3 mt-6 flex items-center gap-2">
+               <Package size={16} /> RECENT DISPATCH LOADS ({dispatchLoads.length})
+             </h2>
+             <div className="space-y-3">
+               {dispatchLoads.map(load => (
+                 <div key={load.id} className="bg-slate-800/40 border border-slate-700/50 rounded-2xl p-4 transition hover:bg-slate-800/60">
+                   <div className="flex items-center justify-between mb-3 border-b border-slate-700/50 pb-3">
+                     <div className="flex items-center gap-3">
+                       <span className={`text-[10px] px-2 py-1 rounded font-black ${statusColors[load.status] || "bg-slate-700 text-slate-300"}`}>
+                         {load.status.replace("_", " ")}
+                       </span>
+                       <h3 className="text-white font-bold tracking-tight">{load.loadNumber}</h3>
+                     </div>
+                     <span className="text-slate-500 text-xs">{formatDate(new Date(load.createdAt))}</span>
+                   </div>
+                   <div className="flex items-center gap-4 mb-3">
+                      <span className="text-sky-400 bg-sky-500/10 px-2 py-0.5 rounded-md border border-sky-500/20 uppercase tracking-widest font-black text-xs">
+                        Order: {load.order?.orderNumber}
+                      </span>
+                      {load.order?.customer?.name && (
+                        <p className="text-slate-300 text-sm font-semibold truncate">{load.order.customer.name}</p>
+                      )}
+                   </div>
+                   <div className="space-y-1">
+                     {load.items?.map((item: any, idx: number) => (
+                       <p key={idx} className="text-slate-400 text-xs">
+                         <span className="text-white font-medium">{item.quantity}</span>x {item.category?.name} • {item.thickness?.value}mm • {item.size?.label}
+                       </p>
+                     ))}
+                   </div>
+                   {load.status === "SUPERVISOR_SUBMITTED" && (
+                     <div className="mt-4 pt-3 border-t border-slate-700/50">
+                        {/* Delete logic can be implemented via API if needed */}
+                        <p className="text-[10px] text-amber-500 font-bold uppercase tracking-widest flex items-center gap-1">
+                          <AlertTriangle size={12} /> Pending Manager Confirmation
+                        </p>
+                     </div>
+                   )}
+                 </div>
+               ))}
+             </div>
+          </div>
+        )}
       </main>
     </div>
   );

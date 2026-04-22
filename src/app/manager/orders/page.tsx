@@ -19,6 +19,8 @@ export default function ManagerOrders() {
   const [showCreate, setShowCreate] = useState(false);
   const [editingOrderId, setEditingOrderId] = useState<string | null>(null);
   const [expandedOrder, setExpandedOrder] = useState<string | null>(null);
+  const [expandedTimelineId, setExpandedTimelineId] = useState<string | null>(null);
+  const [editingPriorityId, setEditingPriorityId] = useState<string | null>(null);
   const [viewMode, setViewMode] = useState<"ACTIVE" | "HISTORY">("ACTIVE");
 
   // New order form
@@ -40,6 +42,7 @@ export default function ManagerOrders() {
   const [selCustomizations, setSelCustomizations] = useState<string[]>([]);
 
   const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null);
+  const [confirmDispatchId, setConfirmDispatchId] = useState<string | null>(null);
   const [error, setError] = useState("");
 
   useEffect(() => {
@@ -169,6 +172,15 @@ export default function ManagerOrders() {
       body: JSON.stringify({ priority: newPriority }),
     });
     fetchData();
+  };
+
+  const handleDispatch = async (id: string) => {
+    try {
+      await updateStatus(id, "READY_FOR_DISPATCH");
+      setConfirmDispatchId(null);
+    } catch {
+      alert("Network error");
+    }
   };
 
 
@@ -496,7 +508,12 @@ export default function ManagerOrders() {
               const StatusIcon = sc.icon;
               const isExpanded = expandedOrder === order.id;
               const pc = priorityConfig[order.priority] || priorityConfig[3];
-              const isProductionComplete = order.status === "PRODUCTION_COMPLETED";
+              
+              const orderTargetQty = order.items?.reduce((s: number, i: any) => s + i.quantity, 0) || 0;
+              const orderProducedQty = order.productionLists?.reduce((s: number, pl: any) => s + pl.items?.reduce((ps: number, item: any) => ps + (item.producedQuantity || 0), 0), 0) || 0;
+              const progressPercent = orderTargetQty > 0 ? Math.min(100, Math.round((orderProducedQty / orderTargetQty) * 100)) : 0;
+              
+              const isProductionComplete = order.status === "PRODUCTION_COMPLETED" || (progressPercent >= 100 && !["DISPATCHED", "COMPLETED", "CANCELLED"].includes(order.status));
 
               // Estimation
               const prodMinutes = calcListProductionMinutes(
@@ -555,17 +572,27 @@ export default function ManagerOrders() {
                             </span>
                           )}
                         </div>
-                        <div className="flex items-center gap-2 mt-0.5">
-                          <p className="text-slate-400 text-[10px] flex items-center gap-1">
-                            <Plus size={10} /> Created {formatDate(new Date(order.createdAt))}
-                          </p>
-                          <p className="text-slate-400 text-xs truncate">
-                            
-                            • {order.items?.length} item(s)
-                            {hasTimings && productionDays > 0 && (
-                              <span className="ml-2 text-orange-400">• ~{formatDays(productionDays)} production</span>
-                            )}
-                          </p>
+                        <div className="flex flex-col gap-1.5 mt-2">
+                          <div className="flex items-center gap-2">
+                            <p className="text-slate-400 text-[10px] flex items-center gap-1">
+                              <Plus size={10} /> Created {formatDate(new Date(order.createdAt))}
+                            </p>
+                            <p className="text-slate-400 text-xs truncate">
+                              • {order.items?.length} item(s)
+                              {hasTimings && productionDays > 0 && (
+                                <span className="ml-2 text-orange-400">• ~{formatDays(productionDays)} production</span>
+                              )}
+                            </p>
+                          </div>
+                          {/* Progress Bar */}
+                          {!["PENDING", "CANCELLED", "COMPLETED"].includes(order.status) && orderTargetQty > 0 && (
+                            <div className="flex items-center gap-2 w-full max-w-[200px]">
+                              <div className="flex-1 h-1.5 bg-slate-900 rounded-full overflow-hidden">
+                                <div className={`h-full rounded-full transition-all duration-700 ${progressPercent >= 100 ? "bg-emerald-500" : "bg-blue-500"}`} style={{ width: `${progressPercent}%` }} />
+                              </div>
+                              <span className={`text-[9px] font-black ${progressPercent >= 100 ? "text-emerald-400" : "text-blue-400"}`}>{orderProducedQty}/{orderTargetQty}</span>
+                            </div>
+                          )}
                         </div>
                       </div>
                     </div>
@@ -576,22 +603,34 @@ export default function ManagerOrders() {
                   {isExpanded && (
                     <div className="px-4 pb-4 border-t border-slate-700/50 pt-3 space-y-3">
                       {/* Priority Update */}
-                      {order.status !== "COMPLETED" && order.status !== "CANCELLED" && (
+                      {order.status !== "COMPLETED" && order.status !== "CANCELLED" && order.status !== "DISPATCHED" && (
                         <div>
-                          <p className="text-xs text-slate-500 mb-1.5">Update Priority</p>
-                          <div className="flex gap-1.5">
-                            {[1, 2, 3, 4, 5].map((p) => {
-                              const pConf = priorityConfig[p];
-                              return (
-                                <button key={p} onClick={() => updatePriority(order.id, p)}
-                                  className={`flex-1 py-2 rounded-lg text-xs font-bold transition active:scale-[0.95] ${
-                                    order.priority === p ? `${pConf.bg} ${pConf.color} ring-1 ring-current` : "bg-slate-700/50 text-slate-500"
-                                  }`}>
-                                  P{p}
-                                </button>
-                              );
-                            })}
+                          <div className="flex items-center justify-between mb-1.5">
+                            <p className="text-xs text-slate-500">Priority Level</p>
+                            <button onClick={() => setEditingPriorityId(editingPriorityId === order.id ? null : order.id)}
+                              className="text-[10px] bg-slate-700 text-slate-300 px-2 py-0.5 rounded transition hover:bg-slate-600">
+                              {editingPriorityId === order.id ? "Done" : "Edit Priority"}
+                            </button>
                           </div>
+                          {editingPriorityId === order.id ? (
+                            <div className="flex gap-1.5">
+                              {[1, 2, 3, 4, 5].map((p) => {
+                                const pConf = priorityConfig[p];
+                                return (
+                                  <button key={p} onClick={async () => { await updatePriority(order.id, p); setEditingPriorityId(null); }}
+                                    className={`flex-1 py-2 rounded-lg text-xs font-bold transition active:scale-[0.95] ${
+                                      order.priority === p ? `${pConf.bg} ${pConf.color} ring-1 ring-current` : "bg-slate-700/50 text-slate-500 hover:bg-slate-700"
+                                    }`}>
+                                    P{p}
+                                  </button>
+                                );
+                              })}
+                            </div>
+                          ) : (
+                            <div className={`inline-block py-1.5 px-4 rounded-lg text-sm font-bold ${priorityConfig[order.priority]?.bg || "bg-slate-700"} ${priorityConfig[order.priority]?.color || "text-white"}`}>
+                              Priority {order.priority}
+                            </div>
+                          )}
                         </div>
                       )}
 
@@ -613,6 +652,36 @@ export default function ManagerOrders() {
                         </div>
                       ))}
 
+                      {/* Timeline Events */}
+                      {order.timelineEvents && order.timelineEvents.length > 0 && (
+                        <div className="mt-4 border-t border-slate-700/50 pt-4">
+                          <button 
+                            onClick={() => setExpandedTimelineId(expandedTimelineId === order.id ? null : order.id)} 
+                            className="w-full flex items-center justify-between text-xs font-black text-slate-500 uppercase tracking-widest hover:text-slate-300 transition"
+                          >
+                            <span>Order Timeline</span>
+                            {expandedTimelineId === order.id ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
+                          </button>
+                          
+                          {expandedTimelineId === order.id && (
+                            <div className="relative pl-3 space-y-4 mt-4">
+                              <div className="absolute left-[3px] top-2 bottom-0 w-0.5 bg-slate-700"></div>
+                              {order.timelineEvents.map((event: any, idx: number) => (
+                                <div key={idx} className="relative">
+                                  <div className="absolute -left-[14px] top-1 w-2.5 h-2.5 rounded-full bg-emerald-500 ring-2 ring-slate-900 shadow-[0_0_8px_rgba(16,185,129,0.5)]"></div>
+                                  <p className="text-sm font-bold text-white leading-none mb-1">{event.action}</p>
+                                  <p className="text-xs text-slate-400">{event.details}</p>
+                                  <div className="flex items-center gap-2 mt-1">
+                                    <p className="text-[10px] text-slate-500 uppercase tracking-wider">{new Date(event.createdAt).toLocaleString('en-IN')}</p>
+                                    {event.user?.name && <span className="text-[10px] bg-slate-800 text-slate-300 px-1.5 py-0.5 rounded font-medium">{event.user.name}</span>}
+                                  </div>
+                                </div>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+                      )}
+
                       {/* Status Change Buttons */}
                       <div className="grid grid-cols-2 gap-2 pt-2">
                         {order.status === "PENDING" && (
@@ -621,11 +690,30 @@ export default function ManagerOrders() {
                             ✓ Confirm
                           </button>
                         )}
-                        {order.status === "PRODUCTION_COMPLETED" && (
-                          <button onClick={() => updateStatus(order.id, "READY_FOR_DISPATCH")}
-                            className="py-2.5 bg-emerald-600/20 text-emerald-300 font-semibold rounded-xl text-sm active:scale-[0.97] transition col-span-2">
-                            🚚 Mark Ready for Dispatch
-                          </button>
+                        
+                        {!["DISPATCHED", "COMPLETED", "CANCELLED"].includes(order.status) && (
+                          <div className={`col-span-2 ${order.status === "PENDING" ? "" : "col-span-2"}`}>
+                            {confirmDispatchId === order.id ? (
+                              <div className="bg-amber-500/10 border border-amber-500/30 p-4 rounded-xl">
+                                <p className="text-amber-400 text-sm font-bold mb-1">Confirm Mark For Dispatch?</p>
+                                <p className="text-amber-500/80 text-xs mb-4">
+                                  {progressPercent < 100 
+                                    ? `Production is only at ${progressPercent}%. Are you sure you want to mark this order ready for dispatch?` 
+                                    : "Are you sure you want to mark this order as ready for dispatch?"}
+                                </p>
+                                <div className="flex gap-2">
+                                  <button onClick={() => handleDispatch(order.id)} className="flex-1 py-2.5 bg-amber-600 text-white font-bold text-sm rounded-lg shadow hover:bg-amber-500 active:scale-95 transition">Yes, Mark Ready</button>
+                                  <button onClick={() => setConfirmDispatchId(null)} className="flex-1 py-2.5 bg-slate-700 text-slate-300 font-bold text-sm rounded-lg hover:bg-slate-600 active:scale-95 transition">Cancel</button>
+                                </div>
+                              </div>
+                            ) : (
+                               <button onClick={() => setConfirmDispatchId(order.id)}
+                                 className="w-full py-2.5 bg-violet-600/20 border border-violet-500/30 text-violet-300 font-bold rounded-xl text-sm active:scale-[0.97] transition flex items-center justify-center gap-2 hover:bg-violet-600/30 group">
+                                 <Truck size={16} className="transition-transform group-hover:translate-x-1" />
+                                 Mark Ready for Dispatch
+                               </button>
+                            )}
+                          </div>
                         )}
                         {order.status !== "CANCELLED" && order.status !== "COMPLETED" && order.status !== "DISPATCHED" && (
                           <div className="col-span-2 flex gap-2">

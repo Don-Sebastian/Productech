@@ -49,7 +49,7 @@ export async function GET(request: NextRequest) {
   }
 }
 
-// PUT - Mark notifications as read
+// PUT - Mark notifications as read (batched)
 export async function PUT(request: NextRequest) {
   try {
     const session = await auth();
@@ -61,38 +61,55 @@ export async function PUT(request: NextRequest) {
     const companyId = (session.user as any).companyId;
 
     if (markAllRead) {
-      // Direct user notifications
+      // Batch 1: Mark all direct user notifications as read in one query
       await prisma.notification.updateMany({
         where: { companyId, userId, isRead: false },
         data: { isRead: true },
       });
-      // Role-based notifications: fetch all for role, filter unread in js to avoid array null issues
+
+      // Batch 2: For role-based notifications, fetch unread ones and batch update
       const roleNotifs = await prisma.notification.findMany({
-        where: { companyId, targetRole: role }
+        where: { companyId, targetRole: role },
+        select: { id: true, readByUsers: true },
       });
-      const unreadRoleNotifs = roleNotifs.filter(n => !(n.readByUsers || []).includes(userId));
-      
-      for (const notif of unreadRoleNotifs) {
-        await prisma.notification.update({
-          where: { id: notif.id },
-          data: { readByUsers: { set: [...(notif.readByUsers || []), userId] } },
-        });
+
+      // Filter to only unread, then batch update all at once
+      const unreadIds = roleNotifs
+        .filter(n => !(n.readByUsers || []).includes(userId))
+        .map(n => n.id);
+
+      if (unreadIds.length > 0) {
+        // Use a transaction to update all at once instead of individual loops
+        await prisma.$transaction(
+          unreadIds.map(id => {
+            const notif = roleNotifs.find(n => n.id === id)!;
+            return prisma.notification.update({
+              where: { id },
+              data: { readByUsers: { set: [...(notif.readByUsers || []), userId] } },
+            });
+          })
+        );
       }
     } else if (notificationIds?.length) {
-      // Find the required notifications first
+      // Batch fetch + batch update
       const notifs = await prisma.notification.findMany({
         where: { id: { in: notificationIds } },
+        select: { id: true, userId: true, targetRole: true, readByUsers: true },
       });
+
+      const txOps: any[] = [];
       for (const notif of notifs) {
         if (notif.userId === userId) {
-          await prisma.notification.update({ where: { id: notif.id }, data: { isRead: true } });
+          txOps.push(prisma.notification.update({ where: { id: notif.id }, data: { isRead: true } }));
         } else if (notif.targetRole === role && !(notif.readByUsers || []).includes(userId)) {
-          await prisma.notification.update({ 
-            where: { id: notif.id }, 
-            data: { readByUsers: { set: [...(notif.readByUsers || []), userId] } } 
-          });
+          txOps.push(prisma.notification.update({
+            where: { id: notif.id },
+            data: { readByUsers: { set: [...(notif.readByUsers || []), userId] } },
+          }));
         }
       }
+
+      if (txOps.length > 0) await prisma.$transaction(txOps);
     }
 
     return NextResponse.json({ success: true });

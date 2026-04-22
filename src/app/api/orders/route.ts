@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { auth } from "@/lib/auth";
 
-// GET - Fetch all orders for a company
+// GET - Fetch orders for a company (paginated)
 export async function GET(request: NextRequest) {
   try {
     const session = await auth();
@@ -11,24 +11,57 @@ export async function GET(request: NextRequest) {
     const companyId = (session.user as any).companyId;
     if (!companyId) return NextResponse.json({ error: "No company" }, { status: 400 });
 
-    const [orders, company, productTimings] = await Promise.all([
+    const { searchParams } = new URL(request.url);
+    const take = Math.min(parseInt(searchParams.get("limit") || "50"), 100);
+    const skip = parseInt(searchParams.get("offset") || "0");
+    const statusFilter = searchParams.get("status");
+
+    const where: any = { companyId };
+    if (statusFilter) where.status = statusFilter;
+
+    const [orders, total, company, productTimings] = await Promise.all([
       prisma.order.findMany({
-        where: { companyId },
-        include: {
+        where,
+        select: {
+          id: true,
+          orderNumber: true,
+          priority: true,
+          status: true,
+          notes: true,
+          dueDate: true,
+          estimatedDispatchDate: true,
+          createdAt: true,
           customer: { select: { name: true, phone: true } },
           createdBy: { select: { name: true } },
           items: {
-            include: {
+            select: {
+              id: true,
+              quantity: true,
+              layers: true,
+              brandSeal: true,
+              varnish: true,
+              categoryId: true,
+              thicknessId: true,
               category: { select: { name: true } },
-              thickness: { select: { value: true } as any },
+              thickness: { select: { value: true } },
               size: { select: { label: true } },
               customizations: { select: { name: true } },
             },
           },
+          productionLists: {
+            select: {
+              status: true,
+              items: { select: { quantity: true, producedQuantity: true } },
+            },
+          },
+          // Timeline events excluded from list — fetch per-order on detail view
         },
         orderBy: { createdAt: "desc" },
+        take,
+        skip,
       }),
-      prisma.company.findUnique({ where: { id: companyId } }),
+      prisma.order.count({ where }),
+      prisma.company.findUnique({ where: { id: companyId }, select: { workingHoursPerDay: true, numHotPresses: true, pressCapacityPerPress: true } }),
       (prisma as any).productTiming.findMany({ where: { companyId } }),
     ]);
 
@@ -38,7 +71,7 @@ export async function GET(request: NextRequest) {
       pressCapacityPerPress: (company as any)?.pressCapacityPerPress ?? 10,
     };
 
-    return NextResponse.json({ orders, pressSettings, productTimings });
+    return NextResponse.json({ orders, total, pressSettings, productTimings });
   } catch (error) {
     console.error("Error fetching orders:", error);
     return NextResponse.json({ error: "Failed to fetch orders" }, { status: 500 });
@@ -126,6 +159,17 @@ export async function POST(request: NextRequest) {
     }));
 
     await prisma.notification.createMany({ data: notifData });
+
+    // Timeline event
+    await prisma.orderTimelineEvent.create({
+      data: {
+        companyId,
+        orderId: order.id,
+        action: "Order Created",
+        details: `Order created for ${customerName} with ${items.length} items.`,
+        userId: userId,
+      }
+    });
 
     return NextResponse.json(order, { status: 201 });
   } catch (error) {

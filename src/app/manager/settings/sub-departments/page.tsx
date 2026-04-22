@@ -77,7 +77,7 @@ export default function SubDepartmentsPage() {
   };
 
   const handleDelete = async (id: string) => {
-    if (!confirm("Are you sure you want to delete this department?")) return;
+    if (!confirm("Are you sure you want to delete this section?")) return;
     try {
       await fetch(`/api/sub-departments?id=${id}`, { method: "DELETE" });
       fetchData();
@@ -100,7 +100,7 @@ export default function SubDepartmentsPage() {
         <div>
           <h2 className="text-xl font-bold text-white flex items-center gap-2">
             <LayoutTemplate className="w-6 h-6 text-blue-400" />
-            Departments
+            Sections
           </h2>
           <p className="text-slate-500 text-sm mt-1">Worker groups inside each machine (e.g., Assembly, Glue Mixer)</p>
         </div>
@@ -112,7 +112,7 @@ export default function SubDepartmentsPage() {
           }}
           className="flex items-center gap-2 px-5 py-2.5 bg-blue-600 text-white rounded-xl hover:bg-blue-500 transition-all active:scale-95 shadow-lg shadow-blue-500/20 text-sm font-bold"
         >
-          <Plus className="w-4 h-4" /> Add Department
+          <Plus className="w-4 h-4" /> Add Section
         </button>
       </div>
 
@@ -125,8 +125,8 @@ export default function SubDepartmentsPage() {
           <div className="w-16 h-16 bg-slate-800 text-slate-600 rounded-2xl flex items-center justify-center mx-auto mb-4">
             <Cog size={32} />
           </div>
-          <h3 className="text-lg font-bold text-white mb-2">No Departments Yet</h3>
-          <p className="text-slate-500 text-sm max-w-sm mx-auto">Create departments like &quot;Glue Mixer&quot;, &quot;Core Cutting&quot;, or &quot;Assembly&quot; to organize workers inside your machines.</p>
+          <h3 className="text-lg font-bold text-white mb-2">No Sections Yet</h3>
+          <p className="text-slate-500 text-sm max-w-sm mx-auto">Create sections like &quot;Glue Mixer&quot;, &quot;Core Cutting&quot;, or &quot;Assembly&quot; to organize workers inside your machines.</p>
         </div>
       ) : (
         <div className="space-y-8">
@@ -196,7 +196,7 @@ export default function SubDepartmentsPage() {
           <div className="bg-slate-900 border border-slate-800 rounded-3xl shadow-2xl w-full max-w-md overflow-hidden">
             <div className="p-6 border-b border-slate-800 flex justify-between items-center">
               <h2 className="text-xl font-bold text-white">
-                {editingId ? "Edit" : "New"} Department
+                {editingId ? "Edit" : "New"} Section
               </h2>
               <button 
                 onClick={() => { setIsModalOpen(false); setEditingId(null); }}
@@ -208,7 +208,7 @@ export default function SubDepartmentsPage() {
 
             <form onSubmit={handleSubmit} className="p-6 space-y-5">
               <div>
-                <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-2 block ml-1">Department Name *</label>
+                <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-2 block ml-1">Section Name *</label>
                 <input
                   type="text"
                   required

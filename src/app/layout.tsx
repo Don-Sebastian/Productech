@@ -1,7 +1,8 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import { AuthProvider } from "@/components/AuthProvider";
+import GlobalActionLoader from "@/components/GlobalActionLoader";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -18,7 +19,11 @@ export const metadata: Metadata = {
   description: "Plywood production management system",
 };
 
-import GlobalActionLoader from "@/components/GlobalActionLoader";
+export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
+  themeColor: "#020617",
+};
 
 export default function RootLayout({
   children,
@@ -30,8 +35,10 @@ export default function RootLayout({
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}
       >
-        <GlobalActionLoader />
-        <AuthProvider>{children}</AuthProvider>
+        <AuthProvider>
+          <GlobalActionLoader />
+          {children}
+        </AuthProvider>
       </body>
     </html>
   );

@@ -27,6 +27,7 @@ function ProductionListContent() {
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
   const [viewMode, setViewMode] = useState<"ACTIVE" | "HISTORY">("ACTIVE");
+  const [editingPriorityId, setEditingPriorityId] = useState<string | null>(null);
 
   // Item builder
   const [step, setStep] = useState(0);
@@ -574,13 +575,27 @@ function ProductionListContent() {
 
                            {!isComplete && (
                              <div className="space-y-3">
-                               <h4 className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-3 px-2">Adjust Priority</h4>
-                               <div className="flex gap-2">
-                                  {[1, 2, 3, 4, 5].map(p => (
-                                    <button key={p} onClick={() => updateListPriority(list.id, p)} className={`flex-1 py-3 rounded-xl font-black text-xs transition active:scale-[0.95] ${list.priority === p ? "bg-amber-600 text-white shadow-lg" : "bg-slate-800 text-slate-500 hover:text-white hover:bg-slate-700"}`}>P{p}</button>
-                                  ))}
+                               <div className="flex items-center justify-between px-2">
+                                 <h4 className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Adjust Priority</h4>
+                                 <button onClick={() => setEditingPriorityId(editingPriorityId === list.id ? null : list.id)}
+                                   className="text-[10px] bg-slate-800 text-slate-400 px-2 py-1 rounded transition hover:bg-slate-700 font-bold uppercase tracking-widest">
+                                   {editingPriorityId === list.id ? "DONE" : "EDIT PRIORITY"}
+                                 </button>
                                </div>
-
+                               {editingPriorityId === list.id ? (
+                                 <div className="flex gap-2">
+                                    {[1, 2, 3, 4, 5].map(p => (
+                                      <button key={p} onClick={async () => { await updateListPriority(list.id, p); setEditingPriorityId(null); }} 
+                                        className={`flex-1 py-3 rounded-xl font-black text-xs transition active:scale-[0.95] ${list.priority === p ? "bg-amber-600 text-white shadow-lg" : "bg-slate-800 text-slate-500 hover:text-white hover:bg-slate-700"}`}>P{p}</button>
+                                    ))}
+                                 </div>
+                               ) : (
+                                 <div className="px-2">
+                                    <div className={`inline-block py-2 px-4 rounded-xl text-xs font-black uppercase tracking-widest ${pc.bg} ${pc.color}`}>
+                                      PRIORITY {list.priority}
+                                    </div>
+                                 </div>
+                               )}
                              </div>
                            )}
                         </div>

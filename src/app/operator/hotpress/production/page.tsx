@@ -130,24 +130,7 @@ export default function PressOperatorProduction() {
     } catch { setError("Network error"); }
   };
 
-  const requestCompletion = async (listId: string) => {
-    setError("");
-    try {
-      const res = await fetch(`/api/production-lists/${listId}`, {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ action: "REQUEST_COMPLETION" }),
-      });
-      if (res.ok) {
-        setSuccess("Production list marked as complete!");
-        fetchData();
-        setTimeout(() => setSuccess(""), 3000);
-      } else {
-        const d = await res.json();
-        setError(d.error || "Cannot mark as complete yet");
-      }
-    } catch { setError("Network error"); }
-  };
+
 
   if (status === "loading" || !session?.user || assignmentLoading) {
     return <div className="flex items-center justify-center h-screen bg-slate-950"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-rose-400" /></div>;
@@ -259,12 +242,6 @@ export default function PressOperatorProduction() {
                       </div>
                     
                      <div className="flex items-center gap-3">
-                      {allItemsMet && list.status !== "COMPLETED" && viewMode === "ACTIVE" && (
-                        <button onClick={() => requestCompletion(list.id)}
-                          className="text-[10px] px-3 py-2 bg-emerald-600 text-white font-black rounded-xl active:scale-[0.95] transition shadow-lg shadow-emerald-900/20">
-                          MARK AS COMPLETED
-                        </button>
-                      )}
                       {list.status === "COMPLETED" && (
                         <span className="text-[10px] px-2 py-1 bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 rounded font-black flex items-center gap-1">
                           <Check size={12} /> COMPLETED

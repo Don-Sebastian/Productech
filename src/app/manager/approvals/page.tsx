@@ -38,6 +38,7 @@ interface HotPressSession {
   glueEntries: GlueEntry[];
   pauseEvents: PauseEvent[];
   operator?: { id: string; name: string; email: string };
+  machine?: { id: string; name: string; code: string; assignments?: { user: { name: string } }[] };
 }
 
 function fmt(d: string | null | undefined) {
@@ -252,7 +253,13 @@ function ManagerApprovalCard({
           <div className="flex items-center gap-2">
             <User size={16} className="text-blue-400" />
             <span className="text-white font-bold">{session.operator?.name || "Operator"}</span>
-            <span className="text-xs bg-emerald-500/20 text-emerald-400 px-2 py-0.5 rounded-full flex items-center gap-1">
+            <span className="text-xs bg-slate-800 text-slate-300 font-bold px-2 py-0.5 rounded-lg border border-slate-700 ml-2">
+              Machine: {session.machine?.name || "Unknown"}
+            </span>
+            <span className="text-xs bg-amber-500/20 text-amber-300 font-bold px-2 py-0.5 rounded-lg border border-amber-500/30">
+              Sup: {session.machine?.assignments?.find(a => a.user)?.user?.name || "Unassigned"}
+            </span>
+            <span className="text-xs bg-emerald-500/20 text-emerald-400 px-2 py-0.5 rounded-full flex items-center gap-1 ml-2">
               <ShieldCheck size={10} /> Supervisor ✓
             </span>
           </div>

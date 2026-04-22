@@ -15,6 +15,10 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
         items: { include: { category: true, thickness: true, size: true } },
         createdBy: { select: { id: true, name: true } },
         customer: true,
+        timelineEvents: {
+          orderBy: { createdAt: "asc" },
+          include: { user: { select: { name: true } } }
+        }
       },
     });
 
@@ -106,6 +110,18 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
         orderId: order.id,
       })) as any[],
     });
+
+    if (body.status) {
+      await prisma.orderTimelineEvent.create({
+        data: {
+          companyId,
+          orderId: order.id,
+          action: `Status Updated to ${body.status}`,
+          details: `Order marked as ${body.status}`,
+          userId: (session.user as any).id,
+        }
+      });
+    }
 
     return NextResponse.json(order);
   } catch (error: any) {

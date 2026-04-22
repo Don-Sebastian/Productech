@@ -26,6 +26,10 @@ export async function GET() {
         machine: {
           include: {
             section: true,
+            assignments: {
+              where: { role: "SUPERVISOR", removedAt: null },
+              include: { user: { select: { id: true, name: true } } },
+            },
           },
         },
       },

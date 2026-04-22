@@ -54,9 +54,9 @@ const roleConfigs: Record<string, { label: string; color: string; links: { href:
       { href: "/owner/log-history", label: "Log History", icon: History },
       { href: "/owner/inventory", label: "Inventory", icon: Package },
       { href: "/owner/production", label: "Production", icon: Factory },
-      { href: "/owner/orders", label: "Order History", icon: ShoppingCart },
+      { href: "/owner/orders", label: "Order", icon: ShoppingCart },
       // { href: "/owner/approvals", label: "Approve Production", icon: ClipboardCheck },
-      { href: "/owner/dispatch-history", label: "Dispatch History", icon: Truck },
+      { href: "/owner/dispatch-history", label: "Dispatch", icon: Truck },
       { href: "/owner/managers", label: "Managers", icon: Users },
       { href: "/owner/employees", label: "Employees", icon: Users },
       { href: "/owner/attendance", label: "Attendance View", icon: UserCheck },
@@ -143,31 +143,47 @@ export default function Sidebar({ user }: SidebarProps) {
       .catch(() => {});
   }, [role]);
 
-  // Fetch notification count
+  // Fetch notification count — with visibility-based polling
   useEffect(() => {
     if (role === "ADMIN") return;
-    const updateNotifs = (data: any) => {
-      if (Array.isArray(data)) {
-        const unreadArr = data.filter((n: any) => !n.isRead);
-        setUnread(unreadArr.length);
-        setUnreadNotifs(unreadArr);
-      }
+
+    let interval: NodeJS.Timeout | null = null;
+    const controller = new AbortController();
+
+    const fetchNotifs = () => {
+      // Only poll when tab is visible
+      if (document.visibilityState !== "visible") return;
+      fetch("/api/notifications", { signal: controller.signal })
+        .then((r) => r.json())
+        .then((data) => {
+          if (Array.isArray(data)) {
+            const unreadArr = data.filter((n: any) => !n.isRead);
+            setUnread(unreadArr.length);
+            setUnreadNotifs(unreadArr);
+          }
+        })
+        .catch(() => {});
     };
 
-    fetch("/api/notifications").then((r) => r.json()).then(updateNotifs).catch(() => {});
+    // Initial fetch
+    fetchNotifs();
 
-    // Poll every 30 seconds
-    const interval = setInterval(() => {
-      fetch("/api/notifications").then((r) => r.json()).then(updateNotifs).catch(() => {});
-    }, 30000);
+    // Poll every 60 seconds (was 30s — reduces DB load by 50%)
+    interval = setInterval(fetchNotifs, 60000);
 
-    const handleReadEvent = () => {
-      fetch("/api/notifications").then((r) => r.json()).then(updateNotifs).catch(() => {});
+    // Re-fetch immediately when tab becomes visible
+    const handleVisibility = () => {
+      if (document.visibilityState === "visible") fetchNotifs();
     };
+    document.addEventListener("visibilitychange", handleVisibility);
+
+    const handleReadEvent = () => fetchNotifs();
     window.addEventListener("notifications_read", handleReadEvent);
 
     return () => {
-      clearInterval(interval);
+      controller.abort();
+      if (interval) clearInterval(interval);
+      document.removeEventListener("visibilitychange", handleVisibility);
       window.removeEventListener("notifications_read", handleReadEvent);
     };
   }, [role]);

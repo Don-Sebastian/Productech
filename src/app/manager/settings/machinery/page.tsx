@@ -53,6 +53,8 @@ export default function MachinerySettings() {
   const [addingToSection, setAddingToSection] = useState<string | null>(null);
   const [newMachineName, setNewMachineName] = useState("");
   const [newMachineCode, setNewMachineCode] = useState("");
+  const [newMachineOperator, setNewMachineOperator] = useState("");
+  const [newMachineSupervisor, setNewMachineSupervisor] = useState("");
 
   // Assign user form
   const [assigningTo, setAssigningTo] = useState<string | null>(null);
@@ -87,7 +89,7 @@ export default function MachinerySettings() {
   }, [status]);
 
   const addMachine = async () => {
-    if (!newMachineName.trim() || !newMachineCode.trim() || !addingToSection) return;
+    if (!newMachineName.trim() || !newMachineCode.trim() || !addingToSection || !newMachineOperator || !newMachineSupervisor) return;
     setError("");
     try {
       const res = await fetch("/api/machines", {
@@ -97,12 +99,16 @@ export default function MachinerySettings() {
           name: newMachineName.trim(),
           code: newMachineCode.trim(),
           sectionId: addingToSection,
+          operatorId: newMachineOperator,
+          supervisorId: newMachineSupervisor,
         }),
       });
       if (res.ok) {
         setSuccess("Machine added!");
         setNewMachineName("");
         setNewMachineCode("");
+        setNewMachineOperator("");
+        setNewMachineSupervisor("");
         setAddingToSection(null);
         fetchAll();
         setTimeout(() => setSuccess(""), 3000);
@@ -160,7 +166,7 @@ export default function MachinerySettings() {
           <Cog size={22} /> Machinery Management
         </h1>
         <p className="text-slate-400 text-xs md:text-sm mt-1">
-          Configure physical machines for each core factory section. Assign operators and supervisors to manage production at the machine level.
+          Configure physical machines for each core factory department. Assign operators and supervisors to manage production at the machine level.
         </p>
       </div>
 
@@ -211,7 +217,7 @@ export default function MachinerySettings() {
               {isExpanded && (
                 <div className="border-t border-slate-800/50 p-4 space-y-3">
                   {sectionMachines.length === 0 && (
-                    <p className="text-slate-600 text-sm text-center py-4">No machines configured for this section yet.</p>
+                    <p className="text-slate-600 text-sm text-center py-4">No machines configured for this department yet.</p>
                   )}
 
                   {sectionMachines.map(machine => (
@@ -359,8 +365,36 @@ export default function MachinerySettings() {
                           />
                         </div>
                       </div>
-                      <div className="flex gap-2">
-                        <button onClick={addMachine} disabled={!newMachineName || !newMachineCode}
+                      <div className="grid grid-cols-2 gap-3 mt-2">
+                        <div>
+                          <label className="text-[10px] font-bold text-slate-500 uppercase block mb-1">Assign Operator *</label>
+                          <select
+                            value={newMachineOperator}
+                            onChange={e => setNewMachineOperator(e.target.value)}
+                            className="w-full px-3 py-2 bg-slate-900 border border-slate-600 rounded-lg text-white text-sm outline-none focus:ring-2 focus:ring-blue-500/50"
+                          >
+                            <option value="">Select Operator...</option>
+                            {operators.filter((u: any) => u.isActive).map((u: any) => (
+                              <option key={u.id} value={u.id}>{u.name}</option>
+                            ))}
+                          </select>
+                        </div>
+                        <div>
+                          <label className="text-[10px] font-bold text-slate-500 uppercase block mb-1">Assign Supervisor *</label>
+                          <select
+                            value={newMachineSupervisor}
+                            onChange={e => setNewMachineSupervisor(e.target.value)}
+                            className="w-full px-3 py-2 bg-slate-900 border border-slate-600 rounded-lg text-white text-sm outline-none focus:ring-2 focus:ring-blue-500/50"
+                          >
+                            <option value="">Select Supervisor...</option>
+                            {supervisors.filter((u: any) => u.isActive).map((u: any) => (
+                              <option key={u.id} value={u.id}>{u.name}</option>
+                            ))}
+                          </select>
+                        </div>
+                      </div>
+                      <div className="flex gap-2 mt-2">
+                        <button onClick={addMachine} disabled={!newMachineName || !newMachineCode || !newMachineOperator || !newMachineSupervisor}
                           className="flex-1 py-2.5 bg-gradient-to-r from-blue-600 to-cyan-600 text-white font-bold text-xs rounded-lg disabled:opacity-40 active:scale-95 transition"
                         >
                           <Plus size={14} className="inline mr-1" /> Add Machine

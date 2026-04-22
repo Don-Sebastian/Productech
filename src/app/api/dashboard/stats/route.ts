@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { auth } from "@/lib/auth";
+import { cachedJson } from "@/lib/cache";
 
 export async function GET(request: NextRequest) {
   try {
@@ -20,14 +21,14 @@ export async function GET(request: NextRequest) {
         prisma.user.count({ where: { role: "OWNER" } }),
       ]);
 
-      return NextResponse.json({
+      return cachedJson({
         role: "ADMIN",
         stats: {
           totalCompanies,
           totalUsers,
           totalOwners,
         },
-      });
+      }, 60);
     }
 
     if (!companyId) {
@@ -68,7 +69,7 @@ export async function GET(request: NextRequest) {
         }),
       ]);
 
-      return NextResponse.json({
+      return cachedJson({
         role,
         stats: {
           totalBatches,
@@ -81,7 +82,7 @@ export async function GET(request: NextRequest) {
           totalOperators,
         },
         recentBatches,
-      });
+      }, 60);
     }
 
     if (role === "SUPERVISOR") {
@@ -95,7 +96,7 @@ export async function GET(request: NextRequest) {
         prisma.productionBatch.count({ where: { ...batchWhere, status: "IN_PROGRESS" } }),
       ]);
 
-      return NextResponse.json({
+      return cachedJson({
         role,
         section,
         stats: {
@@ -103,7 +104,7 @@ export async function GET(request: NextRequest) {
           completedBatches,
           inProgressBatches,
         },
-      });
+      }, 60);
     }
 
     if (role === "OPERATOR") {
@@ -122,13 +123,13 @@ export async function GET(request: NextRequest) {
         }),
       ]);
 
-      return NextResponse.json({
+      return cachedJson({
         role,
         stats: {
           todayLogs,
           totalLogs,
         },
-      });
+      }, 60);
     }
 
     return NextResponse.json({ error: "Unknown role" }, { status: 400 });

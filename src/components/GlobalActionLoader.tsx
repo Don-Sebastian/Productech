@@ -23,7 +23,7 @@ export default function GlobalActionLoader() {
       if (!isInternal && url.includes('/api/')) {
         if (isMutation) {
           shouldShowLoader = true;
-        } else if (Date.now() - lastMutationTime < 1500) {
+        } else if (Date.now() - lastMutationTime < 800) {
           shouldShowLoader = true;
         }
       }
@@ -46,7 +46,7 @@ export default function GlobalActionLoader() {
               activeMutations = 0;
               setLoading(false);
             }
-          }, 300);
+          }, 200);
         }
       }
     };

@@ -21,6 +21,7 @@ function SupervisorOrders() {
   const [orders, setOrders] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [expandedOrder, setExpandedOrder] = useState<string | null>(null);
+  const [expandedTimelineId, setExpandedTimelineId] = useState<string | null>(null);
   const [viewMode, setViewMode] = useState<"ACTIVE" | "HISTORY">("ACTIVE");
 
   const orderIdFromUrl = searchParams?.get('id');
@@ -182,7 +183,12 @@ function SupervisorOrders() {
     const StatusIcon = sc.icon;
     const isExpanded = expandedOrder === order.id;
     const pc = priorityConfig[order.priority] || priorityConfig[3];
-    const isProductionComplete = order.status === "PRODUCTION_COMPLETED";
+    
+    const orderTargetQty = order.items?.reduce((s: number, i: any) => s + i.quantity, 0) || 0;
+    const orderProducedQty = order.productionLists?.reduce((s: number, pl: any) => s + pl.items?.reduce((ps: number, item: any) => ps + (item.producedQuantity || 0), 0), 0) || 0;
+    const progressPercent = orderTargetQty > 0 ? Math.min(100, Math.round((orderProducedQty / orderTargetQty) * 100)) : 0;
+    
+    const isProductionComplete = order.status === "PRODUCTION_COMPLETED" || (progressPercent >= 100 && !["DISPATCHED", "COMPLETED", "CANCELLED"].includes(order.status));
 
     return (
       <div key={order.id} className={`bg-slate-800/40 border rounded-2xl overflow-hidden ${
@@ -205,6 +211,15 @@ function SupervisorOrders() {
                 )}
               </div>
               <p className="text-slate-400 text-xs truncate">{order.orderNumber} • {order.items?.length} items</p>
+              {/* Progress Bar */}
+              {!["PENDING", "CANCELLED", "COMPLETED"].includes(order.status) && orderTargetQty > 0 && (
+                <div className="flex items-center gap-2 w-full max-w-[200px] mt-2">
+                  <div className="flex-1 h-1.5 bg-slate-900 rounded-full overflow-hidden">
+                    <div className={`h-full rounded-full transition-all duration-700 ${progressPercent >= 100 ? "bg-emerald-500" : "bg-blue-500"}`} style={{ width: `${progressPercent}%` }} />
+                  </div>
+                  <span className={`text-[9px] font-black ${progressPercent >= 100 ? "text-emerald-400" : "text-blue-400"}`}>{orderProducedQty}/{orderTargetQty}</span>
+                </div>
+              )}
             </div>
           </div>
           {isExpanded ? <ChevronUp className="text-slate-500" size={18} /> : <ChevronDown className="text-slate-500" size={18} />}
@@ -225,6 +240,35 @@ function SupervisorOrders() {
                 </p>
               </div>
             ))}
+
+            {/* Timeline Events */}
+            {order.timelineEvents && order.timelineEvents.length > 0 && (
+              <div className="mt-4 border-t border-slate-700/50 pt-4 mb-2">
+                <button 
+                  onClick={() => setExpandedTimelineId(expandedTimelineId === order.id ? null : order.id)}
+                  className="w-full flex items-center justify-between text-[10px] font-black text-slate-500 uppercase tracking-widest hover:text-slate-300 transition"
+                >
+                  <span>Order Timeline</span>
+                  {expandedTimelineId === order.id ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
+                </button>
+                {expandedTimelineId === order.id && (
+                  <div className="relative pl-3 space-y-4 mt-4">
+                    <div className="absolute left-[3px] top-2 bottom-0 w-0.5 bg-slate-700"></div>
+                    {order.timelineEvents.map((event: any, idx: number) => (
+                      <div key={idx} className="relative">
+                        <div className="absolute -left-[14px] top-1 w-2.5 h-2.5 rounded-full bg-emerald-500 ring-2 ring-slate-900 shadow-[0_0_8px_rgba(16,185,129,0.5)]"></div>
+                        <p className="text-sm font-bold text-white leading-none mb-1.5">{event.action}</p>
+                        <p className="text-xs text-slate-400">{event.details}</p>
+                        <div className="flex items-center gap-2 mt-1.5">
+                          <p className="text-[10px] text-slate-500 uppercase tracking-wider">{new Date(event.createdAt).toLocaleString('en-IN')}</p>
+                          {event.user?.name && <span className="text-[10px] bg-slate-800 text-slate-300 px-1.5 py-0.5 rounded font-medium">{event.user.name}</span>}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
 
             {/* Create Production List button */}
             {(order.status === "CONFIRMED" || order.status === "PENDING") && (

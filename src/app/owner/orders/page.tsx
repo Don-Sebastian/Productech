@@ -17,6 +17,7 @@ export default function OwnerOrdersPage() {
   const [orders, setOrders] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [expandedOrder, setExpandedOrder] = useState<string | null>(null);
+  const [expandedTimelineId, setExpandedTimelineId] = useState<string | null>(null);
   const [viewMode, setViewMode] = useState<"ACTIVE" | "HISTORY">("ACTIVE");
   const [searchQuery, setSearchQuery] = useState("");
 
@@ -144,6 +145,12 @@ export default function OwnerOrdersPage() {
               const StatusIcon = sc.icon;
               const isExpanded = expandedOrder === order.id;
               const pc = priorityConfig[order.priority] || priorityConfig[3];
+              
+              const orderTargetQty = order.items?.reduce((s: number, i: any) => s + i.quantity, 0) || 0;
+              const orderProducedQty = order.productionLists?.reduce((s: number, pl: any) => s + pl.items?.reduce((ps: number, item: any) => ps + (item.producedQuantity || 0), 0), 0) || 0;
+              const progressPercent = orderTargetQty > 0 ? Math.min(100, Math.round((orderProducedQty / orderTargetQty) * 100)) : 0;
+              
+              const isProductionComplete = order.status === "PRODUCTION_COMPLETED" || (progressPercent >= 100 && !["DISPATCHED", "COMPLETED", "CANCELLED"].includes(order.status));
 
               return (
                 <div key={order.id} className={`bg-slate-800/40 border rounded-2xl overflow-hidden transition-all hover:bg-slate-800/60 ${isExpanded ? "border-emerald-500/30" : "border-slate-700/50"}`}>
@@ -167,6 +174,15 @@ export default function OwnerOrdersPage() {
                             {order.customer?.name}
                           </span>
                         </p>
+                        {/* Progress Bar */}
+                        {!["PENDING", "CANCELLED", "COMPLETED"].includes(order.status) && orderTargetQty > 0 && (
+                          <div className="flex items-center gap-2 w-full max-w-[200px] mt-2">
+                            <div className="flex-1 h-1.5 bg-slate-900 rounded-full overflow-hidden">
+                              <div className={`h-full rounded-full transition-all duration-700 ${progressPercent >= 100 ? "bg-emerald-500" : "bg-blue-500"}`} style={{ width: `${progressPercent}%` }} />
+                            </div>
+                            <span className={`text-[9px] font-black ${progressPercent >= 100 ? "text-emerald-400" : "text-blue-400"}`}>{orderProducedQty}/{orderTargetQty}</span>
+                          </div>
+                        )}
                       </div>
                     </div>
 
@@ -222,25 +238,39 @@ export default function OwnerOrdersPage() {
                           </div>
                           
                           <div className="pt-4 border-t border-slate-800">
-                            <h4 className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-3">Timeline</h4>
-                            <div className="space-y-4">
-                              {order.timeline?.map((event: any, idx: number) => (
-                                <div key={idx} className="flex gap-3">
-                                  <div className="w-2 h-2 rounded-full bg-emerald-500 mt-1.5 flex-shrink-0" />
-                                  <div>
-                                    <p className="text-white text-sm font-bold">{event.action}</p>
-                                    <p className="text-slate-500 text-[10px]">{new Date(event.createdAt).toLocaleString()}</p>
+                            <button 
+                              onClick={() => setExpandedTimelineId(expandedTimelineId === order.id ? null : order.id)}
+                              className="w-full flex items-center justify-between text-[10px] font-black text-slate-500 uppercase tracking-widest hover:text-slate-300 transition"
+                            >
+                              <span>Timeline</span>
+                              {expandedTimelineId === order.id ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
+                            </button>
+                            
+                            {expandedTimelineId === order.id && (
+                              <div className="space-y-4 mt-4">
+                                {order.timelineEvents && order.timelineEvents.length > 0 ? (
+                                  order.timelineEvents.map((event: any, idx: number) => (
+                                    <div key={idx} className="flex gap-3">
+                                      <div className="w-2 h-2 rounded-full bg-emerald-500 mt-1.5 flex-shrink-0 ring-2 ring-slate-900 shadow-[0_0_8px_rgba(16,185,129,0.5)]" />
+                                      <div>
+                                        <p className="text-white text-sm font-bold">{event.action}</p>
+                                        <p className="text-slate-400 text-xs mt-0.5">{event.details}</p>
+                                        <p className="text-slate-500 text-[10px] mt-1">{new Date(event.createdAt).toLocaleString('en-IN')}</p>
+                                        {event.user?.name && <span className="text-[9px] bg-slate-800 text-slate-300 px-1 py-0.5 rounded font-medium mt-1 inline-block">{event.user.name}</span>}
+                                      </div>
+                                    </div>
+                                  ))
+                                ) : (
+                                  <div className="flex gap-3 opacity-60">
+                                    <div className="w-2 h-2 rounded-full bg-slate-600 mt-1.5 flex-shrink-0" />
+                                    <div>
+                                      <p className="text-slate-400 text-sm">Created</p>
+                                      <p className="text-slate-600 text-[10px]">{new Date(order.createdAt).toLocaleString('en-IN')} by {order.createdBy?.name}</p>
+                                    </div>
                                   </div>
-                                </div>
-                              ))}
-                              <div className="flex gap-3 opacity-60">
-                                <div className="w-2 h-2 rounded-full bg-slate-600 mt-1.5 flex-shrink-0" />
-                                <div>
-                                  <p className="text-slate-400 text-sm">Created</p>
-                                  <p className="text-slate-600 text-[10px]">{new Date(order.createdAt).toLocaleString()} by {order.createdBy?.name}</p>
-                                </div>
+                                )}
                               </div>
-                            </div>
+                            )}
                           </div>
                         </div>
                       </div>

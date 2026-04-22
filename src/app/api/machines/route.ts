@@ -54,10 +54,10 @@ export async function POST(request: NextRequest) {
     if (!companyId) return NextResponse.json({ error: "No company" }, { status: 400 });
 
     const body = await request.json();
-    const { name, code, sectionId } = body;
+    const { name, code, sectionId, operatorId, supervisorId } = body;
 
-    if (!name || !code || !sectionId) {
-      return NextResponse.json({ error: "Name, code, and section are required" }, { status: 400 });
+    if (!name || !code || !sectionId || !operatorId || !supervisorId) {
+      return NextResponse.json({ error: "Name, code, department, operator, and supervisor are required" }, { status: 400 });
     }
 
     // Verify section belongs to company
@@ -85,6 +85,12 @@ export async function POST(request: NextRequest) {
         sectionId,
         companyId,
         sortOrder: count + 1,
+        assignments: {
+          create: [
+            { userId: operatorId, role: "OPERATOR", companyId },
+            { userId: supervisorId, role: "SUPERVISOR", companyId }
+          ]
+        }
       },
       include: {
         section: { select: { id: true, name: true, slug: true } },
