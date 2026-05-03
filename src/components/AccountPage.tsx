@@ -150,141 +150,163 @@ export default function AccountPage({ allowedRole }: AccountPageProps) {
             </div>
           </div>
 
-          {/* Change Password Card */}
-          <div className="bg-slate-800/40 border border-slate-700/50 rounded-2xl p-6">
-            <h2 className="text-lg font-semibold text-white mb-4 flex items-center gap-2">
-              <KeyRound size={18} className="text-amber-400" />
-              Change Password
-            </h2>
-
-            {success && (
-              <div className="mb-4 p-3 bg-emerald-500/10 border border-emerald-500/30 rounded-xl flex items-center gap-2">
-                <Check size={16} className="text-emerald-400" />
-                <p className="text-sm text-emerald-300">{success}</p>
-              </div>
-            )}
-
-            {error && (
-              <div className="mb-4 p-3 bg-red-500/10 border border-red-500/30 rounded-xl flex items-center gap-2">
-                <AlertTriangle size={16} className="text-red-400" />
-                <p className="text-sm text-red-300">{error}</p>
-              </div>
-            )}
-
-            <form onSubmit={handleChangePassword} className="space-y-4">
-              {/* Current Password */}
-              <div>
-                <label className="block text-sm text-slate-300 mb-1.5 font-medium">
-                  Current Password
-                </label>
-                <div className="relative">
-                  <input
-                    type={showCurrent ? "text" : "password"}
-                    value={currentPassword}
-                    onChange={(e) => setCurrentPassword(e.target.value)}
-                    className="w-full px-4 py-3 bg-slate-900/50 border border-slate-600 rounded-xl text-white outline-none focus:ring-2 focus:ring-blue-500/50 pr-12"
-                    placeholder="Enter current password"
-                    required
-                  />
-                  <button
-                    type="button"
-                    onClick={() => setShowCurrent(!showCurrent)}
-                    className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-500 hover:text-slate-300 transition"
-                  >
-                    {showCurrent ? <EyeOff size={18} /> : <Eye size={18} />}
-                  </button>
+          {/* Change Password / Contact Manager Card */}
+          {role === "SUPERVISOR" || role === "OPERATOR" ? (
+            <div className="bg-slate-800/40 border border-slate-700/50 rounded-2xl p-6">
+              <h2 className="text-lg font-semibold text-white mb-4 flex items-center gap-2">
+                <KeyRound size={18} className="text-amber-400" />
+                Password Management
+              </h2>
+              <div className="p-4 bg-amber-500/10 border border-amber-500/20 rounded-xl">
+                <div className="flex items-start gap-3">
+                  <AlertTriangle size={20} className="text-amber-400 mt-0.5 flex-shrink-0" />
+                  <div>
+                    <p className="text-amber-200 font-medium text-sm mb-1">
+                      Password changes are managed by your Manager
+                    </p>
+                    <p className="text-slate-400 text-sm">
+                      If you have forgotten your password or need it changed, please contact your
+                      assigned <strong className="text-slate-300">Manager</strong> and they will
+                      reset it for you.
+                    </p>
+                  </div>
                 </div>
               </div>
+            </div>
+          ) : (
+            <div className="bg-slate-800/40 border border-slate-700/50 rounded-2xl p-6">
+              <h2 className="text-lg font-semibold text-white mb-4 flex items-center gap-2">
+                <KeyRound size={18} className="text-amber-400" />
+                Change Password
+              </h2>
 
-              {/* New Password */}
-              <div>
-                <label className="block text-sm text-slate-300 mb-1.5 font-medium">
-                  New Password
-                </label>
-                <div className="relative">
+              {success && (
+                <div className="mb-4 p-3 bg-emerald-500/10 border border-emerald-500/30 rounded-xl flex items-center gap-2">
+                  <Check size={16} className="text-emerald-400" />
+                  <p className="text-sm text-emerald-300">{success}</p>
+                </div>
+              )}
+
+              {error && (
+                <div className="mb-4 p-3 bg-red-500/10 border border-red-500/30 rounded-xl flex items-center gap-2">
+                  <AlertTriangle size={16} className="text-red-400" />
+                  <p className="text-sm text-red-300">{error}</p>
+                </div>
+              )}
+
+              <form onSubmit={handleChangePassword} className="space-y-4">
+                {/* Current Password */}
+                <div>
+                  <label className="block text-sm text-slate-300 mb-1.5 font-medium">
+                    Current Password
+                  </label>
+                  <div className="relative">
+                    <input
+                      type={showCurrent ? "text" : "password"}
+                      value={currentPassword}
+                      onChange={(e) => setCurrentPassword(e.target.value)}
+                      className="w-full px-4 py-3 bg-slate-900/50 border border-slate-600 rounded-xl text-white outline-none focus:ring-2 focus:ring-blue-500/50 pr-12"
+                      placeholder="Enter current password"
+                      required
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowCurrent(!showCurrent)}
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-500 hover:text-slate-300 transition"
+                    >
+                      {showCurrent ? <EyeOff size={18} /> : <Eye size={18} />}
+                    </button>
+                  </div>
+                </div>
+
+                {/* New Password */}
+                <div>
+                  <label className="block text-sm text-slate-300 mb-1.5 font-medium">
+                    New Password
+                  </label>
+                  <div className="relative">
+                    <input
+                      type={showNew ? "text" : "password"}
+                      value={newPassword}
+                      onChange={(e) => setNewPassword(e.target.value)}
+                      className="w-full px-4 py-3 bg-slate-900/50 border border-slate-600 rounded-xl text-white outline-none focus:ring-2 focus:ring-blue-500/50 pr-12"
+                      placeholder="At least 6 characters"
+                      required
+                      minLength={6}
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowNew(!showNew)}
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-500 hover:text-slate-300 transition"
+                    >
+                      {showNew ? <EyeOff size={18} /> : <Eye size={18} />}
+                    </button>
+                  </div>
+                </div>
+
+                {/* Confirm New Password */}
+                <div>
+                  <label className="block text-sm text-slate-300 mb-1.5 font-medium">
+                    Confirm New Password
+                  </label>
                   <input
-                    type={showNew ? "text" : "password"}
-                    value={newPassword}
-                    onChange={(e) => setNewPassword(e.target.value)}
-                    className="w-full px-4 py-3 bg-slate-900/50 border border-slate-600 rounded-xl text-white outline-none focus:ring-2 focus:ring-blue-500/50 pr-12"
-                    placeholder="At least 6 characters"
+                    type="password"
+                    value={confirmPassword}
+                    onChange={(e) => setConfirmPassword(e.target.value)}
+                    className={`w-full px-4 py-3 bg-slate-900/50 border rounded-xl text-white outline-none focus:ring-2 focus:ring-blue-500/50 ${
+                      confirmPassword && confirmPassword !== newPassword
+                        ? "border-red-500/50"
+                        : "border-slate-600"
+                    }`}
+                    placeholder="Re-enter new password"
                     required
                     minLength={6}
                   />
-                  <button
-                    type="button"
-                    onClick={() => setShowNew(!showNew)}
-                    className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-500 hover:text-slate-300 transition"
-                  >
-                    {showNew ? <EyeOff size={18} /> : <Eye size={18} />}
-                  </button>
+                  {confirmPassword && confirmPassword !== newPassword && (
+                    <p className="text-red-400 text-xs mt-1">
+                      Passwords do not match
+                    </p>
+                  )}
                 </div>
+
+                <button
+                  type="submit"
+                  disabled={
+                    loading ||
+                    !currentPassword ||
+                    !newPassword ||
+                    newPassword !== confirmPassword
+                  }
+                  className="w-full py-3.5 bg-gradient-to-r from-blue-600 to-cyan-600 text-white font-bold rounded-xl shadow-lg disabled:opacity-30 disabled:cursor-not-allowed active:scale-[0.97] transition flex items-center justify-center gap-2"
+                >
+                  {loading ? (
+                    <>
+                      <Loader2 size={18} className="animate-spin" />
+                      Updating...
+                    </>
+                  ) : (
+                    <>
+                      <KeyRound size={18} />
+                      Update Password
+                    </>
+                  )}
+                </button>
+              </form>
+
+              <div className="mt-4 p-3 bg-slate-900/50 rounded-xl">
+                <p className="text-slate-500 text-xs">
+                  💡 <strong className="text-slate-400">Forgot your password?</strong>{" "}
+                  Contact your{" "}
+                  {role === "MANAGER"
+                    ? "Owner"
+                    : role === "OWNER"
+                    ? "Admin"
+                    : "administrator"}{" "}
+                  to reset it for you.
+                </p>
               </div>
-
-              {/* Confirm New Password */}
-              <div>
-                <label className="block text-sm text-slate-300 mb-1.5 font-medium">
-                  Confirm New Password
-                </label>
-                <input
-                  type="password"
-                  value={confirmPassword}
-                  onChange={(e) => setConfirmPassword(e.target.value)}
-                  className={`w-full px-4 py-3 bg-slate-900/50 border rounded-xl text-white outline-none focus:ring-2 focus:ring-blue-500/50 ${
-                    confirmPassword && confirmPassword !== newPassword
-                      ? "border-red-500/50"
-                      : "border-slate-600"
-                  }`}
-                  placeholder="Re-enter new password"
-                  required
-                  minLength={6}
-                />
-                {confirmPassword && confirmPassword !== newPassword && (
-                  <p className="text-red-400 text-xs mt-1">
-                    Passwords do not match
-                  </p>
-                )}
-              </div>
-
-              <button
-                type="submit"
-                disabled={
-                  loading ||
-                  !currentPassword ||
-                  !newPassword ||
-                  newPassword !== confirmPassword
-                }
-                className="w-full py-3.5 bg-gradient-to-r from-blue-600 to-cyan-600 text-white font-bold rounded-xl shadow-lg disabled:opacity-30 disabled:cursor-not-allowed active:scale-[0.97] transition flex items-center justify-center gap-2"
-              >
-                {loading ? (
-                  <>
-                    <Loader2 size={18} className="animate-spin" />
-                    Updating...
-                  </>
-                ) : (
-                  <>
-                    <KeyRound size={18} />
-                    Update Password
-                  </>
-                )}
-              </button>
-            </form>
-
-            <div className="mt-4 p-3 bg-slate-900/50 rounded-xl">
-              <p className="text-slate-500 text-xs">
-                💡 <strong className="text-slate-400">Forgot your password?</strong>{" "}
-                Contact your{" "}
-                {role === "OPERATOR" || role === "SUPERVISOR"
-                  ? "Manager"
-                  : role === "MANAGER"
-                  ? "Owner"
-                  : role === "OWNER"
-                  ? "Admin"
-                  : "administrator"}{" "}
-                to reset it for you.
-              </p>
             </div>
-          </div>
+          )}
 
           {/* Sign Out Section (Mobile & Desktop) */}
           <div className="pt-4 border-t border-slate-800/50">

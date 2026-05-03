@@ -100,7 +100,7 @@ const roleConfigs: Record<string, { label: string; color: string; links: { href:
     label: "Operator",
     color: "from-rose-600 to-pink-600",
     links: [
-      { href: "/operator", label: "Dashboard", icon: LayoutDashboard },
+      // { href: "/operator", label: "Dashboard", icon: LayoutDashboard },
       { href: "/operator/log", label: "Machine Log", icon: Gauge },
       { href: "/operator/history", label: "Log History", icon: History },
       { href: "/operator/account", label: "My Account", icon: KeyRound },
@@ -113,15 +113,19 @@ const sectionNavLinks: Record<string, { href: string; label: string; icon: any }
     { href: "/operator/hotpress/log", label: "Machine Log", icon: Gauge },
     { href: "/operator/hotpress/production", label: "Production List", icon: ClipboardList },
     { href: "/operator/hotpress/history", label: "Log History", icon: History },
+    { href: "/operator/account", label: "My Account", icon: KeyRound },
   ],
   peeling: [
     { href: "/operator/peeling/log", label: "Dashboard", icon: LayoutDashboard },
+    { href: "/operator/account", label: "My Account", icon: KeyRound },
   ],
   dryer: [
     { href: "/operator/dryer/log", label: "Dashboard", icon: LayoutDashboard },
+    { href: "/operator/account", label: "My Account", icon: KeyRound },
   ],
   finishing: [
     { href: "/operator/finishing/log", label: "Dashboard", icon: LayoutDashboard },
+    { href: "/operator/account", label: "My Account", icon: KeyRound },
   ],
 };
 
