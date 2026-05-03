@@ -550,9 +550,14 @@ export default function ManagerOrders() {
                             {order.orderNumber}
                           </span>
                           <span className={`text-xs px-2 py-0.5 rounded-full font-bold ${pc.bg} ${pc.color}`}>{pc.label}</span>
-                          {isProductionComplete && (
+                          {isProductionComplete && order.status !== "READY_FOR_DISPATCH" && (
                             <span className="text-xs px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 font-bold animate-pulse">
                               ✅ Ready
+                            </span>
+                          )}
+                          {order.status === "READY_FOR_DISPATCH" && (
+                            <span className="text-xs px-2 py-1 rounded-full bg-teal-500/25 text-teal-300 font-black flex items-center gap-1 border border-teal-500/30 shadow-lg shadow-teal-900/20">
+                              <Truck size={12} /> Marked for Dispatch
                             </span>
                           )}
                           
@@ -693,7 +698,12 @@ export default function ManagerOrders() {
                         
                         {!["DISPATCHED", "COMPLETED", "CANCELLED"].includes(order.status) && (
                           <div className={`col-span-2 ${order.status === "PENDING" ? "" : "col-span-2"}`}>
-                            {confirmDispatchId === order.id ? (
+                            {order.status === "READY_FOR_DISPATCH" ? (
+                              <div className="w-full py-2.5 bg-teal-500/10 border border-teal-500/30 text-teal-400 font-bold rounded-xl text-sm flex items-center justify-center gap-2 cursor-not-allowed opacity-80">
+                                <Truck size={16} />
+                                ✅ Marked for Dispatch
+                              </div>
+                            ) : confirmDispatchId === order.id ? (
                               <div className="bg-amber-500/10 border border-amber-500/30 p-4 rounded-xl">
                                 <p className="text-amber-400 text-sm font-bold mb-1">Confirm Mark For Dispatch?</p>
                                 <p className="text-amber-500/80 text-xs mb-4">

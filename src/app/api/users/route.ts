@@ -56,6 +56,7 @@ export async function GET(request: NextRequest) {
         sections: true,
         isActive: true,
         createdAt: true,
+        createdById: true,
         company: {
           select: { id: true, name: true },
         },

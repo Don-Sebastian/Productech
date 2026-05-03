@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { useSession } from "next-auth/react";
 import {
   Plus,
   Edit2,
@@ -17,6 +18,8 @@ import {
   CheckCircle,
   Eye,
   EyeOff,
+  KeyRound,
+  Loader2,
 } from "lucide-react";
 
 interface UserData {
@@ -28,6 +31,7 @@ interface UserData {
   section?: string | null;
   isActive: boolean;
   createdAt: string;
+  createdById?: string | null;
   company?: { id: string; name: string } | null;
 }
 
@@ -56,6 +60,15 @@ export default function UserManagement({
   const [success, setSuccess] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [sections, setSections] = useState<{id: string; name: string; slug: string}[]>([]);
+
+  // Password reset state
+  const [resetPasswordUserId, setResetPasswordUserId] = useState<string | null>(null);
+  const [resetNewPassword, setResetNewPassword] = useState("");
+  const [resetLoading, setResetLoading] = useState(false);
+  const [showResetPassword, setShowResetPassword] = useState(false);
+
+  const { data: session } = useSession();
+  const currentUserId = (session?.user as any)?.id;
 
   const [formData, setFormData] = useState({
     name: "",
@@ -194,6 +207,35 @@ export default function UserManagement({
     }
   };
 
+  const handleResetPassword = async (userId: string) => {
+    if (!resetNewPassword || resetNewPassword.length < 6) {
+      setError("Password must be at least 6 characters");
+      return;
+    }
+    setResetLoading(true);
+    setError("");
+    try {
+      const res = await fetch("/api/users/reset-password", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ userId, newPassword: resetNewPassword }),
+      });
+      const data = await res.json();
+      if (res.ok) {
+        setSuccess(data.message || "Password reset successfully!");
+        setResetPasswordUserId(null);
+        setResetNewPassword("");
+        setShowResetPassword(false);
+        setTimeout(() => setSuccess(""), 3000);
+      } else {
+        setError(data.error || "Failed to reset password");
+      }
+    } catch {
+      setError("Network error");
+    }
+    setResetLoading(false);
+  };
+
   const filteredUsers = users.filter(
     (u) =>
       u.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -327,17 +369,77 @@ export default function UserManagement({
                 <span className="text-xs text-slate-500">
                   Added {new Date(user.createdAt).toLocaleDateString()}
                 </span>
-                <button
-                  onClick={() => handleToggleActive(user)}
-                  className={`text-xs px-2.5 py-1 rounded-full transition ${
-                    user.isActive
-                      ? "bg-emerald-500/20 text-emerald-300 hover:bg-emerald-500/30"
-                      : "bg-red-500/20 text-red-300 hover:bg-red-500/30"
-                  }`}
-                >
-                  {user.isActive ? "Active" : "Inactive"}
-                </button>
+                <div className="flex items-center gap-2">
+                  {/* Reset Password button - only show if creator */}
+                  {user.createdById === currentUserId && (
+                    <button
+                      onClick={() => {
+                        setResetPasswordUserId(resetPasswordUserId === user.id ? null : user.id);
+                        setResetNewPassword("");
+                        setShowResetPassword(false);
+                      }}
+                      className="text-xs px-2.5 py-1 rounded-full bg-amber-500/10 text-amber-300 hover:bg-amber-500/20 transition flex items-center gap-1"
+                      title="Reset Password"
+                    >
+                      <KeyRound size={12} />
+                      Reset
+                    </button>
+                  )}
+                  <button
+                    onClick={() => handleToggleActive(user)}
+                    className={`text-xs px-2.5 py-1 rounded-full transition ${
+                      user.isActive
+                        ? "bg-emerald-500/20 text-emerald-300 hover:bg-emerald-500/30"
+                        : "bg-red-500/20 text-red-300 hover:bg-red-500/30"
+                    }`}
+                  >
+                    {user.isActive ? "Active" : "Inactive"}
+                  </button>
+                </div>
               </div>
+
+              {/* Reset Password Inline Form */}
+              {resetPasswordUserId === user.id && (
+                <div className="mt-3 p-3 bg-amber-500/10 border border-amber-500/30 rounded-xl">
+                  <p className="text-sm text-amber-300 font-semibold mb-2 flex items-center gap-1.5">
+                    <KeyRound size={14} />
+                    Reset password for {user.name}
+                  </p>
+                  <div className="relative mb-2">
+                    <input
+                      type={showResetPassword ? "text" : "password"}
+                      value={resetNewPassword}
+                      onChange={(e) => setResetNewPassword(e.target.value)}
+                      className="w-full px-3 py-2 pr-10 bg-slate-900/80 border border-slate-600 rounded-lg text-white text-sm placeholder-slate-500 focus:ring-2 focus:ring-amber-500/50 outline-none"
+                      placeholder="New password (min 6 chars)"
+                      minLength={6}
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowResetPassword(!showResetPassword)}
+                      className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-500 hover:text-slate-300"
+                    >
+                      {showResetPassword ? <EyeOff size={14} /> : <Eye size={14} />}
+                    </button>
+                  </div>
+                  <div className="flex gap-2">
+                    <button
+                      onClick={() => handleResetPassword(user.id)}
+                      disabled={resetLoading || resetNewPassword.length < 6}
+                      className="flex-1 py-2 bg-amber-600 hover:bg-amber-500 text-white text-xs font-bold rounded-lg disabled:opacity-40 disabled:cursor-not-allowed transition flex items-center justify-center gap-1.5"
+                    >
+                      {resetLoading ? <Loader2 size={14} className="animate-spin" /> : <KeyRound size={14} />}
+                      {resetLoading ? "Resetting..." : "Reset Password"}
+                    </button>
+                    <button
+                      onClick={() => { setResetPasswordUserId(null); setResetNewPassword(""); }}
+                      className="px-3 py-2 bg-slate-700 text-slate-300 text-xs rounded-lg hover:bg-slate-600 transition"
+                    >
+                      Cancel
+                    </button>
+                  </div>
+                </div>
+              )}
 
               {/* Delete Confirmation */}
               {deleteConfirm === user.id && (

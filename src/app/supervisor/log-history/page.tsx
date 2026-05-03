@@ -4,7 +4,7 @@ import { useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import { useEffect } from "react";
 import Sidebar from "@/components/Sidebar";
-import ProductionHistory from "@/components/ProductionHistory";
+import MachineLogView from "@/components/MachineLogView";
 
 export default function SupervisorLogHistoryPage() {
   const { data: session, status } = useSession();
@@ -12,7 +12,7 @@ export default function SupervisorLogHistoryPage() {
 
   useEffect(() => {
     if (status === "unauthenticated") router.push("/login");
-    if (status === "authenticated" && (session?.user as any)?.role !== "SUPERVISOR") router.push("/");
+    if (status === "authenticated" && !["SUPERVISOR", "MANAGER", "OWNER"].includes((session?.user as any)?.role)) router.push("/");
   }, [status, session, router]);
 
   if (status === "loading" || !session?.user) {
@@ -27,7 +27,7 @@ export default function SupervisorLogHistoryPage() {
     <div className="min-h-screen bg-slate-950">
       <Sidebar user={session.user} />
       <main className="ml-0 md:ml-64 p-3 md:p-8">
-        <ProductionHistory showOperatorFilter={true} />
+        <MachineLogView showOperatorFilter={true} />
       </main>
     </div>
   );

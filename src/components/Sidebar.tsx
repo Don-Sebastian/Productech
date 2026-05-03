@@ -10,7 +10,6 @@ import {
   Users,
   Factory,
   Package,
-  LogOut,
   ChevronRight,
   Gauge,
   Wrench,
@@ -27,6 +26,7 @@ import {
   Truck,
   UserCheck,
   Banknote,
+  KeyRound,
 } from "lucide-react";
 
 interface SidebarProps {
@@ -44,6 +44,7 @@ const roleConfigs: Record<string, { label: string; color: string; links: { href:
     links: [
       { href: "/admin", label: "Dashboard", icon: LayoutDashboard },
       { href: "/admin/companies", label: "Companies", icon: Building2 },
+      { href: "/admin/account", label: "My Account", icon: KeyRound },
     ],
   },
   OWNER: {
@@ -53,14 +54,14 @@ const roleConfigs: Record<string, { label: string; color: string; links: { href:
       { href: "/owner", label: "Dashboard", icon: LayoutDashboard },
       { href: "/owner/log-history", label: "Log History", icon: History },
       { href: "/owner/inventory", label: "Inventory", icon: Package },
-      { href: "/owner/production", label: "Production", icon: Factory },
       { href: "/owner/orders", label: "Order", icon: ShoppingCart },
-      // { href: "/owner/approvals", label: "Approve Production", icon: ClipboardCheck },
+      { href: "/owner/production", label: "Production", icon: Factory },
       { href: "/owner/dispatch-history", label: "Dispatch", icon: Truck },
       { href: "/owner/managers", label: "Managers", icon: Users },
       { href: "/owner/employees", label: "Employees", icon: Users },
       { href: "/owner/attendance", label: "Attendance View", icon: UserCheck },
       { href: "/owner/expenses", label: "Salary Expenses", icon: Banknote },
+      { href: "/owner/account", label: "My Account", icon: KeyRound },
     ],
   },
   MANAGER: {
@@ -70,13 +71,14 @@ const roleConfigs: Record<string, { label: string; color: string; links: { href:
       { href: "/manager", label: "Dashboard", icon: LayoutDashboard },
       { href: "/manager/orders", label: "Orders", icon: ShoppingCart },
       { href: "/manager/production", label: "Production Lists", icon: ListChecks },
-      { href: "/manager/inventory", label: "Inventory", icon: Package },
       { href: "/manager/approvals", label: "Approve Production", icon: ClipboardCheck },
-      { href: "/manager/attendance", label: "Attendance Approvals", icon: UserCheck },
       { href: "/manager/dispatch", label: "Dispatch", icon: Truck },
-      { href: "/manager/employees", label: "Employee Log", icon: Users },
+      { href: "/manager/inventory", label: "Inventory", icon: Package },
       { href: "/manager/log-history", label: "Log History", icon: History },
+      { href: "/manager/attendance", label: "Attendance Approvals", icon: UserCheck },
+      { href: "/manager/employees", label: "Employee Log", icon: Users },
       { href: "/manager/settings", label: "Settings", icon: Settings },
+      { href: "/manager/account", label: "My Account", icon: KeyRound },
     ],
   },
   SUPERVISOR: {
@@ -86,11 +88,12 @@ const roleConfigs: Record<string, { label: string; color: string; links: { href:
       { href: "/supervisor", label: "Dashboard", icon: LayoutDashboard },
       { href: "/supervisor/orders", label: "Orders", icon: ShoppingCart },
       { href: "/supervisor/approvals", label: "Approve Production", icon: ClipboardCheck },
-      { href: "/supervisor/attendance", label: "Mark Attendance", icon: UserCheck },
       { href: "/supervisor/production-list", label: "Production List", icon: ListChecks },
-      { href: "/supervisor/employees", label: "My Workers", icon: Users },
-      { href: "/supervisor/dispatch", label: "Dispatch", icon: Truck },
       { href: "/supervisor/log-history", label: "Log History", icon: History },
+      { href: "/supervisor/dispatch", label: "Dispatch", icon: Truck },
+      { href: "/supervisor/attendance", label: "Mark Attendance", icon: UserCheck },
+      { href: "/supervisor/employees", label: "My Workers", icon: Users },
+      { href: "/supervisor/account", label: "My Account", icon: KeyRound },
     ],
   },
   OPERATOR: {
@@ -100,6 +103,7 @@ const roleConfigs: Record<string, { label: string; color: string; links: { href:
       { href: "/operator", label: "Dashboard", icon: LayoutDashboard },
       { href: "/operator/log", label: "Machine Log", icon: Gauge },
       { href: "/operator/history", label: "Log History", icon: History },
+      { href: "/operator/account", label: "My Account", icon: KeyRound },
     ],
   },
 };
@@ -302,13 +306,6 @@ export default function Sidebar({ user }: SidebarProps) {
             <p className="text-slate-500 text-xs truncate">{user.email}</p>
           </div>
         </div>
-        <button
-          onClick={() => signOut({ redirect: true, callbackUrl: "/login" })}
-          className="flex items-center gap-2 w-full px-3 py-2 rounded-xl text-sm text-slate-400 hover:text-red-400 hover:bg-red-500/10 transition-all duration-200"
-        >
-          <LogOut size={16} />
-          <span>Sign Out</span>
-        </button>
       </div>
     </>
   );

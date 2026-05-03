@@ -4,7 +4,7 @@ import { useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import { useEffect } from "react";
 import Sidebar from "@/components/Sidebar";
-import ProductionHistory from "@/components/ProductionHistory";
+import MachineLogView from "@/components/MachineLogView";
 
 export default function OwnerLogHistoryPage() {
   const { data: session, status } = useSession();
@@ -27,7 +27,7 @@ export default function OwnerLogHistoryPage() {
     <div className="min-h-screen bg-slate-950">
       <Sidebar user={session.user} />
       <main className="ml-0 md:ml-64 p-3 md:p-8">
-        <ProductionHistory showOperatorFilter={true} />
+        <MachineLogView showOperatorFilter={true} />
       </main>
     </div>
   );
