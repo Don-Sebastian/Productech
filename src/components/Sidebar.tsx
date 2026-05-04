@@ -101,9 +101,9 @@ const roleConfigs: Record<string, { label: string; color: string; links: { href:
     color: "from-rose-600 to-pink-600",
     links: [
       // { href: "/operator", label: "Dashboard", icon: LayoutDashboard },
-      { href: "/operator/log", label: "Machine Log", icon: Gauge },
-      { href: "/operator/history", label: "Log History", icon: History },
-      { href: "/operator/account", label: "My Account", icon: KeyRound },
+      // { href: "/operator/log", label: "Machine Log", icon: Gauge },
+      // { href: "/operator/history", label: "Log History", icon: History },
+      // { href: "/operator/account", label: "My Account", icon: KeyRound },
     ],
   },
 };

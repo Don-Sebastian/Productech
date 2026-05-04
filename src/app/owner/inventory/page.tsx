@@ -4,7 +4,7 @@ import { useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import Sidebar from "@/components/Sidebar";
-import { Package, ChevronDown, ChevronUp, AlertTriangle } from "lucide-react";
+import { Package, ChevronDown, ChevronUp, AlertTriangle, Droplets } from "lucide-react";
 import { sortProducts } from "@/lib/sorting";
 
 interface Product {
@@ -24,6 +24,8 @@ export default function OwnerInventory() {
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState("All");
   const [expandedCats, setExpandedCats] = useState<Set<string>>(new Set());
+  const [glueStock, setGlueStock] = useState<any>(null);
+  const [glueThreshold, setGlueThreshold] = useState(1000);
 
   useEffect(() => {
     if (status === "unauthenticated") router.push("/login");
@@ -36,6 +38,14 @@ export default function OwnerInventory() {
         if (Array.isArray(d)) setProducts(d.filter((p: Product) => p.isActive));
         setLoading(false);
       });
+
+      fetch("/api/glue-stock")
+        .then((r) => r.json())
+        .then((d) => {
+          setGlueStock(d.stock);
+          setGlueThreshold(d.thresholdKg || 1000);
+        })
+        .catch(() => {});
     }
   }, [status]);
 
@@ -100,6 +110,45 @@ export default function OwnerInventory() {
             <p className="text-[10px] md:text-xs text-slate-400 mt-1">Low Stock</p>
           </div>
         </div>
+
+        {/* Glue Stock Card */}
+        {glueStock && (
+          <div className={`mb-4 md:mb-6 border rounded-2xl p-3 md:p-5 ${
+            glueStock.currentKg < glueThreshold
+              ? "bg-red-900/20 border-red-500/30"
+              : "bg-slate-800/50 border-slate-700/30"
+          }`}>
+            <div className="flex items-center justify-between mb-3">
+              <h3 className="text-sm md:text-base font-bold text-white flex items-center gap-2">
+                <Droplets size={16} className={glueStock.currentKg < glueThreshold ? "text-red-400" : "text-cyan-400"} />
+                Glue Stock
+              </h3>
+              {glueStock.currentKg < glueThreshold && (
+                <span className="text-[10px] md:text-xs bg-red-500/20 text-red-400 px-2 py-1 rounded-full flex items-center gap-1 animate-pulse">
+                  <AlertTriangle size={10} /> LOW
+                </span>
+              )}
+            </div>
+            <div className="grid grid-cols-3 gap-2">
+              <div className="bg-slate-900/50 rounded-lg p-2 md:p-3 text-center">
+                <p className={`text-lg md:text-2xl font-black ${glueStock.currentKg < glueThreshold ? "text-red-400" : "text-cyan-400"}`}>
+                  {glueStock.currentKg.toLocaleString(undefined, { maximumFractionDigits: 1 })}
+                </p>
+                <p className="text-[10px] md:text-xs text-slate-400">kg</p>
+              </div>
+              <div className="bg-slate-900/50 rounded-lg p-2 md:p-3 text-center">
+                <p className={`text-lg md:text-2xl font-black ${glueStock.currentKg < glueThreshold ? "text-red-400" : "text-emerald-400"}`}>
+                  {(glueStock.currentKg / 125).toLocaleString(undefined, { maximumFractionDigits: 1 })}
+                </p>
+                <p className="text-[10px] md:text-xs text-slate-400">Barrels</p>
+              </div>
+              <div className="bg-slate-900/50 rounded-lg p-2 md:p-3 text-center">
+                <p className="text-lg md:text-2xl font-black text-amber-400">{glueThreshold.toLocaleString()}</p>
+                <p className="text-[10px] md:text-xs text-slate-400">Alert (kg)</p>
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* Category Filters */}
         <div className="flex gap-2 mb-4 overflow-x-auto pb-2 scrollbar-hide">

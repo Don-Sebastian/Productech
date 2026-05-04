@@ -20,6 +20,7 @@ model Company {
   workingHoursPerDay    Float @default(8)  // Hours hot press runs per day
   numHotPresses         Int   @default(1)  // Number of hot press machines
   pressCapacityPerPress Int   @default(10) // Daylights (boards) per press per cook
+  glueAlertThresholdKg  Float @default(1000) // Alert when glue stock drops below this (kg)
 
   companyProducts     CompanyProduct[]
   customers           Customer[]
@@ -52,6 +53,7 @@ model Company {
   shifts              Shift[]
   employees           Employee[]
   attendanceRegisters AttendanceRegister[]
+  glueStock           GlueStock?
 }
 
 model Section {
@@ -1132,4 +1134,30 @@ model WageAdjustmentLog {
 
   @@index([employeeId])
   @@index([changedById])
+}
+
+// ==================== GLUE STOCK TRACKING ====================
+
+model GlueStock {
+  id        String        @id @default(cuid())
+  currentKg Float         @default(0)
+  openingKg Float         @default(0)
+  updatedAt DateTime      @updatedAt
+  companyId String        @unique
+  company   Company       @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  logs      GlueStockLog[]
+}
+
+model GlueStockLog {
+  id         String   @id @default(cuid())
+  type       String   // "OPENING", "ADD", "DEDUCTION", "ADJUSTMENT"
+  quantityKg Float    // positive = added, negative = deducted
+  balanceKg  Float    // stock after this entry
+  notes      String?
+  createdAt  DateTime @default(now())
+  glueStockId String
+  userId     String?  // who triggered this
+  glueStock  GlueStock @relation(fields: [glueStockId], references: [id], onDelete: Cascade)
+
+  @@index([glueStockId])
 }

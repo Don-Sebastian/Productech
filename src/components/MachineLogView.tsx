@@ -152,14 +152,15 @@ export default function MachineLogView({ showOperatorFilter = true }: MachineLog
     setCurrentPage(1);
   };
 
-  // Aggregate stats
-  const totalSessions = logs.length;
-  const totalSheets = logs.reduce((s, l) => s + (l.totalSheets || 0), 0);
-  const totalSqFt = logs.reduce((s, l) => s + (l.totalSqft || 0), 0);
-  const hotpressCount = logs.filter(l => l.section === "hotpress").length;
-  const peelingCount = logs.filter(l => l.section === "peeling").length;
-  const dryerCount = logs.filter(l => l.section === "dryer").length;
-  const finishingCount = logs.filter(l => l.section === "finishing").length;
+  // Aggregate stats (exclude REJECTED hotpress logs from totals)
+  const nonRejected = logs.filter(l => l.section !== "hotpress" || l.approvalStatus !== "REJECTED");
+  const totalSessions = nonRejected.length;
+  const totalSheets = nonRejected.reduce((s, l) => s + (l.totalSheets || 0), 0);
+  const totalSqFt = nonRejected.reduce((s, l) => s + (l.totalSqft || 0), 0);
+  const hotpressCount = nonRejected.filter(l => l.section === "hotpress").length;
+  const peelingCount = nonRejected.filter(l => l.section === "peeling").length;
+  const dryerCount = nonRejected.filter(l => l.section === "dryer").length;
+  const finishingCount = nonRejected.filter(l => l.section === "finishing").length;
 
   // Group logs by date
   const grouped: Record<string, LogEntry[]> = {};

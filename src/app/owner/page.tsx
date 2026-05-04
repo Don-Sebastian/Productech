@@ -13,6 +13,7 @@ import {
   Clock,
   AlertTriangle,
   BarChart3,
+  Droplets,
 } from "lucide-react";
 
 export default function OwnerDashboard() {
@@ -20,6 +21,8 @@ export default function OwnerDashboard() {
   const router = useRouter();
   const [stats, setStats] = useState<any>(null);
   const [recentBatches, setRecentBatches] = useState<any[]>([]);
+  const [glueStock, setGlueStock] = useState<any>(null);
+  const [glueThreshold, setGlueThreshold] = useState(1000);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -37,6 +40,14 @@ export default function OwnerDashboard() {
           setLoading(false);
         })
         .catch(() => setLoading(false));
+
+      fetch("/api/glue-stock")
+        .then((res) => res.json())
+        .then((data) => {
+          setGlueStock(data.stock);
+          setGlueThreshold(data.thresholdKg || 1000);
+        })
+        .catch(() => {});
     }
   }, [status]);
 
@@ -105,6 +116,51 @@ export default function OwnerDashboard() {
             );
           })}
         </div>
+
+        {/* Glue Stock Card */}
+        {glueStock && (
+          <div className={`mb-8 border rounded-2xl p-6 transition-all duration-300 ${
+            glueStock.currentKg < glueThreshold
+              ? "bg-red-900/20 border-red-500/30"
+              : "bg-slate-800/40 border-slate-700/50"
+          }`}>
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-lg font-semibold text-white flex items-center gap-2">
+                <Droplets size={18} className={glueStock.currentKg < glueThreshold ? "text-red-400" : "text-cyan-400"} />
+                Glue Stock
+              </h2>
+              {glueStock.currentKg < glueThreshold && (
+                <span className="text-xs bg-red-500/20 text-red-400 px-2 py-1 rounded-full flex items-center gap-1 animate-pulse">
+                  <AlertTriangle size={12} /> LOW STOCK — Refill Needed
+                </span>
+              )}
+            </div>
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+              <div className="bg-slate-900/50 rounded-xl p-3 text-center">
+                <p className={`text-2xl font-black ${glueStock.currentKg < glueThreshold ? "text-red-400" : "text-cyan-400"}`}>
+                  {glueStock.currentKg.toLocaleString(undefined, { maximumFractionDigits: 1 })}
+                </p>
+                <p className="text-xs text-slate-500">Stock (kg)</p>
+              </div>
+              <div className="bg-slate-900/50 rounded-xl p-3 text-center">
+                <p className={`text-2xl font-black ${glueStock.currentKg < glueThreshold ? "text-red-400" : "text-emerald-400"}`}>
+                  {(glueStock.currentKg / 125).toLocaleString(undefined, { maximumFractionDigits: 1 })}
+                </p>
+                <p className="text-xs text-slate-500">Barrels</p>
+              </div>
+              <div className="bg-slate-900/50 rounded-xl p-3 text-center">
+                <p className="text-2xl font-black text-white">
+                  {glueStock.openingKg.toLocaleString(undefined, { maximumFractionDigits: 1 })}
+                </p>
+                <p className="text-xs text-slate-500">Opening (kg)</p>
+              </div>
+              <div className="bg-slate-900/50 rounded-xl p-3 text-center">
+                <p className="text-2xl font-black text-amber-400">{glueThreshold.toLocaleString()}</p>
+                <p className="text-xs text-slate-500">Alert Threshold</p>
+              </div>
+            </div>
+          </div>
+        )}
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           {/* Recent Batches */}

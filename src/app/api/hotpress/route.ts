@@ -453,7 +453,7 @@ export async function POST(req: Request) {
         return NextResponse.json(updated);
       }
 
-      // ==================== MANAGER APPROVE (+ update stock) ====================
+      // ==================== MANAGER APPROVE (+ update stock + deduct glue) ====================
       case "managerApprove": {
         if (role !== "MANAGER" && role !== "OWNER") {
           return NextResponse.json({ error: "Not authorized" }, { status: 403 });
@@ -470,6 +470,7 @@ export async function POST(req: Request) {
                 size: true,
               },
             },
+            glueEntries: true,
           },
         });
         if (!sess || sess.approvalStatus !== "SUPERVISOR_APPROVED") {
@@ -488,6 +489,60 @@ export async function POST(req: Request) {
               },
               data: { currentStock: { increment: entry.quantity } },
             });
+          }
+        }
+
+        // Deduct glue from GlueStock (1 barrel = 125 kg)
+        const totalBarrels = sess.glueEntries.reduce((sum: number, g: any) => sum + g.barrels, 0);
+        if (totalBarrels > 0) {
+          const glueKg = totalBarrels * 125;
+          const glueStock = await (prisma as any).glueStock.findUnique({ where: { companyId } });
+          if (glueStock) {
+            const newBalance = glueStock.currentKg - glueKg;
+            await (prisma as any).glueStock.update({
+              where: { companyId },
+              data: { currentKg: newBalance },
+            });
+            await (prisma as any).glueStockLog.create({
+              data: {
+                type: "DEDUCTION",
+                quantityKg: -glueKg,
+                balanceKg: newBalance,
+                notes: `Auto-deducted ${totalBarrels} barrels (${glueKg} kg) from approved session`,
+                glueStock: { connect: { id: glueStock.id } },
+                userId,
+              },
+            });
+
+            // Check if below threshold and notify
+            const company = await prisma.company.findUnique({
+              where: { id: companyId },
+              select: { glueAlertThresholdKg: true } as any,
+            });
+            const threshold = (company as any)?.glueAlertThresholdKg || 1000;
+            if (newBalance < threshold && newBalance >= 0) {
+              // Send notification to MANAGER and OWNER
+              await prisma.notification.createMany({
+                data: [
+                  {
+                    companyId,
+                    type: "GLUE_LOW_STOCK",
+                    title: "⚠️ Low Glue Stock Alert",
+                    message: `Glue stock is low: ${newBalance.toFixed(1)} kg remaining (${(newBalance / 125).toFixed(1)} barrels). Threshold: ${threshold} kg. Please refill soon.`,
+                    targetRole: "MANAGER",
+                    priority: 1,
+                  },
+                  {
+                    companyId,
+                    type: "GLUE_LOW_STOCK",
+                    title: "⚠️ Low Glue Stock Alert",
+                    message: `Glue stock is low: ${newBalance.toFixed(1)} kg remaining (${(newBalance / 125).toFixed(1)} barrels). Threshold: ${threshold} kg. Please refill soon.`,
+                    targetRole: "OWNER",
+                    priority: 1,
+                  },
+                ],
+              });
+            }
           }
         }
 

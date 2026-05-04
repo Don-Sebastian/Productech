@@ -180,13 +180,14 @@ export default function ProductionHistory({ showOperatorFilter = false }: Produc
     setCurrentPage(1);
   }, [fromDate, toDate, approvalFilter, operatorFilter]);
 
-  // Aggregate stats
-  const totalSessions = sessions.length;
-  const totalSheets = sessions.reduce((s, sess) =>
+  // Aggregate stats (exclude REJECTED sessions from totals)
+  const nonRejected = sessions.filter(s => s.approvalStatus !== "REJECTED");
+  const totalSessions = nonRejected.length;
+  const totalSheets = nonRejected.reduce((s, sess) =>
     s + sess.entries.filter(e => e.type === "COOK" && e.unloadTime).reduce((a, e) => a + e.quantity, 0), 0);
-  const totalSqFt = sessions.reduce((s, sess) =>
+  const totalSqFt = nonRejected.reduce((s, sess) =>
     s + sess.entries.filter(e => e.type === "COOK" && e.unloadTime).reduce((a, e) => a + (e.quantity * (e.size?.sqft || 0)), 0), 0);
-  const totalGlue = sessions.reduce((s, sess) =>
+  const totalGlue = nonRejected.reduce((s, sess) =>
     s + sess.glueEntries.reduce((a, e) => a + e.barrels, 0), 0);
   const approvedCount = sessions.filter(s => s.approvalStatus === "MANAGER_APPROVED").length;
 

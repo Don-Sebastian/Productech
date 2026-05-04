@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Layers, Factory, Users, Wrench, Settings2, Flame, Cog, TreePine, LayoutTemplate, Clock, FolderTree } from "lucide-react";
+import { Layers, Factory, Users, Wrench, Settings2, Flame, Cog, TreePine, LayoutTemplate, Clock, FolderTree, Droplets } from "lucide-react";
 
 export default function SettingsNav() {
   const pathname = usePathname();
@@ -11,6 +11,7 @@ export default function SettingsNav() {
     { href: "/manager/settings/catalog", label: "Product Catalog", icon: Layers },
     { href: "/manager/settings/peeling-catalog", label: "Peeling Catalog", icon: TreePine },
     { href: "/manager/settings/production", label: "Hot Press", icon: Flame },
+    { href: "/manager/settings/glue-stock", label: "Glue Stock", icon: Droplets },
     { href: "/manager/settings/machinery", label: "Departments", icon: Cog },
     // { href: "/manager/settings/sections", label: "Departments", icon: FolderTree },
     { href: "/manager/settings/sub-departments", label: "Sections", icon: LayoutTemplate },
