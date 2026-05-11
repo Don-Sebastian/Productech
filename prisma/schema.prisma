@@ -1161,3 +1161,8 @@ model GlueStockLog {
 
   @@index([glueStockId])
 }
+
+model demo {
+  id String @id @default(uuid()) @db.Text
+  name String @default("demo") @db.Text
+}
