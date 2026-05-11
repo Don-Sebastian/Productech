@@ -46,36 +46,41 @@ export async function POST(request: NextRequest) {
     const companyId = (session.user as any).companyId;
     if (!companyId) return NextResponse.json({ error: "No company" }, { status: 400 });
 
-    const { categoryId, thicknessId, sizeId } = await request.json();
+    const { categoryId, thicknessId, sizeId, sizeIds } = await request.json();
 
-    if (!categoryId || !thicknessId || !sizeId) {
-      return NextResponse.json({ error: "Category, thickness, and size required" }, { status: 400 });
+    if (!categoryId || !thicknessId || (!sizeId && !sizeIds)) {
+      return NextResponse.json({ error: "Category, thickness, and size(s) required" }, { status: 400 });
     }
 
-    // Check if combo already exists
-    const existing = await prisma.companyProduct.findUnique({
-      where: { companyId_categoryId_thicknessId_sizeId: { companyId, categoryId, thicknessId, sizeId } },
-    });
+    const sizesToProcess = sizeIds || [sizeId];
+    const results = [];
 
-    if (existing) {
-      // Re-activate if it was deactivated
-      if (!existing.isActive) {
-        const updated = await prisma.companyProduct.update({
-          where: { id: existing.id },
-          data: { isActive: true },
+    for (const sId of sizesToProcess) {
+      // Check if combo already exists
+      const existing = await prisma.companyProduct.findUnique({
+        where: { companyId_categoryId_thicknessId_sizeId: { companyId, categoryId, thicknessId, sizeId: sId } },
+      });
+
+      if (existing) {
+        // Re-activate if it was deactivated
+        if (!existing.isActive) {
+          const updated = await prisma.companyProduct.update({
+            where: { id: existing.id },
+            data: { isActive: true },
+            include: { category: true, thickness: true, size: true },
+          });
+          results.push(updated);
+        }
+      } else {
+        const product = await prisma.companyProduct.create({
+          data: { companyId, categoryId, thicknessId, sizeId: sId },
           include: { category: true, thickness: true, size: true },
         });
-        return NextResponse.json(updated);
+        results.push(product);
       }
-      return NextResponse.json({ error: "Product already exists" }, { status: 409 });
     }
 
-    const product = await prisma.companyProduct.create({
-      data: { companyId, categoryId, thicknessId, sizeId },
-      include: { category: true, thickness: true, size: true },
-    });
-
-    return NextResponse.json(product, { status: 201 });
+    return NextResponse.json({ success: true, count: results.length, products: results }, { status: 201 });
   } catch (error) {
     console.error("Error creating product:", error);
     return NextResponse.json({ error: "Failed to create" }, { status: 500 });

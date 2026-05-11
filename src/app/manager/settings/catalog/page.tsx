@@ -17,6 +17,7 @@ export default function ManagerCatalog() {
   const [addStep, setAddStep] = useState(0);
   const [selCat, setSelCat] = useState<any>(null);
   const [selThick, setSelThick] = useState<any>(null);
+  const [selectedSizes, setSelectedSizes] = useState<string[]>([]);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
 
@@ -150,17 +151,21 @@ export default function ManagerCatalog() {
     }
   };
 
-  const addProduct = async (sizeId: string) => {
+  const addSelectedProducts = async () => {
+    if (selectedSizes.length === 0) return;
     setError("");
     try {
       const res = await fetch("/api/company-products", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ categoryId: selCat.id, thicknessId: selThick.id, sizeId }),
+        body: JSON.stringify({ categoryId: selCat.id, thicknessId: selThick.id, sizeIds: selectedSizes }),
       });
       if (res.ok) {
-        setSuccess("Product added!");
+        setSuccess(`${selectedSizes.length} Product(s) added!`);
         fetchData();
+        setSelectedSizes([]);
+        setAddStep(0);
+        setShowAdd(false);
         setTimeout(() => setSuccess(""), 2000);
       } else {
         const d = await res.json();
@@ -251,7 +256,7 @@ export default function ManagerCatalog() {
         {/* ===================== PRODUCTS TAB ===================== */}
         {mgmtTab === "products" && (
           <div>
-            <button onClick={() => { setShowAdd(true); setAddStep(0); setSelCat(null); setSelThick(null); }}
+            <button onClick={() => { setShowAdd(true); setAddStep(0); setSelCat(null); setSelThick(null); setSelectedSizes([]); }}
               className="w-full mb-4 py-3.5 rounded-xl bg-blue-600/20 border-2 border-dashed border-blue-500/40 text-blue-400 font-semibold flex items-center justify-center gap-2 hover:bg-blue-600/30 active:scale-[0.98] transition">
               <Plus size={20} /> Add Product
             </button>
@@ -295,20 +300,32 @@ export default function ManagerCatalog() {
                 {addStep === 2 && (
                   <div>
                     <p className="text-xs text-slate-400 mb-2">{selCat?.name} • <span className="text-white">{selThick?.value}mm</span></p>
-                    <p className="text-xs text-slate-500 mb-2">Tap sizes to add. Already added ones are grayed out.</p>
+                    <p className="text-xs text-slate-500 mb-2">Tap sizes to select. Click Add Selected to save.</p>
                     <div className="grid grid-cols-3 sm:grid-cols-4 gap-2">
                       {catalog.sizes?.map((s: any) => {
                         const exists = products.some((p) => p.categoryId === selCat.id && p.thicknessId === selThick.id && p.sizeId === s.id && p.isActive);
+                        const isSelected = selectedSizes.includes(s.id);
                         return (
-                          <button key={s.id} onClick={() => !exists && addProduct(s.id)}
+                          <button key={s.id} onClick={() => {
+                              if (exists) return;
+                              setSelectedSizes(prev => prev.includes(s.id) ? prev.filter(id => id !== s.id) : [...prev, s.id]);
+                            }}
                             disabled={exists}
-                            className={`py-3 rounded-xl font-bold transition active:scale-[0.95] ${
-                              exists ? "bg-blue-900/30 text-blue-500/50 cursor-not-allowed" : "bg-slate-700 hover:bg-blue-600 text-white"
+                            className={`py-3 rounded-xl font-bold transition active:scale-[0.95] border-2 ${
+                              exists ? "bg-blue-900/30 text-blue-500/50 cursor-not-allowed border-transparent" : 
+                              isSelected ? "bg-blue-600/20 text-blue-300 border-blue-500/50 shadow-[0_0_15px_rgba(59,130,246,0.2)]" : "bg-slate-700 hover:bg-slate-600 text-white border-transparent"
                             }`}>{s.label} {exists && "✓"}</button>
                         );
                       })}
                     </div>
-                    <button onClick={() => setAddStep(1)} className="mt-2 text-sm text-slate-400">← Back</button>
+                    <div className="flex items-center justify-between mt-4">
+                      <button onClick={() => { setAddStep(1); setSelectedSizes([]); }} className="text-sm text-slate-400">← Back</button>
+                      {selectedSizes.length > 0 && (
+                        <button onClick={addSelectedProducts} className="py-2.5 px-5 bg-blue-600 hover:bg-blue-500 text-white font-bold rounded-xl transition shadow-lg shadow-blue-500/20 active:scale-[0.98]">
+                          Add {selectedSizes.length} Product{selectedSizes.length > 1 ? 's' : ''}
+                        </button>
+                      )}
+                    </div>
                   </div>
                 )}
               </div>
