@@ -70,6 +70,23 @@ export async function GET(request: NextRequest) {
       alreadyPlannedForOrder[key] = (alreadyPlannedForOrder[key] || 0) + item.quantity;
     });
 
+    // Compute booked stock from other active orders
+    const activeOrderItems = await prisma.orderItem.findMany({
+      where: {
+        order: {
+          companyId,
+          status: { notIn: ["COMPLETED", "CANCELLED", "DISPATCHED"] },
+          id: { not: orderId },
+        },
+      },
+    });
+
+    const bookedElsewhereMap: Record<string, number> = {};
+    activeOrderItems.forEach((item) => {
+      const key = `${item.categoryId}-${item.thicknessId}-${item.sizeId}`;
+      bookedElsewhereMap[key] = (bookedElsewhereMap[key] || 0) + item.quantity;
+    });
+
     // Compute smart target for each order item
     const smartItems = order.items.map((item) => {
       const key = `${item.categoryId}-${item.thicknessId}-${item.sizeId}`;
@@ -79,10 +96,14 @@ export async function GET(request: NextRequest) {
 
       const currentStock = product?.currentStock || 0;
       const allocatedElsewhere = allocatedMap[key] || 0;
+      const bookedElsewhere = bookedElsewhereMap[key] || 0;
       const alreadyPlanned = alreadyPlannedForOrder[key] || 0;
 
-      // Target = ordered quantity - current stock
-      const targetQuantity = Math.max(0, item.quantity - currentStock);
+      // Available stock is current stock minus stock booked by other active orders
+      const availableStock = Math.max(0, currentStock - bookedElsewhere);
+
+      // Target = ordered quantity - available stock - already planned for THIS order
+      const targetQuantity = Math.max(0, item.quantity - availableStock - alreadyPlanned);
 
       return {
         categoryId: item.categoryId,
@@ -94,6 +115,8 @@ export async function GET(request: NextRequest) {
         orderedQuantity: item.quantity,
         currentStock,
         allocatedElsewhere,
+        bookedElsewhere,
+        availableStock,
         alreadyPlanned,
         targetQuantity,
         layers: item.layers,
