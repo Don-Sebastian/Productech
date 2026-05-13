@@ -184,6 +184,7 @@ model ProductTiming {
   thickness         PlywoodThickness @relation(fields: [thicknessId], references: [id], onDelete: Cascade)
   cookingTime       Float            @default(0)
   coolingTime       Float            @default(0)
+  ratePerSqft       Float            @default(0)
   createdAt         DateTime         @default(now())
   updatedAt         DateTime         @updatedAt
 

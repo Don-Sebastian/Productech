@@ -13,8 +13,8 @@ interface Product {
   currentStock: number;
   isActive: boolean;
   category: { id: string; name: string; sortOrder?: number };
-  thickness: { id: string; value: number };
-  size: { id: string; label: string; length: number; width: number };
+  thickness: { id: string; value: number; ratePerSqft?: number };
+  size: { id: string; label: string; length: number; width: number; sqft: number };
 }
 
 export default function ManagerInventory() {
@@ -87,6 +87,8 @@ export default function ManagerInventory() {
   };
 
   const totalStock = products.reduce((s, p) => s + p.currentStock, 0);
+  const totalSqft = products.reduce((s, p) => s + (p.currentStock * (p.size?.sqft || 0)), 0);
+  const totalCost = products.reduce((s, p) => s + (p.currentStock * (p.size?.sqft || 0) * (p.thickness?.ratePerSqft || 0)), 0);
   const lowStockCount = products.filter((p) => p.currentStock < 50).length;
 
   if (status === "loading" || !session?.user) {
@@ -103,7 +105,7 @@ export default function ManagerInventory() {
         </div>
 
         {/* Summary */}
-        <div className="grid grid-cols-3 gap-2 md:gap-4 mb-4 md:mb-6">
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-2 md:gap-4 mb-4 md:mb-6">
           <div className="bg-slate-800/50 border border-slate-700/30 rounded-xl p-3 md:p-5 text-center">
             <p className="text-lg md:text-3xl font-bold text-white">{products.length}</p>
             <p className="text-[10px] md:text-xs text-slate-400 mt-1">Products</p>
@@ -113,8 +115,12 @@ export default function ManagerInventory() {
             <p className="text-[10px] md:text-xs text-slate-400 mt-1">Total Stock</p>
           </div>
           <div className="bg-slate-800/50 border border-slate-700/30 rounded-xl p-3 md:p-5 text-center">
-            <p className={`text-lg md:text-3xl font-bold ${lowStockCount > 0 ? "text-red-400" : "text-emerald-400"}`}>{lowStockCount}</p>
-            <p className="text-[10px] md:text-xs text-slate-400 mt-1">Low Stock</p>
+            <p className="text-lg md:text-3xl font-bold text-cyan-400">{totalSqft.toLocaleString(undefined, { maximumFractionDigits: 1 })}</p>
+            <p className="text-[10px] md:text-xs text-slate-400 mt-1">Total Sq.Ft</p>
+          </div>
+          <div className="bg-slate-800/50 border border-slate-700/30 rounded-xl p-3 md:p-5 text-center">
+            <p className="text-lg md:text-3xl font-bold text-emerald-400">₹{totalCost.toLocaleString(undefined, { maximumFractionDigits: 0 })}</p>
+            <p className="text-[10px] md:text-xs text-slate-400 mt-1">Total Value</p>
           </div>
         </div>
 
@@ -161,16 +167,19 @@ export default function ManagerInventory() {
                         <div className="md:hidden space-y-1.5">
                           {sizeItems.map((p) => (
                             <div key={p.id} className="bg-slate-900/50 border border-slate-700/20 rounded-lg px-3 py-2 flex items-center justify-between">
-                              <div className="flex items-center gap-3">
-                                <span className="text-white font-bold text-sm min-w-[32px]">{p.size?.label}</span>
-                                <span className={`font-bold text-sm ${
-                                  p.currentStock === 0 ? "text-slate-600" :
-                                  p.currentStock < 50 ? "text-red-400" :
-                                  p.currentStock < 100 ? "text-amber-400" : "text-emerald-400"
-                                }`}>
-                                  {p.currentStock}
-                                  {p.currentStock < 50 && p.currentStock > 0 && <AlertTriangle size={10} className="inline ml-1 text-red-400" />}
-                                </span>
+                              <div className="flex flex-col">
+                                <div className="flex items-center gap-3">
+                                  <span className="text-white font-bold text-sm min-w-[32px]">{p.size?.label}</span>
+                                  <span className={`font-bold text-sm ${
+                                    p.currentStock === 0 ? "text-slate-600" :
+                                    p.currentStock < 50 ? "text-red-400" :
+                                    p.currentStock < 100 ? "text-amber-400" : "text-emerald-400"
+                                  }`}>
+                                    {p.currentStock}
+                                    {p.currentStock < 50 && p.currentStock > 0 && <AlertTriangle size={10} className="inline ml-1 text-red-400" />}
+                                  </span>
+                                </div>
+                                <span className="text-emerald-400 text-xs font-bold mt-0.5">₹{(p.currentStock * (p.size?.sqft || 0) * (p.thickness?.ratePerSqft || 0)).toLocaleString(undefined, { maximumFractionDigits: 0 })}</span>
                               </div>
                               {/* Edit opening stock */}
                               {editingId === p.id ? (
@@ -199,6 +208,7 @@ export default function ManagerInventory() {
                               <tr className="text-slate-500 text-xs">
                                 <th className="text-left py-1 px-2 font-medium">SIZE</th>
                                 <th className="text-center py-1 px-2 font-medium">CURRENT</th>
+                                <th className="text-center py-1 px-2 font-medium">VALUE</th>
                                 <th className="text-center py-1 px-2 font-medium">ACTION</th>
                               </tr>
                             </thead>
@@ -217,6 +227,9 @@ export default function ManagerInventory() {
                                         <AlertTriangle size={12} className="inline ml-1 text-red-400" />
                                       )}
                                     </span>
+                                  </td>
+                                  <td className="py-2 px-2 text-center text-emerald-400 font-bold">
+                                    ₹{(p.currentStock * (p.size?.sqft || 0) * (p.thickness?.ratePerSqft || 0)).toLocaleString(undefined, { maximumFractionDigits: 0 })}
                                   </td>
                                   <td className="py-2 px-2 text-center">
                                     {editingId === p.id ? (

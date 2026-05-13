@@ -146,9 +146,9 @@ export async function POST(request: NextRequest) {
 
     if (type === "timing") {
       if (action === "update") {
-        const { categoryId, thicknessId, cookingTime: cook, coolingTime: cool } = data;
+        const { categoryId, thicknessId, cookingTime: cook, coolingTime: cool, ratePerSqft } = data;
         
-        console.log("[TIMING] Saving:", { companyId, categoryId, thicknessId, cook, cool });
+        console.log("[TIMING] Saving:", { companyId, categoryId, thicknessId, cook, cool, ratePerSqft });
 
         try {
           const timing = await prisma.productTiming.upsert({
@@ -162,6 +162,7 @@ export async function POST(request: NextRequest) {
             update: {
               cookingTime: parseFloat(cook) || 0,
               coolingTime: parseFloat(cool) || 0,
+              ratePerSqft: parseFloat(ratePerSqft) || 0,
             },
             create: {
               companyId,
@@ -169,6 +170,7 @@ export async function POST(request: NextRequest) {
               thicknessId,
               cookingTime: parseFloat(cook) || 0,
               coolingTime: parseFloat(cool) || 0,
+              ratePerSqft: parseFloat(ratePerSqft) || 0,
             },
           });
           console.log("[TIMING] Success:", timing.id);

@@ -1,0 +1,2 @@
+-- AlterTable
+ALTER TABLE "ProductTiming" ADD COLUMN     "ratePerSqft" DOUBLE PRECISION NOT NULL DEFAULT 0;

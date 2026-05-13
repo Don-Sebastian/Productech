@@ -220,7 +220,7 @@ function LiveCard({ session, now }: { session: LiveSession; now: number }) {
           className="w-full py-2 bg-slate-800/50 hover:bg-slate-800 text-xs font-bold text-slate-400 transition flex items-center justify-center gap-1 border-t border-slate-700/50"
         >
           {expanded ? <Minimize2 size={12}/> : <Maximize2 size={12}/>} 
-          {expanded ? "HIDE LATEST" : "VIEW LATEST ACTIVITY"}
+          {expanded ? "HIDE LATEST ACTIVITY" : "VIEW LATEST ACTIVITY"}
         </button>
       )}
 
@@ -232,7 +232,7 @@ function LiveCard({ session, now }: { session: LiveSession; now: number }) {
                <div key={idx} className="flex justify-between items-center bg-slate-900 p-2 rounded-lg text-xs">
                  <div className="text-slate-300 truncate pr-2">
                    {session.section === 'hotpress' && (
-                     <><span className={e.type === 'REPRESS' ? 'text-amber-400' : 'text-emerald-400'}>{e.type.charAt(0)}</span> • {e.category?.name} • {e.thickness?.value}mm</>
+                     <><span className={e.type === 'REPRESS' ? 'text-amber-400' : 'text-emerald-400'}>{e.type.charAt(0)}</span> • {e.category?.name} • {e.thickness?.value}mm • {e.size?.length}x{e.size?.width}</>
                    )}
                    {session.section === 'peeling' && (
                      <>{e.peelingMaterial?.treeType} • {e.peelingMaterial?.veneerThickness}mm</>

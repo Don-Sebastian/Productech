@@ -573,6 +573,139 @@ export async function POST(req: Request) {
         return NextResponse.json(updated);
       }
 
+      // ==================== MANUAL SUMMARY (manager only) ====================
+      case "manualSummary": {
+        if (role !== "MANAGER" && role !== "OWNER") {
+          return NextResponse.json({ error: "Not authorized" }, { status: 403 });
+        }
+
+        const { shiftDate, operatorId, machineId, items, glueBarrels, confirmMultiple, notes } = body;
+        if (!shiftDate || !operatorId || !machineId || !items || items.length === 0) {
+          return NextResponse.json({ error: "Missing required fields" }, { status: 400 });
+        }
+
+        const targetDate = new Date(shiftDate);
+        targetDate.setHours(0, 0, 0, 0);
+
+        // Check for existing manager_approved session
+        if (!confirmMultiple) {
+          const existing = await prisma.hotPressSession.findFirst({
+            where: {
+              companyId,
+              shiftDate: targetDate,
+              operatorId,
+              machineId,
+              approvalStatus: "MANAGER_APPROVED"
+            }
+          });
+
+          if (existing) {
+            return NextResponse.json({ 
+              error: "duplicate_warning", 
+              message: "A production summary for this operator and machine on this date has already been approved. Are you sure you want to add another?" 
+            }, { status: 400 });
+          }
+        }
+
+        // Create the session
+        const sessionAction = await prisma.hotPressSession.create({
+          data: {
+            companyId,
+            operatorId,
+            machineId,
+            shiftDate: targetDate,
+            startTime: targetDate,
+            stopTime: targetDate,
+            status: "STOPPED",
+            approvalStatus: "MANAGER_APPROVED",
+            numDaylights: 10,
+            managerApprovedAt: new Date(),
+            managerId: userId,
+            rejectionNote: notes ? `Manual Summary: ${notes}` : "Manual Summary Entry",
+          }
+        });
+
+        // Add items and update stock
+        for (const item of items) {
+          if (!item.categoryId || !item.thicknessId || !item.sizeId || !item.quantity) continue;
+          const qty = parseInt(item.quantity);
+          if (qty <= 0) continue;
+          
+          await prisma.pressEntry.create({
+            data: {
+              type: "COOK",
+              loadTime: targetDate,
+              unloadTime: targetDate,
+              quantity: qty,
+              categoryId: item.categoryId,
+              thicknessId: item.thicknessId,
+              sizeId: item.sizeId,
+              sessionId: sessionAction.id,
+            }
+          });
+
+          // Update stock
+          await prisma.companyProduct.updateMany({
+            where: {
+              companyId,
+              categoryId: item.categoryId,
+              thicknessId: item.thicknessId,
+              sizeId: item.sizeId,
+            },
+            data: { currentStock: { increment: qty } },
+          });
+        }
+
+        // Add glue and deduct stock
+        const totalBarrels = parseFloat(glueBarrels) || 0;
+        if (totalBarrels > 0) {
+          await prisma.glueEntry.create({
+            data: {
+              sessionId: sessionAction.id,
+              time: targetDate,
+              barrels: totalBarrels,
+            }
+          });
+
+          const glueKg = totalBarrels * 125;
+          const glueStock = await (prisma as any).glueStock.findUnique({ where: { companyId } });
+          if (glueStock) {
+            const newBalance = glueStock.currentKg - glueKg;
+            await (prisma as any).glueStock.update({
+              where: { companyId },
+              data: { currentKg: newBalance },
+            });
+            await (prisma as any).glueStockLog.create({
+              data: {
+                type: "DEDUCTION",
+                quantityKg: -glueKg,
+                balanceKg: newBalance,
+                notes: `Auto-deducted ${totalBarrels} barrels (${glueKg} kg) from manual summary`,
+                glueStock: { connect: { id: glueStock.id } },
+                userId,
+              },
+            });
+
+            // Alerts
+            const company = await prisma.company.findUnique({
+              where: { id: companyId },
+              select: { glueAlertThresholdKg: true } as any,
+            });
+            const threshold = (company as any)?.glueAlertThresholdKg || 1000;
+            if (newBalance < threshold && newBalance >= 0) {
+              await prisma.notification.createMany({
+                data: [
+                  { companyId, type: "GLUE_LOW_STOCK", title: "⚠️ Low Glue Stock Alert", message: `Glue stock is low: ${newBalance.toFixed(1)} kg remaining. Please refill soon.`, targetRole: "MANAGER", priority: 1 },
+                  { companyId, type: "GLUE_LOW_STOCK", title: "⚠️ Low Glue Stock Alert", message: `Glue stock is low: ${newBalance.toFixed(1)} kg remaining. Please refill soon.`, targetRole: "OWNER", priority: 1 },
+                ]
+              });
+            }
+          }
+        }
+
+        return NextResponse.json(sessionAction);
+      }
+
       default:
         return NextResponse.json({ error: "Unknown action" }, { status: 400 });
     }

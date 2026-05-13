@@ -1,4 +1,5 @@
 "use client";
+// Catalog page with Rate/SqFt support - v2
 
 import { useSession } from "next-auth/react";
 import { useRouter, useSearchParams } from "next/navigation";
@@ -39,7 +40,7 @@ export default function ManagerCatalog() {
   // Timing state
   const [selTimingCat, setSelTimingCat] = useState<any>(null);
   // Per-category-thickness timing state: { [categoryId-thicknessId]: { cookingTime, coolingTime, saving, saved } }
-  const [timingMap, setTimingMap] = useState<Record<string, { cookingTime: string; coolingTime: string; saving: boolean; saved: boolean }>>({});
+  const [timingMap, setTimingMap] = useState<Record<string, { cookingTime: string; coolingTime: string; ratePerSqft: string; saving: boolean; saved: boolean }>>({});
 
   useEffect(() => {
     if (status === "unauthenticated") router.push("/login");
@@ -80,6 +81,7 @@ export default function ManagerCatalog() {
               next[key] = {
                 cookingTime: existing ? String(existing.cookingTime) : "0",
                 coolingTime: existing ? String(existing.coolingTime) : "0",
+                ratePerSqft: existing ? String(existing.ratePerSqft || 0) : "0",
                 saving: false,
                 saved: false,
               };
@@ -130,7 +132,8 @@ export default function ManagerCatalog() {
             categoryId: selTimingCat.id,
             thicknessId: thicknessId,
             cookingTime: times.cookingTime,
-            coolingTime: times.coolingTime
+            coolingTime: times.coolingTime,
+            ratePerSqft: times.ratePerSqft
           },
         }),
       });
@@ -206,6 +209,8 @@ export default function ManagerCatalog() {
     setNewCatName(""); setNewThickVal(""); setNewSizeLength(""); setNewSizeWidth(""); setNewSizeSqft("");
     fetchData();
   };
+
+
 
   if (status === "loading" || !session?.user) {
     return <div className="flex items-center justify-center h-screen bg-slate-950"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-cyan-400" /></div>;
@@ -439,7 +444,7 @@ export default function ManagerCatalog() {
                   <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                     {catalog.thicknesses?.map((t: any) => {
                       const key = `${selTimingCat.id}-${t.id}`;
-                      const tt = timingMap[key] || { cookingTime: "0", coolingTime: "0", saving: false, saved: false };
+                      const tt = timingMap[key] || { cookingTime: "0", coolingTime: "0", ratePerSqft: "0", saving: false, saved: false };
                       const totalMin = (parseFloat(tt.cookingTime) || 0) + (parseFloat(tt.coolingTime) || 0);
 
                       return (
@@ -462,7 +467,7 @@ export default function ManagerCatalog() {
                             </div>
                           </div>
 
-                          <div className="grid grid-cols-2 gap-2 mb-4">
+                          <div className="grid grid-cols-3 gap-2 mb-4">
                             <div className="space-y-1.5">
                               <label className="text-[9px] font-black text-slate-500 uppercase tracking-widest flex items-center gap-1">
                                 <span className="text-orange-400">🔥</span> Cook
@@ -470,7 +475,7 @@ export default function ManagerCatalog() {
                               <input
                                 type="number" min={0} step={1} value={tt.cookingTime}
                                 onChange={(e) => setTimingMap((prev) => ({ ...prev, [key]: { ...prev[key], cookingTime: e.target.value, saved: false } }))}
-                                className="w-full bg-slate-900/60 border border-slate-700 rounded-xl px-3 py-2.5 text-white font-black text-center focus:border-orange-500/50 outline-none transition-all"
+                                className="w-full bg-slate-900/60 border border-slate-700 rounded-xl px-2 py-2 text-white font-black text-center focus:border-orange-500/50 outline-none transition-all"
                               />
                             </div>
                             <div className="space-y-1.5">
@@ -480,7 +485,17 @@ export default function ManagerCatalog() {
                               <input
                                 type="number" min={0} step={1} value={tt.coolingTime}
                                 onChange={(e) => setTimingMap((prev) => ({ ...prev, [key]: { ...prev[key], coolingTime: e.target.value, saved: false } }))}
-                                className="w-full bg-slate-900/60 border border-slate-700 rounded-xl px-3 py-2.5 text-white font-black text-center focus:border-blue-500/50 outline-none transition-all"
+                                className="w-full bg-slate-900/60 border border-slate-700 rounded-xl px-2 py-2 text-white font-black text-center focus:border-blue-500/50 outline-none transition-all"
+                              />
+                            </div>
+                            <div className="space-y-1.5">
+                              <label className="text-[9px] font-black text-slate-500 uppercase tracking-widest flex items-center gap-1">
+                                <span className="text-emerald-400">₹</span> Rate/SqFt
+                              </label>
+                              <input
+                                type="number" min={0} step={0.1} value={tt.ratePerSqft}
+                                onChange={(e) => setTimingMap((prev) => ({ ...prev, [key]: { ...prev[key], ratePerSqft: e.target.value, saved: false } }))}
+                                className="w-full bg-slate-900/60 border border-emerald-900/30 rounded-xl px-2 py-2 text-emerald-400 font-black text-center focus:border-emerald-500/50 outline-none transition-all"
                               />
                             </div>
                           </div>
@@ -494,7 +509,7 @@ export default function ManagerCatalog() {
                                 : "bg-blue-600/10 hover:bg-blue-600/20 text-blue-400 border border-blue-500/20"
                             }`}
                           >
-                            {tt.saving ? "Saving..." : tt.saved ? "Stored ✓" : "Update Timing"}
+                            {tt.saving ? "Saving..." : tt.saved ? "Stored ✓" : "Update Config"}
                           </button>
                         </div>
                       );

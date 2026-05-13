@@ -16,7 +16,7 @@ export async function GET(request: NextRequest) {
       include: {
         category: { select: { id: true, name: true } },
         thickness: { select: { id: true, value: true, unit: true } },
-        size: { select: { id: true, label: true, length: true, width: true } },
+        size: { select: { id: true, label: true, length: true, width: true, sqft: true } },
       },
       orderBy: [
         { category: { sortOrder: "asc" } },
@@ -25,10 +25,31 @@ export async function GET(request: NextRequest) {
       ],
     });
 
-    return NextResponse.json(products);
+    const timings = await prisma.productTiming.findMany({
+      where: { companyId },
+      select: { categoryId: true, thicknessId: true, ratePerSqft: true },
+    });
+
+    const timingMap = new Map();
+    for (const t of timings) {
+      timingMap.set(`${t.categoryId}-${t.thicknessId}`, t.ratePerSqft);
+    }
+
+    const enhancedProducts = products.map((p) => ({
+      ...p,
+      thickness: {
+        ...p.thickness,
+        ratePerSqft: timingMap.get(`${p.categoryId}-${p.thicknessId}`) || 0,
+      },
+    }));
+
+    return NextResponse.json(enhancedProducts);
   } catch (error) {
     console.error("Error fetching products:", error);
-    return NextResponse.json({ error: "Failed to fetch" }, { status: 500 });
+    if (error instanceof Error) {
+      console.error(error.stack);
+    }
+    return NextResponse.json({ error: "Failed to fetch", details: String(error) }, { status: 500 });
   }
 }
 
