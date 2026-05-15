@@ -17,13 +17,18 @@ import {
   ListChecks,
   Package,
   ChevronDown,
-  ChevronUp
+  ChevronUp,
+  CalendarClock
 } from "lucide-react";
+import { calcListProductionMinutes, calcEstimatedDates, formatDate, formatDuration, formatDays, type PressSettings } from "@/lib/productionEstimate";
+import { StatSkeleton, ListSkeleton } from "@/components/Skeleton";
 
 export default function OwnerProduction() {
   const { data: session, status } = useSession();
   const router = useRouter();
   const [prodLists, setProdLists] = useState<any[]>([]);
+  const [pressSettings, setPressSettings] = useState<PressSettings>({ workingHoursPerDay: 8, numHotPresses: 1, pressCapacityPerPress: 10 });
+  const [productTimings, setProductTimings] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState("ALL");
@@ -42,6 +47,8 @@ export default function OwnerProduction() {
         .then((data) => {
           const list = data && Array.isArray(data.lists) ? data.lists : (Array.isArray(data) ? data : []);
           setProdLists(list);
+          if (data?.pressSettings) setPressSettings(data.pressSettings);
+          if (data?.productTimings) setProductTimings(data.productTimings);
           setLoading(false);
         })
         .catch(() => setLoading(false));
@@ -133,26 +140,37 @@ export default function OwnerProduction() {
 
         {/* Global Stats */}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
-           <div className="bg-slate-800/40 border border-slate-700/50 rounded-2xl p-5 shadow-sm">
-            <p className="text-slate-500 text-[10px] font-black uppercase tracking-widest mb-1 px-1">Total Runs</p>
-            <p className="text-3xl font-black text-white">{prodLists.length}</p>
-          </div>
-          <div className="bg-slate-800/40 border border-slate-700/50 rounded-2xl p-5 shadow-sm">
-            <p className="text-slate-500 text-[10px] font-black uppercase tracking-widest mb-1 px-1">Active</p>
-            <p className="text-3xl font-black text-amber-400">{prodLists.filter(l => !["COMPLETED","REJECTED","CANCELLED"].includes(l.status)).length}</p>
-          </div>
-          <div className="bg-slate-800/40 border border-slate-700/50 rounded-2xl p-5 shadow-sm">
-            <p className="text-slate-500 text-[10px] font-black uppercase tracking-widest mb-1 px-1">Dispatched/Done</p>
-            <p className="text-3xl font-black text-emerald-400">{prodLists.filter(l => l.status === "COMPLETED").length}</p>
-          </div>
-          <div className="bg-slate-800/40 border border-slate-700/50 rounded-2xl p-5 shadow-sm">
-            <p className="text-slate-500 text-[10px] font-black uppercase tracking-widest mb-1 px-1">Verification Wait</p>
-            <p className="text-3xl font-black text-violet-400">{prodLists.filter(l => l.status === "PRESSING").length}</p>
-          </div>
+          {loading ? (
+            <>
+              <StatSkeleton />
+              <StatSkeleton />
+              <StatSkeleton />
+              <StatSkeleton />
+            </>
+          ) : (
+            <>
+              <div className="bg-slate-800/40 border border-slate-700/50 rounded-2xl p-5 shadow-sm">
+                <p className="text-slate-500 text-[10px] font-black uppercase tracking-widest mb-1 px-1">Total Runs</p>
+                <p className="text-3xl font-black text-white">{prodLists.length}</p>
+              </div>
+              <div className="bg-slate-800/40 border border-slate-700/50 rounded-2xl p-5 shadow-sm">
+                <p className="text-slate-500 text-[10px] font-black uppercase tracking-widest mb-1 px-1">Active</p>
+                <p className="text-3xl font-black text-amber-400">{prodLists.filter(l => !["COMPLETED","REJECTED","CANCELLED"].includes(l.status)).length}</p>
+              </div>
+              <div className="bg-slate-800/40 border border-slate-700/50 rounded-2xl p-5 shadow-sm">
+                <p className="text-slate-500 text-[10px] font-black uppercase tracking-widest mb-1 px-1">Dispatched/Done</p>
+                <p className="text-3xl font-black text-emerald-400">{prodLists.filter(l => l.status === "COMPLETED").length}</p>
+              </div>
+              <div className="bg-slate-800/40 border border-slate-700/50 rounded-2xl p-5 shadow-sm">
+                <p className="text-slate-500 text-[10px] font-black uppercase tracking-widest mb-1 px-1">Verification Wait</p>
+                <p className="text-3xl font-black text-violet-400">{prodLists.filter(l => l.status === "PRESSING").length}</p>
+              </div>
+            </>
+          )}
         </div>
 
         {loading ? (
-          <div className="flex items-center justify-center py-20"><div className="animate-spin rounded-full h-12 w-12 border-b-2 border-emerald-500" /></div>
+          <ListSkeleton count={4} />
         ) : displayLists.length === 0 ? (
           <div className="bg-slate-900 border border-slate-800 rounded-3xl p-24 text-center">
              <Factory size={64} className="mx-auto text-slate-800 mb-4" />
@@ -169,6 +187,23 @@ export default function OwnerProduction() {
                const totalTarget = list.items?.reduce((s: number, i: any) => s + i.quantity, 0) || 0;
                const totalProd = list.items?.reduce((s: number, i: any) => s + (i.producedQuantity || 0), 0) || 0;
                const progress = totalTarget > 0 ? Math.round((totalProd / totalTarget) * 100) : 0;
+
+               // Production time estimation
+               const prodMinutes = calcListProductionMinutes(
+                 (list.items || []).map((i: any) => ({
+                   quantity: i.quantity,
+                   categoryId: i.categoryId,
+                   thicknessId: i.thicknessId,
+                 })),
+                 productTimings,
+                 pressSettings
+               );
+               const hasTimings = prodMinutes > 0;
+               const productionDays = prodMinutes / (pressSettings.workingHoursPerDay * 60);
+               const isComplete = list.status === "COMPLETED";
+               const estDates = hasTimings && list.order?.createdAt
+                 ? calcEstimatedDates(list.order.createdAt, prodMinutes, pressSettings)
+                 : null;
 
                return (
                  <div key={list.id} className={`bg-slate-900/60 border rounded-3xl overflow-hidden transition-all hover:bg-slate-900 ${
@@ -203,6 +238,21 @@ export default function OwnerProduction() {
                          <div className="text-right">
                            <p className={`text-2xl font-black ${progress >= 100 ? "text-emerald-400" : "text-amber-400"}`}>{progress}%</p>
                            <p className="text-[10px] font-black text-slate-600 uppercase tracking-widest">Efficiency</p>
+                           {/* Production Time & Dispatch Estimates */}
+                           {(hasTimings || list.estimatedProductionMinutes) && (
+                             <div className="flex flex-wrap gap-1 mt-1 justify-end">
+                               <span className="text-[9px] px-1.5 py-0.5 rounded-full bg-orange-500/15 text-orange-300 font-bold flex items-center gap-1 border border-orange-500/20">
+                                 <Clock size={8} />
+                                 {formatDuration(list.estimatedProductionMinutes || prodMinutes)} (~{formatDays(productionDays)})
+                               </span>
+                               {estDates && !isComplete && (
+                                 <span className="text-[9px] px-1.5 py-0.5 rounded-full bg-violet-500/15 text-violet-300 font-bold flex items-center gap-1 border border-violet-500/20">
+                                   <CalendarClock size={8} />
+                                   {formatDate(estDates.dispatchDate)}
+                                 </span>
+                               )}
+                             </div>
+                           )}
                          </div>
                          {isExpanded ? <ChevronUp className="text-slate-500" size={24} /> : <ChevronDown className="text-slate-500" size={24} />}
                       </div>
@@ -214,7 +264,7 @@ export default function OwnerProduction() {
                            {/* Item Details */}
                            <div className="xl:col-span-2 space-y-4">
                               <h4 className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-4 px-2">Detailed Production Run</h4>
-                              {list.items?.map((item: any, idx: number) => {
+                              {list.items?.filter((item: any) => item.quantity > 0).map((item: any, idx: number) => {
                                 const itemProg = item.quantity > 0 ? Math.min(100, Math.round((item.producedQuantity / item.quantity) * 100)) : 0;
                                 return (
                                   <div key={idx} className="bg-slate-950/60 rounded-2xl p-5 border border-slate-800/80 shadow-inner group transition hover:border-slate-700">

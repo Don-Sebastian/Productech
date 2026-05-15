@@ -58,6 +58,41 @@ export function minutesToDays(
  * @param pressSettings Company press configuration
  * @param finishingDays Number of finishing days to add (default: 1)
  */
+/**
+ * Helper to add days while skipping Sundays.
+ */
+function addWorkingDays(startDate: Date, totalDays: number): Date {
+  const result = new Date(startDate);
+  let daysToAdd = Math.floor(totalDays);
+  const fractionalDay = totalDays - daysToAdd;
+
+  // Add whole days
+  while (daysToAdd > 0) {
+    result.setDate(result.getDate() + 1);
+    if (result.getDay() !== 0) { // 0 is Sunday
+      daysToAdd--;
+    }
+  }
+
+  // Add the remaining fractional part
+  if (fractionalDay > 0) {
+    result.setTime(result.getTime() + fractionalDay * 24 * 60 * 60 * 1000);
+    // If fractional part lands on Sunday, push to Monday
+    if (result.getDay() === 0) {
+      result.setDate(result.getDate() + 1);
+    }
+  }
+
+  return result;
+}
+
+/**
+ * Calculate estimated dispatch date from order creation date.
+ * @param orderCreatedAt Order creation date
+ * @param productionMinutes Total press time minutes for ALL items in the order
+ * @param pressSettings Company press configuration
+ * @param finishingDays Number of finishing days to add (default: 1)
+ */
 export function calcEstimatedDates(
   orderCreatedAt: Date | string,
   productionMinutes: number,
@@ -70,9 +105,10 @@ export function calcEstimatedDates(
     pressSettings.workingHoursPerDay,
     pressSettings.numHotPresses
   );
-  const totalDays = productionDays + finishingDays;
-  const readyDate = new Date(base.getTime() + productionDays * 24 * 60 * 60 * 1000);
-  const dispatchDate = new Date(base.getTime() + totalDays * 24 * 60 * 60 * 1000);
+  
+  const readyDate = addWorkingDays(base, productionDays);
+  const dispatchDate = addWorkingDays(base, productionDays + finishingDays);
+
   return { readyDate, dispatchDate, productionDays };
 }
 

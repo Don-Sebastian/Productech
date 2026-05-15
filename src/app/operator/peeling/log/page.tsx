@@ -269,7 +269,7 @@ export default function PeelingDashboard() {
                     <span className="text-amber-400 text-xs font-black">{list.order?.customer?.name || "STOCK"}</span>
                     <span className="text-slate-500 text-[10px] font-black">#{list.listNumber}</span>
                   </div>
-                  {list.items?.map((item: any) => (
+                  {list.items?.filter((item: any) => item.quantity > 0).map((item: any) => (
                     <p key={item.id} className="text-white text-[10px] font-medium">
                       {item.category?.name} • {item.thickness?.value}mm • {item.size?.label} — <span className="text-amber-400">{item.producedQuantity}/{item.quantity}</span>
                     </p>

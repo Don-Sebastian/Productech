@@ -42,11 +42,17 @@ export async function GET(request: NextRequest) {
               varnish: true,
               categoryId: true,
               thicknessId: true,
-              category: { select: { name: true } },
+              category: { select: { name: true, sortOrder: true } },
               thickness: { select: { value: true } },
-              size: { select: { label: true } },
+              size: { select: { label: true, length: true, width: true } },
               customizations: { select: { name: true } },
             },
+            orderBy: [
+              { category: { sortOrder: "desc" } },
+              { thickness: { value: "desc" } },
+              { size: { length: "desc" } },
+              { size: { width: "desc" } },
+            ],
           },
           productionLists: {
             select: {

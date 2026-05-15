@@ -88,14 +88,17 @@ export default function FinishingDashboard() {
   const totalFinished = entries.reduce((s: number, e: any) => s + e.quantity, 0);
 
   // Build product hierarchy
-  const categories = [...new Map(products.map((p: any) => [p.category.id, p.category])).values()].sort((a: any, b: any) => a.sortOrder - b.sortOrder);
+  const categories = [...new Map(products.map((p: any) => [p.category.id, p.category])).values()].sort((a: any, b: any) => b.sortOrder - a.sortOrder);
   const getThicknesses = () => {
     const ts = products.filter((p: any) => p.category.id === selCat?.id).map((p: any) => p.thickness);
     return [...new Map(ts.map((t: any) => [t.id, t])).values()].sort((a: any, b: any) => b.value - a.value);
   };
   const getSizes = () => {
     const ss = products.filter((p: any) => p.category.id === selCat?.id && p.thickness.id === selThick?.id).map((p: any) => p.size);
-    return [...new Map(ss.map((s: any) => [s.id, s])).values()];
+    return [...new Map(ss.map((s: any) => [s.id, s])).values()].sort((a: any, b: any) => {
+      if (a.length !== b.length) return b.length - a.length;
+      return b.width - a.width;
+    });
   };
 
   return (
@@ -156,7 +159,7 @@ export default function FinishingDashboard() {
                     <span className="text-amber-400 text-xs font-black">{list.order?.customer?.name || "STOCK"}</span>
                     <span className="text-slate-500 text-[10px] font-black">#{list.listNumber}</span>
                   </div>
-                  {list.items?.map((item: any) => (
+                  {list.items?.filter((item: any) => item.quantity > 0).map((item: any) => (
                     <p key={item.id} className="text-white text-[10px]">{item.category?.name} • {item.thickness?.value}mm • {item.size?.label} — {item.producedQuantity}/{item.quantity}</p>
                   ))}
                 </div>

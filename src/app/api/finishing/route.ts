@@ -34,6 +34,12 @@ export async function GET() {
           thickness: { select: { id: true, value: true } },
           size: { select: { id: true, label: true, length: true, width: true } },
         },
+        orderBy: [
+          { category: { sortOrder: "desc" } },
+          { thickness: { value: "desc" } },
+          { size: { length: "desc" } },
+          { size: { width: "desc" } },
+        ],
       }),
       prisma.productionList.findMany({
         where: { companyId, status: { not: "COMPLETED" } },
@@ -41,10 +47,16 @@ export async function GET() {
           order: { select: { orderNumber: true, customer: { select: { name: true } } } },
           items: {
             include: {
-              category: { select: { id: true, name: true } },
+              category: { select: { id: true, name: true, sortOrder: true } },
               thickness: { select: { id: true, value: true } },
               size: { select: { id: true, label: true, length: true, width: true } },
             },
+            orderBy: [
+              { category: { sortOrder: "desc" } },
+              { thickness: { value: "desc" } },
+              { size: { length: "desc" } },
+              { size: { width: "desc" } },
+            ],
           },
         },
         orderBy: { priority: "asc" },

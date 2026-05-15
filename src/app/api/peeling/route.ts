@@ -31,7 +31,7 @@ export async function GET() {
       }),
       (prisma as any).peelingMaterial.findMany({
         where: { companyId, isActive: true },
-        orderBy: [{ treeType: "asc" }, { veneerThickness: "asc" }],
+        orderBy: [{ treeType: "desc" }, { veneerThickness: "desc" }],
       }),
       prisma.productionList.findMany({
         where: { companyId, status: { not: "COMPLETED" } },
@@ -39,10 +39,16 @@ export async function GET() {
           order: { select: { orderNumber: true, customer: { select: { name: true } } } },
           items: {
             include: {
-              category: { select: { id: true, name: true } },
+              category: { select: { id: true, name: true, sortOrder: true } },
               thickness: { select: { id: true, value: true } },
               size: { select: { id: true, label: true, length: true, width: true } },
             },
+            orderBy: [
+              { category: { sortOrder: "desc" } },
+              { thickness: { value: "desc" } },
+              { size: { length: "desc" } },
+              { size: { width: "desc" } },
+            ],
           },
         },
         orderBy: { priority: "asc" },

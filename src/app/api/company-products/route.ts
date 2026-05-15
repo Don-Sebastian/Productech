@@ -19,9 +19,10 @@ export async function GET(request: NextRequest) {
         size: { select: { id: true, label: true, length: true, width: true, sqft: true } },
       },
       orderBy: [
-        { category: { sortOrder: "asc" } },
-        { thickness: { sortOrder: "asc" } },
-        { size: { sortOrder: "asc" } },
+        { category: { sortOrder: "desc" } },
+        { thickness: { value: "desc" } },
+        { size: { length: "desc" } },
+        { size: { width: "desc" } },
       ],
     });
 

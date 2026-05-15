@@ -15,6 +15,7 @@ export async function GET(request: NextRequest) {
 
     const productTypes = await prisma.productType.findMany({
       where: { companyId },
+      orderBy: { thickness: "desc" },
     });
 
     return NextResponse.json(productTypes);

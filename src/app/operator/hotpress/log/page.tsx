@@ -166,11 +166,13 @@ export default function OperatorLogPage() {
 
   // Glue input
   const [glueBarrels, setGlueBarrels] = useState(1);
+  const [glueWarning, setGlueWarning] = useState("");
   const [showGlueInput, setShowGlueInput] = useState(false);
 
   // Daylights editing
   const [editingDaylights, setEditingDaylights] = useState(false);
   const [daylightsVal, setDaylightsVal] = useState(10);
+  const [daylightsWarning, setDaylightsWarning] = useState("");
 
   // Quantity editing 
   const [editingQty, setEditingQty] = useState<string | null>(null);
@@ -390,7 +392,7 @@ export default function OperatorLogPage() {
 
   // Product selection helpers
   const products = data?.products || [];
-  const categories = [...new Map(products.map(p => [p.category.id, p.category])).values()].sort((a, b) => a.sortOrder - b.sortOrder);
+  const categories = [...new Map(products.map(p => [p.category.id, p.category])).values()].sort((a, b) => b.sortOrder - a.sortOrder);
 
   const pickCategory = (catId: string) => { setPickCat(catId); setPickStep("thickness"); };
   const pickThickness = (thId: string) => { setPickThick(thId); setPickStep("size"); };
@@ -553,19 +555,34 @@ export default function OperatorLogPage() {
           <div className="flex items-center gap-2 mt-1">
             <p className="text-sm text-slate-400">Qty per cook:</p>
             {editingDaylights ? (
-              <div className="flex items-center gap-1">
-                <input
-                  type="number"
-                  value={daylightsVal}
-                  onChange={e => setDaylightsVal(parseInt(e.target.value) || 1)}
-                  className="w-16 px-2 py-0.5 bg-slate-900 border border-slate-600 rounded text-white text-sm"
-                  min={1}
-                />
-                <button onClick={async () => {
-                  await doAction("setDaylights", { sessionId: sess.id, numDaylights: daylightsVal });
-                  setEditingDaylights(false);
-                }} className="text-emerald-400 hover:text-emerald-300"><Check size={16} /></button>
-                <button onClick={() => setEditingDaylights(false)} className="text-slate-400 hover:text-slate-300"><X size={16} /></button>
+              <div className="flex flex-col gap-1">
+                <div className="flex items-center gap-1">
+                  <input
+                    type="number"
+                    value={daylightsVal}
+                    onChange={e => {
+                      const v = parseInt(e.target.value) || 0;
+                      setDaylightsVal(v);
+                      if (v <= 0) setDaylightsWarning("Daylights must be greater than 0");
+                      else if (v > 30) setDaylightsWarning("Daylights cannot exceed 30");
+                      else setDaylightsWarning("");
+                    }}
+                    className={`w-16 px-2 py-0.5 bg-slate-900 border rounded text-white text-sm ${daylightsWarning ? "border-red-500" : "border-slate-600"}`}
+                    min={1}
+                    max={30}
+                  />
+                  <button onClick={async () => {
+                    if (daylightsVal <= 0 || daylightsVal > 30) {
+                      setDaylightsWarning(daylightsVal <= 0 ? "Daylights must be greater than 0" : "Daylights cannot exceed 30");
+                      return;
+                    }
+                    setDaylightsWarning("");
+                    await doAction("setDaylights", { sessionId: sess.id, numDaylights: daylightsVal });
+                    setEditingDaylights(false);
+                  }} className="text-emerald-400 hover:text-emerald-300"><Check size={16} /></button>
+                  <button onClick={() => { setEditingDaylights(false); setDaylightsWarning(""); }} className="text-slate-400 hover:text-slate-300"><X size={16} /></button>
+                </div>
+                {daylightsWarning && <p className="text-red-400 text-[10px] font-bold flex items-center gap-1"><AlertTriangle size={10} />{daylightsWarning}</p>}
               </div>
             ) : (
               <button onClick={() => { setDaylightsVal(sess.numDaylights); setEditingDaylights(true); }}
@@ -671,22 +688,40 @@ export default function OperatorLogPage() {
 
       {/* Glue Button */}
       {showGlueInput ? (
-        <div className="bg-slate-800/50 border border-slate-700/50 rounded-2xl p-4 flex items-center gap-3">
-          <Droplets size={20} className="text-cyan-400" />
-          <input
-            type="number"
-            value={glueBarrels}
-            onChange={e => setGlueBarrels(parseFloat(e.target.value) || 1)}
-            className="w-20 px-3 py-2 bg-slate-900 border border-slate-600 rounded-xl text-white text-center"
-            min={1}
-            step={1}
-          />
-          <span className="text-slate-400 text-sm">barrels</span>
-          <LongPressButton
-            onComplete={async () => { await doAction("glue", { sessionId: sess.id, barrels: glueBarrels }); setShowGlueInput(false); }}
-            className="ml-auto px-12 py-2 bg-cyan-600 text-white rounded-xl text-sm font-bold"
-          >Add</LongPressButton>
-          <button onClick={() => setShowGlueInput(false)} className="text-slate-400"><X size={18} /></button>
+        <div className="bg-slate-800/50 border border-slate-700/50 rounded-2xl p-4 space-y-2">
+          <div className="flex items-center gap-3">
+            <Droplets size={20} className="text-cyan-400" />
+            <input
+              type="number"
+              value={glueBarrels}
+              onChange={e => {
+                const v = parseFloat(e.target.value) || 0;
+                setGlueBarrels(v);
+                if (v <= 0) setGlueWarning("Glue barrels must be greater than 0");
+                else if (v > 30) setGlueWarning("Glue barrels cannot exceed 30");
+                else setGlueWarning("");
+              }}
+              className={`w-20 px-3 py-2 bg-slate-900 border rounded-xl text-white text-center ${glueWarning ? "border-red-500" : "border-slate-600"}`}
+              min={1}
+              max={30}
+              step={1}
+            />
+            <span className="text-slate-400 text-sm">barrels</span>
+            <LongPressButton
+              onComplete={async () => {
+                if (glueBarrels <= 0 || glueBarrels > 30) {
+                  setGlueWarning(glueBarrels <= 0 ? "Glue barrels must be greater than 0" : "Glue barrels cannot exceed 30");
+                  return;
+                }
+                setGlueWarning("");
+                await doAction("glue", { sessionId: sess.id, barrels: glueBarrels });
+                setShowGlueInput(false);
+              }}
+              className="ml-auto px-12 py-2 bg-cyan-600 text-white rounded-xl text-sm font-bold"
+            >Add</LongPressButton>
+            <button onClick={() => { setShowGlueInput(false); setGlueWarning(""); }} className="text-slate-400"><X size={18} /></button>
+          </div>
+          {glueWarning && <p className="text-red-400 text-xs font-bold flex items-center gap-1 pl-8"><AlertTriangle size={12} />{glueWarning}</p>}
         </div>
       ) : (
         <button
@@ -925,7 +960,7 @@ export default function OperatorLogPage() {
                         </div>
                       </div>
                       <div className="space-y-2 mt-2">
-                        {list.items.map((item: any) => {
+                        {list.items.filter((item: any) => item.quantity > 0).map((item: any) => {
                           const donePct = Math.min(100, Math.round((item.producedQuantity / item.quantity) * 100)) || 0;
                           return (
                             <button key={item.id} onClick={() => pickProdListItem(item)}

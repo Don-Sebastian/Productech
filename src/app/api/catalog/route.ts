@@ -15,15 +15,15 @@ export async function GET(request: NextRequest) {
     const [categories, thicknesses, sizes] = await Promise.all([
       prisma.plywoodCategory.findMany({
         where: { companyId, isActive: true },
-        orderBy: { sortOrder: "asc" },
+        orderBy: { sortOrder: "desc" },
       }),
       prisma.plywoodThickness.findMany({
         where: { companyId, isActive: true },
-        orderBy: { value: "asc" },
+        orderBy: { value: "desc" },
       }),
       prisma.plywoodSize.findMany({
         where: { companyId, isActive: true },
-        orderBy: { sortOrder: "asc" },
+        orderBy: [{ length: "desc" }, { width: "desc" }],
       }),
     ]);
 

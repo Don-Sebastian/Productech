@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { auth } from "@/lib/auth";
+import { calcEstimatedDates } from "@/lib/productionEstimate";
 
 // GET - Fetch production lists
 export async function GET(request: NextRequest) {
@@ -34,10 +35,16 @@ export async function GET(request: NextRequest) {
               categoryId: true,
               thicknessId: true,
               sizeId: true,
-              category: { select: { id: true, name: true } },
+              category: { select: { id: true, name: true, sortOrder: true } },
               thickness: { select: { id: true, value: true } },
-              size: { select: { id: true, label: true } },
+              size: { select: { id: true, label: true, length: true, width: true } },
             },
+            orderBy: [
+              { category: { sortOrder: "desc" } },
+              { thickness: { value: "desc" } },
+              { size: { length: "desc" } },
+              { size: { width: "desc" } },
+            ],
           },
           order: {
             select: {
@@ -205,11 +212,8 @@ export async function POST(request: NextRequest) {
     // If linked to an order, update order status and estimated dispatch date
     if (orderId && list) {
       try {
-        const totalCapacityDaily = pressSettings.workingHoursPerDay * 60 * pressSettings.numHotPresses;
-        const productionDays = safeTotalMinutes / totalCapacityDaily;
         const finishingDays = 1; 
-        const totalDays = productionDays + finishingDays;
-        const dispatchDate = new Date(Date.now() + totalDays * 24 * 60 * 60 * 1000);
+        const { dispatchDate } = calcEstimatedDates(new Date(), safeTotalMinutes, pressSettings, finishingDays);
         
         const updateData: any = { status: "IN_PRODUCTION" };
         if (!isNaN(dispatchDate.getTime())) {

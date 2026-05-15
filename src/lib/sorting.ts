@@ -18,7 +18,7 @@ export function sortProducts(products: any[]): any[] {
     // First by category sortOrder
     const catA = a.category?.sortOrder ?? 0;
     const catB = b.category?.sortOrder ?? 0;
-    if (catA !== catB) return catA - catB;
+    if (catA !== catB) return catB - catA;
     
     // Then thickness descending
     const thA = a.thickness?.value ?? 0;

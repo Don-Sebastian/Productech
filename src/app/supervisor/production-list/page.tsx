@@ -6,6 +6,7 @@ import { useEffect, useState, Suspense, useMemo } from "react";
 import Sidebar from "@/components/Sidebar";
 import { ListChecks, Plus, X, Trash2, Check, AlertTriangle, Package, Star, CheckCircle, ChevronDown, ChevronUp, CalendarClock, Clock } from "lucide-react";
 import { calcListProductionMinutes, calcEstimatedDates, formatDate, formatDuration, formatDays, type PressSettings } from "@/lib/productionEstimate";
+import { ListSkeleton } from "@/components/Skeleton";
 
 function ProductionListContent() {
   const { data: session, status } = useSession();
@@ -109,13 +110,26 @@ function ProductionListContent() {
   }, [prodLists, viewMode]);
 
   // Derived properties from products (catalog-based)
-  const categories = [...new Map(products.map((p) => [p.category?.name, p.category])).values()].filter(Boolean);
+  const categories = [...new Map(products.map((p) => [p.category?.name, p.category])).values()]
+    .filter(Boolean)
+    .sort((a, b) => (b.sortOrder ?? 0) - (a.sortOrder ?? 0));
+
   const getThicknesses = (catName: string) => {
     const filtered = products.filter((p) => p.category?.name === catName);
-    return [...new Map(filtered.map((p) => [p.thickness?.value, p.thickness])).values()].filter(Boolean);
+    return [...new Map(filtered.map((p) => [p.thickness?.value, p.thickness])).values()]
+      .filter(Boolean)
+      .sort((a, b) => b.value - a.value);
   };
+
   const getSizes = (catName: string, thickVal: number) => {
-    return products.filter((p) => p.category?.name === catName && p.thickness?.value === thickVal).map(p => p.size).filter(Boolean);
+    return products
+      .filter((p) => p.category?.name === catName && p.thickness?.value === thickVal)
+      .map(p => p.size)
+      .filter(Boolean)
+      .sort((a, b) => {
+        if (a.length !== b.length) return b.length - a.length;
+        return b.width - a.width;
+      });
   };
 
   const resetItem = () => {
@@ -280,9 +294,7 @@ function ProductionListContent() {
                   {(() => {
                     const mins = calcListProductionMinutes(items, productTimings, pressSettings);
                     if (mins <= 0) return null;
-                    const productionDays = mins / (pressSettings.workingHoursPerDay * 60);
-                    const totalDays = productionDays + 1; // +1 day finishing
-                    const dispatchDate = new Date(Date.now() + totalDays * 24 * 60 * 60 * 1000);
+                    const { dispatchDate, productionDays } = calcEstimatedDates(new Date(), mins, pressSettings, 1);
                     return (
                       <div className="flex flex-col items-end gap-1">
                         <span className="text-[10px] font-black text-orange-400 uppercase tracking-widest bg-orange-500/10 px-2 py-0.5 rounded border border-orange-500/20 animate-pulse">
@@ -445,7 +457,7 @@ function ProductionListContent() {
 
         {/* LIST RENDERER */}
         {loading ? (
-          <div className="flex items-center justify-center py-20"><div className="animate-spin rounded-full h-12 w-12 border-b-2 border-amber-500" /></div>
+          <ListSkeleton count={4} />
         ) : (
           <div className="space-y-4">
             {displayLists.length === 0 && !showCreate ? (
@@ -519,7 +531,7 @@ function ProductionListContent() {
                       <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 items-start">
                         <div className="space-y-2">
                           <h4 className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-3 px-2">Production Targets</h4>
-                          {list.items?.map((item: any, idx: number) => {
+                          {list.items?.filter((item: any) => item.quantity > 0).map((item: any, idx: number) => {
                             const progress = item.quantity > 0 ? Math.min(100, Math.round((item.producedQuantity / item.quantity) * 100)) : 0;
                             return (
                               <div key={idx} className="bg-slate-800/40 rounded-2xl p-5 border border-slate-800/50">

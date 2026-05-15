@@ -12,7 +12,7 @@ export async function GET() {
 
     const materials = await (prisma as any).peelingMaterial.findMany({
       where: { companyId },
-      orderBy: [{ treeType: "asc" }, { veneerThickness: "asc" }],
+      orderBy: [{ treeType: "desc" }, { veneerThickness: "desc" }],
     });
 
     return NextResponse.json(materials);

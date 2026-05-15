@@ -73,14 +73,25 @@ export default function ManagerOrders() {
   useEffect(() => { if (status === "authenticated") fetchData(); }, [status]);
 
   // Derived properties from products (catalog-based)
-  const categories = [...new Map(products.map((p) => [p.category?.name, p.category])).values()].filter(Boolean);
+  const categories = [...new Map(products.map((p) => [p.category?.name, p.category])).values()]
+    .filter(Boolean)
+    .sort((a, b) => (b.sortOrder ?? 0) - (a.sortOrder ?? 0));
 
   const getThicknesses = (catName: string) => {
     const filtered = products.filter((p) => p.category?.name === catName);
-    return [...new Map(filtered.map((p) => [p.thickness?.value, p.thickness])).values()].filter(Boolean);
+    return [...new Map(filtered.map((p) => [p.thickness?.value, p.thickness])).values()]
+      .filter(Boolean)
+      .sort((a, b) => b.value - a.value);
   };
   const getSizes = (catName: string, thickVal: number) => {
-    return products.filter((p) => p.category?.name === catName && p.thickness?.value === thickVal).map(p => p.size).filter(Boolean);
+    return products
+      .filter((p) => p.category?.name === catName && p.thickness?.value === thickVal)
+      .map(p => p.size)
+      .filter(Boolean)
+      .sort((a, b) => {
+        if (a.length !== b.length) return b.length - a.length;
+        return b.width - a.width;
+      });
   };
 
   const resetItemForm = () => {

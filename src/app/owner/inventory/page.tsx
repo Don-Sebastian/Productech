@@ -49,7 +49,10 @@ export default function OwnerInventory() {
     }
   }, [status]);
 
-  const categories = [...new Set(products.map((p) => p.category?.name))].filter(Boolean);
+  const categories = [...new Map(products.map((p) => [p.category?.name, p.category])).values()]
+    .filter(Boolean)
+    .sort((a, b) => (b.sortOrder ?? 0) - (a.sortOrder ?? 0))
+    .map((c: any) => c.name);
 
   const toggleCategory = (cat: string) => {
     setExpandedCats((prev) => {
