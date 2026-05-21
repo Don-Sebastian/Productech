@@ -5,10 +5,11 @@ import {
   Clock, Power, PowerOff, Wrench, Pause, Flame,
   ChevronDown, ChevronUp, User, Calendar, Filter,
   FileText, Droplets, Layers, Scissors, Wind, Package,
-  TrendingUp, RotateCcw, TreePine, Thermometer,
+  TrendingUp, RotateCcw, TreePine, Thermometer, Download,
 } from "lucide-react";
 
 import LiveProductionView from "./LiveProductionView";
+import DownloadModal from "./DownloadModal";
 
 // ============ Types ============
 
@@ -88,6 +89,7 @@ export default function MachineLogView({ showOperatorFilter = true }: MachineLog
   const [toDate, setToDate] = useState("");
   const [operatorFilter, setOperatorFilter] = useState("ALL");
   const [showFilters, setShowFilters] = useState(false);
+  const [isDownloadModalOpen, setIsDownloadModalOpen] = useState(false);
 
   // Pagination
   const [currentPage, setCurrentPage] = useState(1);
@@ -172,13 +174,32 @@ export default function MachineLogView({ showOperatorFilter = true }: MachineLog
 
   return (
     <div className="space-y-6">
+      <DownloadModal
+        isOpen={isDownloadModalOpen}
+        onClose={() => setIsDownloadModalOpen(false)}
+        approvalFilter="ALL"
+        operatorFilter={operatorFilter}
+      />
       {/* Header */}
-      <div>
-        <h1 className="text-2xl font-bold text-white flex items-center gap-3">
-          <FileText className="text-blue-400" size={28} />
-          Machine Production Logs
-        </h1>
-        <p className="text-slate-400 text-sm mt-1">View production data across all factory sections</p>
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+        <div>
+          <h1 className="text-2xl font-bold text-white flex items-center gap-3">
+            <FileText className="text-blue-400" size={28} />
+            Machine Production Logs
+          </h1>
+          <p className="text-slate-400 text-sm mt-1">View production data across all factory sections</p>
+        </div>
+        {sectionFilter === "hotpress" && (
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => setIsDownloadModalOpen(true)}
+              className="flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-500 text-white rounded-xl transition font-medium text-sm shadow-lg shadow-blue-900/20"
+            >
+              <Download size={16} />
+              Download Data
+            </button>
+          </div>
+        )}
       </div>
 
       {/* Section tabs */}

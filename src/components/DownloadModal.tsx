@@ -47,12 +47,20 @@ function cookingTime(e: PressEntry) {
 }
 
 function buildSummaryMap(entries: PressEntry[]) {
-  const summary: Record<string, { category: string; thickness: number; size: string; totalQty: number; cookCount: number; totalSqft: number; }> = {};
+  const summary: Record<string, { category: string; thickness: number; size: string; sizeMm: string; totalQty: number; cookCount: number; totalSqft: number; }> = {};
   entries.filter(e => e.type === "COOK" && e.unloadTime).forEach(e => {
     const k = `${e.category.name}|${e.thickness.value}|${e.size.length}x${e.size.width}`;
     const sqftFactor = e.size.sqft || 0;
     if (!summary[k]) {
-      summary[k] = { category: e.category.name, thickness: e.thickness.value, size: `${e.size.length}×${e.size.width}`, totalQty: 0, cookCount: 0, totalSqft: 0 };
+      summary[k] = { 
+        category: e.category.name, 
+        thickness: e.thickness.value, 
+        size: `${e.size.length}×${e.size.width}`, 
+        sizeMm: `${e.size.length * 305}×${e.size.width * 305}`,
+        totalQty: 0, 
+        cookCount: 0, 
+        totalSqft: 0 
+      };
     }
     summary[k].totalQty += e.quantity;
     summary[k].cookCount += 1;
@@ -165,7 +173,7 @@ export default function DownloadModal({ isOpen, onClose, approvalFilter, operato
         sheetData.push([`--- Session Operator: ${opName} | Start: ${sess.startTime ? new Date(sess.startTime).toLocaleTimeString() : '--:--'} | Stop: ${sess.stopTime ? new Date(sess.stopTime).toLocaleTimeString() : '--:--'} ---`]);
         
         if (sess.entries?.length > 0) {
-          sheetData.push(["Sl.No", "Type", "Category", "Thickness (mm)", "Size", "Quantity", "Cook Time", "Load Time", "Unload Time"]);
+          sheetData.push(["Sl.No", "Type", "Category", "Thickness (mm)", "Size", "Size (mm)", "Quantity", "Cook Time", "Load Time", "Unload Time"]);
           let slNo = 1;
           sess.entries.forEach(entry => {
             allEntries.push(entry);
@@ -175,6 +183,7 @@ export default function DownloadModal({ isOpen, onClose, approvalFilter, operato
               entry.category?.name || "N/A",
               entry.thickness.value,
               `${entry.size.length}x${entry.size.width}`,
+              `${entry.size.length * 305}x${entry.size.width * 305}`,
               entry.quantity,
               cookingTime(entry),
               entry.loadTime ? new Date(entry.loadTime).toLocaleTimeString() : "--:--",
@@ -221,7 +230,7 @@ export default function DownloadModal({ isOpen, onClose, approvalFilter, operato
 
       sheetData.push([]);
       sheetData.push([`Production Summary - ${dateStr}`]);
-      sheetData.push(["Category", "Thickness (mm)", "Size", "Total Cooks", "Total Quantity", "Total Sq.Ft"]);
+      sheetData.push(["Category", "Thickness (mm)", "Size", "Size (mm)", "Total Cooks", "Total Quantity", "Total Sq.Ft"]);
 
       let totalDocSqft = 0;
       const summaryList = buildSummaryMap(allEntries);
@@ -231,6 +240,7 @@ export default function DownloadModal({ isOpen, onClose, approvalFilter, operato
           sum.category,
           sum.thickness,
           sum.size,
+          sum.sizeMm || "N/A",
           sum.cookCount,
           sum.totalQty,
           sum.totalSqft.toFixed(1)
@@ -289,13 +299,14 @@ export default function DownloadModal({ isOpen, onClose, approvalFilter, operato
               entry.category?.name || "N/A",
               `${entry.thickness.value}mm`,
               `${entry.size.length}x${entry.size.width}`,
+              `${entry.size.length * 305}x${entry.size.width * 305}`,
               entry.quantity,
               cookingTime(entry)
             ]);
           });
           autoTable(doc, {
             startY: curY,
-            head: [["Sl.No", "Type", "Category", "Thickness", "Size", "Qty", "Cook Time"]],
+            head: [["Sl.No", "Type", "Category", "Thickness", "Size", "Size (mm)", "Qty", "Cook Time"]],
             body: listRows,
             theme: "grid",
             styles: { fontSize: 8 },
@@ -370,6 +381,7 @@ export default function DownloadModal({ isOpen, onClose, approvalFilter, operato
           s.category,
           `${s.thickness}mm`,
           s.size,
+          s.sizeMm || "N/A",
           s.cookCount.toString(),
           s.totalQty.toString(),
           s.totalSqft.toFixed(1)
@@ -378,7 +390,7 @@ export default function DownloadModal({ isOpen, onClose, approvalFilter, operato
 
       autoTable(doc, {
         startY: curY + 4,
-        head: [["Category", "Thickness", "Size", "Total Cooks", "Total Quantity", "Total Sq.Ft"]],
+        head: [["Category", "Thickness", "Size", "Size (mm)", "Total Cooks", "Total Quantity", "Total Sq.Ft"]],
         body: summaryRows,
         theme: "grid",
         styles: { fontSize: 8 },
