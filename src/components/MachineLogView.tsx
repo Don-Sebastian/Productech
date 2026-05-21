@@ -6,6 +6,7 @@ import {
   ChevronDown, ChevronUp, User, Calendar, Filter,
   FileText, Droplets, Layers, Scissors, Wind, Package,
   TrendingUp, RotateCcw, TreePine, Thermometer, Download,
+  CheckCircle2,
 } from "lucide-react";
 
 import LiveProductionView from "./LiveProductionView";
@@ -36,6 +37,7 @@ interface LogEntry {
   totalRepresses?: number;
   totalGlue?: number;
   totalSqft?: number;
+  rejectionNote?: string;
   // Peeling specific
   totalLogs?: number;
   // Dryer specific
@@ -429,6 +431,12 @@ function LogCard({ log }: { log: LogEntry }) {
             {log.machine && (
               <span className="text-[10px] bg-slate-800 text-slate-300 font-bold px-1.5 py-0.5 rounded-md border border-slate-700 hidden sm:inline-block">
                 {log.machine.name}
+              </span>
+            )}
+            {log.rejectionNote?.includes("Manual Summary") && (
+              <span className="text-[10px] bg-blue-500/20 text-blue-300 font-bold px-1.5 py-0.5 rounded-md border border-blue-500/30 flex items-center gap-1">
+                <CheckCircle2 size={10} className="text-emerald-400" />
+                Manually Created by Manager
               </span>
             )}
           </div>

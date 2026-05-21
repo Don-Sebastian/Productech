@@ -87,12 +87,14 @@ export async function GET(req: Request) {
         }
       }
 
+      const isExport = searchParams.get("export") === "true";
+
       // Approval status filter
-      if (statusParam && statusParam !== "ALL") {
+      if (isExport) {
+        where.approvalStatus = "MANAGER_APPROVED";
+      } else if (statusParam && statusParam !== "ALL") {
         where.approvalStatus = statusParam;
       }
-
-      const isExport = searchParams.get("export") === "true";
 
       const queryArgs: any = {
         where,

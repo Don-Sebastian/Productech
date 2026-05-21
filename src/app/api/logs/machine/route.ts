@@ -158,6 +158,7 @@ async function fetchHotPress(
         shiftDate: true,
         numDaylights: true,
         approvalStatus: true,
+        rejectionNote: true,
         operator: { select: { id: true, name: true } },
         machine: { select: { id: true, name: true, code: true } },
         entries: {

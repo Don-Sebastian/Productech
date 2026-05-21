@@ -52,14 +52,14 @@ function buildSummaryMap(entries: PressEntry[]) {
     const k = `${e.category.name}|${e.thickness.value}|${e.size.length}x${e.size.width}`;
     const sqftFactor = e.size.sqft || 0;
     if (!summary[k]) {
-      summary[k] = { 
-        category: e.category.name, 
-        thickness: e.thickness.value, 
-        size: `${e.size.length}×${e.size.width}`, 
+      summary[k] = {
+        category: e.category.name,
+        thickness: e.thickness.value,
+        size: `${e.size.length}×${e.size.width}`,
         sizeMm: `${e.size.length * 305}×${e.size.width * 305}`,
-        totalQty: 0, 
-        cookCount: 0, 
-        totalSqft: 0 
+        totalQty: 0,
+        cookCount: 0,
+        totalSqft: 0
       };
     }
     summary[k].totalQty += e.quantity;
@@ -119,13 +119,13 @@ export default function DownloadModal({ isOpen, onClose, approvalFilter, operato
     try {
       let url = `/api/hotpress?view=history&export=true`;
       url += `&from=${fromDate}&to=${toDate}`;
-      if (approvalFilter !== "ALL") url += `&status=${approvalFilter}`;
+      url += `&status=MANAGER_APPROVED`;
       if (operatorFilter !== "ALL") url += `&operator=${operatorFilter}`;
 
       const res = await fetch(url);
       if (!res.ok) throw new Error("Failed to fetch logs");
       const data = await res.json();
-      
+
       const sessions = data.sessions || [];
       if (sessions.length === 0) {
         alert("No records found for the selected range.");
@@ -160,7 +160,7 @@ export default function DownloadModal({ isOpen, onClose, approvalFilter, operato
     Object.entries(groupedData).forEach(([dateStr, sessList]) => {
       const sheetData: any[][] = [];
       sheetData.push([`Production Log List - ${dateStr}`]);
-      
+
       let allEntries: PressEntry[] = [];
       let totalGlueBarrels = 0;
       let totalMaintMs = 0;
@@ -168,12 +168,12 @@ export default function DownloadModal({ isOpen, onClose, approvalFilter, operato
 
       sessList.forEach(sess => {
         const opName = sess.operator?.name || "Unknown";
-        
+
         sheetData.push([]);
         sheetData.push([`--- Session Operator: ${opName} | Start: ${sess.startTime ? new Date(sess.startTime).toLocaleTimeString() : '--:--'} | Stop: ${sess.stopTime ? new Date(sess.stopTime).toLocaleTimeString() : '--:--'} ---`]);
-        
+
         if (sess.entries?.length > 0) {
-          sheetData.push(["Sl.No", "Type", "Category", "Thickness (mm)", "Size", "Size (mm)", "Quantity", "Cook Time", "Load Time", "Unload Time"]);
+          sheetData.push(["Sl.No", "Type", "Category", "Thickness (mm)", "Size", "Dimension (mm)", "Quantity", "Cook Time", "Load Time", "Unload Time"]);
           let slNo = 1;
           sess.entries.forEach(entry => {
             allEntries.push(entry);
@@ -183,7 +183,7 @@ export default function DownloadModal({ isOpen, onClose, approvalFilter, operato
               entry.category?.name || "N/A",
               entry.thickness.value,
               `${entry.size.length}x${entry.size.width}`,
-              `${entry.size.length * 305}x${entry.size.width * 305}`,
+              `${entry.size.length * 305}x${entry.size.width * 305}x{entry.thickness.value}`,
               entry.quantity,
               cookingTime(entry),
               entry.loadTime ? new Date(entry.loadTime).toLocaleTimeString() : "--:--",
@@ -214,7 +214,7 @@ export default function DownloadModal({ isOpen, onClose, approvalFilter, operato
             const durMs = end.getTime() - start.getTime();
             if (p.type === "MAINTENANCE") totalMaintMs += durMs;
             else totalPauseMs += durMs;
-            
+
             sheetData.push([
               "",
               p.type,
@@ -230,7 +230,7 @@ export default function DownloadModal({ isOpen, onClose, approvalFilter, operato
 
       sheetData.push([]);
       sheetData.push([`Production Summary - ${dateStr}`]);
-      sheetData.push(["Category", "Thickness (mm)", "Size", "Size (mm)", "Total Cooks", "Total Quantity", "Total Sq.Ft"]);
+      sheetData.push(["Category", "Thickness (mm)", "Size", "Dimension (mm)", "Total Cooks", "Total Quantity", "Total Sq.Ft"]);
 
       let totalDocSqft = 0;
       const summaryList = buildSummaryMap(allEntries);
@@ -269,7 +269,7 @@ export default function DownloadModal({ isOpen, onClose, approvalFilter, operato
     dates.forEach((dateStr, idx) => {
       if (idx > 0) doc.addPage();
       const sessList = groupedData[dateStr];
-      
+
       let allEntries: PressEntry[] = [];
       let totalGlueBarrels = 0;
       let totalMaintMs = 0;
@@ -277,12 +277,12 @@ export default function DownloadModal({ isOpen, onClose, approvalFilter, operato
 
       doc.setFontSize(16);
       doc.text(`Production Log - ${dateStr}`, 14, 15);
-      
+
       let curY = 25;
 
       sessList.forEach(sess => {
         const opName = sess.operator?.name || "Unknown";
-        
+
         doc.setFontSize(11);
         doc.setTextColor(50);
         doc.text(`Operator: ${opName}   |   Start: ${sess.startTime ? new Date(sess.startTime).toLocaleTimeString() : '--'}   |   Stop: ${sess.stopTime ? new Date(sess.stopTime).toLocaleTimeString() : '--'}`, 14, curY);
@@ -299,14 +299,14 @@ export default function DownloadModal({ isOpen, onClose, approvalFilter, operato
               entry.category?.name || "N/A",
               `${entry.thickness.value}mm`,
               `${entry.size.length}x${entry.size.width}`,
-              `${entry.size.length * 305}x${entry.size.width * 305}`,
+              `${entry.size.length * 305}x${entry.size.width * 305}x{entry.thickness.value}`,
               entry.quantity,
               cookingTime(entry)
             ]);
           });
           autoTable(doc, {
             startY: curY,
-            head: [["Sl.No", "Type", "Category", "Thickness", "Size", "Size (mm)", "Qty", "Cook Time"]],
+            head: [["Sl.No", "Type", "Category", "Thickness", "Size", "Dimension (mm)", "Qty", "Cook Time"]],
             body: listRows,
             theme: "grid",
             styles: { fontSize: 8 },
@@ -337,18 +337,18 @@ export default function DownloadModal({ isOpen, onClose, approvalFilter, operato
 
         if (sess.pauseEvents?.length > 0) {
           const pRows = sess.pauseEvents.map(p => {
-             const start = new Date(p.startTime);
-             const end = p.endTime ? new Date(p.endTime) : new Date();
-             const durMs = end.getTime() - start.getTime();
-             if (p.type === "MAINTENANCE") totalMaintMs += durMs;
-             else totalPauseMs += durMs;
-             return [
-               p.type,
-               start.toLocaleTimeString(),
-               p.endTime ? end.toLocaleTimeString() : 'Ongoing',
-               durStr(durMs),
-               p.notes || ''
-             ];
+            const start = new Date(p.startTime);
+            const end = p.endTime ? new Date(p.endTime) : new Date();
+            const durMs = end.getTime() - start.getTime();
+            if (p.type === "MAINTENANCE") totalMaintMs += durMs;
+            else totalPauseMs += durMs;
+            return [
+              p.type,
+              start.toLocaleTimeString(),
+              p.endTime ? end.toLocaleTimeString() : 'Ongoing',
+              durStr(durMs),
+              p.notes || ''
+            ];
           });
           doc.setFontSize(10);
           doc.text("Pause & Maintenance", 14, curY);
@@ -364,7 +364,7 @@ export default function DownloadModal({ isOpen, onClose, approvalFilter, operato
           });
           curY = (doc as any).lastAutoTable.finalY + 10;
         } else {
-             curY += 4;
+          curY += 4;
         }
       });
 
@@ -372,7 +372,7 @@ export default function DownloadModal({ isOpen, onClose, approvalFilter, operato
       doc.setFontSize(14);
       doc.setTextColor(0);
       doc.text(`Production Summary - ${dateStr}`, 14, curY);
-      
+
       let totalDocSqft = 0;
       const summaryList = buildSummaryMap(allEntries);
       const summaryRows = summaryList.map(s => {
@@ -390,7 +390,7 @@ export default function DownloadModal({ isOpen, onClose, approvalFilter, operato
 
       autoTable(doc, {
         startY: curY + 4,
-        head: [["Category", "Thickness", "Size", "Size (mm)", "Total Cooks", "Total Quantity", "Total Sq.Ft"]],
+        head: [["Category", "Thickness", "Size", "Dimension (mm)", "Total Cooks", "Total Quantity", "Total Sq.Ft"]],
         body: summaryRows,
         theme: "grid",
         styles: { fontSize: 8 },

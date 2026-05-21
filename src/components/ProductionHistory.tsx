@@ -42,6 +42,7 @@ interface HotPressSession {
   pauseEvents: PauseEvent[];
   operator?: { id: string; name: string; email: string };
   machine?: { id: string; name: string; code: string; assignments?: { user: { name: string } }[] };
+  rejectionNote?: string | null;
 }
 
 function fmt(d: string | null | undefined) {
@@ -459,6 +460,12 @@ function HistorySessionCard({ session, onRefresh }: { session: HotPressSession; 
             <span className="text-[10px] bg-amber-500/20 text-amber-300 font-bold px-1.5 py-0.5 rounded-md border border-amber-500/30 print:border-gray-300 print:text-black print:bg-transparent hidden sm:inline-block">
               Sup: {session.machine?.assignments?.find(a => a.user)?.user?.name || "Unassigned"}
             </span>
+            {session.rejectionNote?.includes("Manual Summary") && (
+              <span className="text-[10px] bg-blue-500/20 text-blue-300 font-bold px-1.5 py-0.5 rounded-md border border-blue-500/30 flex items-center gap-1 print:border-gray-300 print:text-black">
+                <CheckCircle2 size={10} className="text-emerald-400" />
+                Manually Created by Manager
+              </span>
+            )}
           </div>
           <span className={`text-xs px-2 py-1 rounded-full flex items-center gap-1 ${sc.bg} ${sc.color} print:bg-transparent print:text-gray-800 print:border print:border-gray-300`}>
             <StatusIcon size={10} />
