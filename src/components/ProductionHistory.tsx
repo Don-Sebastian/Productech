@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
+import { useSession } from "next-auth/react";
 import {
   Clock, Package, Timer, Power, PowerOff,
   Flame, RotateCcw, Droplets, Wrench, Pause,
@@ -366,7 +367,7 @@ export default function ProductionHistory({ showOperatorFilter = false }: Produc
               </div>
               <div className="space-y-3">
                 {dateSessions.map(sess => (
-                  <HistorySessionCard key={sess.id} session={sess} />
+                  <HistorySessionCard key={sess.id} session={sess} onRefresh={fetchData} />
                 ))}
               </div>
             </div>
@@ -406,9 +407,34 @@ export default function ProductionHistory({ showOperatorFilter = false }: Produc
 }
 
 // ====== Session Card for History View ======
-function HistorySessionCard({ session }: { session: HotPressSession }) {
+function HistorySessionCard({ session, onRefresh }: { session: HotPressSession; onRefresh?: () => void }) {
+  const { data: sessionData } = useSession();
+  const isOperator = (sessionData?.user as any)?.role === "OPERATOR";
+  const [submitting, setSubmitting] = useState(false);
   const [showLog, setShowLog] = useState(false);
   const [showSummary, setShowSummary] = useState(false);
+
+  const handleApproveVerify = async () => {
+    if (submitting) return;
+    setSubmitting(true);
+    try {
+      const res = await fetch("/api/hotpress", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "operatorSubmit", sessionId: session.id }),
+      });
+      if (res.ok) {
+        if (onRefresh) onRefresh();
+      } else {
+        const err = await res.json();
+        alert(err.error || "Submission failed");
+      }
+    } catch {
+      alert("Network error");
+    } finally {
+      setSubmitting(false);
+    }
+  };
 
   const cooks = session.entries.filter(e => e.type === "COOK" && e.unloadTime);
   const represses = session.entries.filter(e => e.type === "REPRESS" && e.unloadTime);
@@ -592,6 +618,17 @@ function HistorySessionCard({ session }: { session: HotPressSession }) {
               <span className="text-xl font-black text-emerald-400">{totalSheets} sheets</span>
             </div>
           </div>
+        </div>
+      )}
+      {isOperator && session.approvalStatus === "PENDING" && (
+        <div className="p-4 border-t border-slate-700/30 print:hidden">
+          <button
+            onClick={handleApproveVerify}
+            disabled={submitting}
+            className="w-full py-2.5 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 disabled:from-slate-700 disabled:to-slate-800 disabled:text-slate-500 text-white text-sm font-bold rounded-xl shadow-lg flex items-center justify-center gap-2 transition active:scale-[0.98]"
+          >
+            <Send size={16} /> Verify & Send to Supervisor
+          </button>
         </div>
       )}
     </div>
