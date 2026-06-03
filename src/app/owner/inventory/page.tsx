@@ -2,7 +2,8 @@
 
 import { useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useMemo } from "react";
+import { useQuery } from "@tanstack/react-query";
 import Sidebar from "@/components/Sidebar";
 import { Package, ChevronDown, ChevronUp, AlertTriangle, Droplets } from "lucide-react";
 import { sortProducts } from "@/lib/sorting";
@@ -20,34 +21,34 @@ interface Product {
 export default function OwnerInventory() {
   const { data: session, status } = useSession();
   const router = useRouter();
-  const [products, setProducts] = useState<Product[]>([]);
-  const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState("All");
   const [expandedCats, setExpandedCats] = useState<Set<string>>(new Set());
-  const [glueStock, setGlueStock] = useState<any>(null);
-  const [glueThreshold, setGlueThreshold] = useState(1000);
 
   useEffect(() => {
     if (status === "unauthenticated") router.push("/login");
     if (status === "authenticated" && (session?.user as any)?.role !== "OWNER") router.push("/");
   }, [status, session, router]);
 
-  useEffect(() => {
-    if (status === "authenticated") {
-      fetch("/api/company-products").then((r) => r.json()).then((d) => {
-        if (Array.isArray(d)) setProducts(d.filter((p: Product) => p.isActive));
-        setLoading(false);
-      });
+  const { data: apiData, isLoading: loading } = useQuery({
+    queryKey: ["owner-inventory"],
+    queryFn: async () => {
+      const [prodRes, glueRes] = await Promise.all([
+        fetch("/api/company-products"),
+        fetch("/api/glue-stock").catch(() => null),
+      ]);
+      const d = await prodRes.json();
+      const glueData = glueRes?.ok ? await glueRes.json() : null;
+      return {
+        products: Array.isArray(d) ? d.filter((p: Product) => p.isActive) : [],
+        glue: glueData,
+      };
+    },
+    enabled: status === "authenticated",
+  });
 
-      fetch("/api/glue-stock")
-        .then((r) => r.json())
-        .then((d) => {
-          setGlueStock(d.stock);
-          setGlueThreshold(d.thresholdKg || 1000);
-        })
-        .catch(() => {});
-    }
-  }, [status]);
+  const products: Product[] = useMemo(() => apiData?.products || [], [apiData]);
+  const glueStock = useMemo(() => apiData?.glue?.stock || null, [apiData]);
+  const glueThreshold = useMemo(() => apiData?.glue?.thresholdKg || 1000, [apiData]);
 
   const categories = [...new Map(products.map((p) => [p.category?.name, p.category])).values()]
     .filter(Boolean)

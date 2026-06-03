@@ -11,25 +11,27 @@ export async function GET(request: NextRequest) {
     const companyId = (session.user as any).companyId;
     if (!companyId) return NextResponse.json({ error: "No company" }, { status: 400 });
 
-    const products = await prisma.companyProduct.findMany({
-      where: { companyId },
-      include: {
-        category: { select: { id: true, name: true } },
-        thickness: { select: { id: true, value: true, unit: true } },
-        size: { select: { id: true, label: true, length: true, width: true, sqft: true } },
-      },
-      orderBy: [
-        { category: { sortOrder: "desc" } },
-        { thickness: { value: "desc" } },
-        { size: { length: "desc" } },
-        { size: { width: "desc" } },
-      ],
-    });
-
-    const timings = await prisma.productTiming.findMany({
-      where: { companyId },
-      select: { categoryId: true, thicknessId: true, ratePerSqft: true },
-    });
+    // Parallel fetch products + timings (was sequential)
+    const [products, timings] = await Promise.all([
+      prisma.companyProduct.findMany({
+        where: { companyId },
+        include: {
+          category: { select: { id: true, name: true } },
+          thickness: { select: { id: true, value: true, unit: true } },
+          size: { select: { id: true, label: true, length: true, width: true, sqft: true } },
+        },
+        orderBy: [
+          { category: { sortOrder: "desc" } },
+          { thickness: { value: "desc" } },
+          { size: { length: "desc" } },
+          { size: { width: "desc" } },
+        ],
+      }),
+      prisma.productTiming.findMany({
+        where: { companyId },
+        select: { categoryId: true, thicknessId: true, ratePerSqft: true },
+      }),
+    ]);
 
     const timingMap = new Map();
     for (const t of timings) {
@@ -75,32 +77,38 @@ export async function POST(request: NextRequest) {
     }
 
     const sizesToProcess = sizeIds || [sizeId];
-    const results = [];
 
+    // Batch fetch all existing products in one query (was N+1 loop)
+    const existingProducts = await prisma.companyProduct.findMany({
+      where: { companyId, categoryId, thicknessId, sizeId: { in: sizesToProcess } },
+      include: { category: true, thickness: true, size: true },
+    });
+    const existingMap = new Map(existingProducts.map((p: any) => [p.sizeId, p]));
+
+    const txOps: any[] = [];
     for (const sId of sizesToProcess) {
-      // Check if combo already exists
-      const existing = await prisma.companyProduct.findUnique({
-        where: { companyId_categoryId_thicknessId_sizeId: { companyId, categoryId, thicknessId, sizeId: sId } },
-      });
-
+      const existing = existingMap.get(sId);
       if (existing) {
-        // Re-activate if it was deactivated
         if (!existing.isActive) {
-          const updated = await prisma.companyProduct.update({
-            where: { id: existing.id },
-            data: { isActive: true },
-            include: { category: true, thickness: true, size: true },
-          });
-          results.push(updated);
+          txOps.push(
+            prisma.companyProduct.update({
+              where: { id: existing.id },
+              data: { isActive: true },
+              include: { category: true, thickness: true, size: true },
+            })
+          );
         }
       } else {
-        const product = await prisma.companyProduct.create({
-          data: { companyId, categoryId, thicknessId, sizeId: sId },
-          include: { category: true, thickness: true, size: true },
-        });
-        results.push(product);
+        txOps.push(
+          prisma.companyProduct.create({
+            data: { companyId, categoryId, thicknessId, sizeId: sId },
+            include: { category: true, thickness: true, size: true },
+          })
+        );
       }
     }
+
+    const results = txOps.length > 0 ? await prisma.$transaction(txOps) : [];
 
     return NextResponse.json({ success: true, count: results.length, products: results }, { status: 201 });
   } catch (error) {

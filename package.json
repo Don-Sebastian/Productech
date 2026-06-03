@@ -12,7 +12,6 @@
     "db:seed": "ts-node prisma/seed.ts",
     "db:reset": "prisma migrate reset",
     "postinstall": "prisma generate"
-
   },
   "dependencies": {
     "@auth/prisma-adapter": "^2.11.1",
@@ -20,6 +19,7 @@
     "@dnd-kit/sortable": "^10.0.0",
     "@dnd-kit/utilities": "^3.2.2",
     "@prisma/client": "^5.22.0",
+    "@tanstack/react-query": "^5.100.13",
     "axios": "^1.13.5",
     "bcryptjs": "^3.0.3",
     "date-fns": "^4.1.0",

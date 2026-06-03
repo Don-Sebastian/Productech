@@ -1,6 +1,7 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { Plus, Trash2, Edit2, LayoutTemplate, Users2, Loader2, X, Cog } from "lucide-react";
 
 interface SubDepartment {
@@ -13,13 +14,8 @@ interface SubDepartment {
 }
 
 export default function SubDepartmentsPage() {
-  const [subDepartments, setSubDepartments] = useState<SubDepartment[]>([]);
-  const [machines, setMachines] = useState<{ id: string; name: string }[]>([]);
-  const [loading, setLoading] = useState(true);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
-  
-  const [supervisors, setSupervisors] = useState<{ id: string; name: string }[]>([]);
   
   const [formData, setFormData] = useState<{ name: string; machineId: string; supervisorIds: string[] }>({
     name: "",
@@ -27,29 +23,29 @@ export default function SubDepartmentsPage() {
     supervisorIds: [],
   });
 
-  useEffect(() => {
-    fetchData();
-  }, []);
-
-  const fetchData = async () => {
-    try {
+  const { data: pageData, isLoading: loading, refetch: fetchData } = useQuery({
+    queryKey: ["manager-sub-departments"],
+    queryFn: async () => {
       const [subsRes, machinesRes, supsRes] = await Promise.all([
         fetch("/api/sub-departments"),
         fetch("/api/machines"),
         fetch("/api/users?role=SUPERVISOR")
       ]);
-      const subs = await subsRes.json();
-      const machs = await machinesRes.json();
-      const sups = await supsRes.json();
-      setSubDepartments(subs);
-      setMachines(machs);
-      setSupervisors(sups);
-    } catch (err) {
-      console.error(err);
-    } finally {
-      setLoading(false);
-    }
-  };
+      return {
+        subs: await subsRes.json(),
+        machs: await machinesRes.json(),
+        sups: await supsRes.json(),
+      };
+    },
+  });
+
+  const { subDepartments, machines, supervisors } = useMemo(() => {
+    return {
+      subDepartments: Array.isArray(pageData?.subs) ? pageData.subs : [],
+      machines: Array.isArray(pageData?.machs) ? pageData.machs : [],
+      supervisors: Array.isArray(pageData?.sups) ? pageData.sups : [],
+    };
+  }, [pageData]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();

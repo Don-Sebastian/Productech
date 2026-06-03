@@ -1,6 +1,7 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { useSession } from "next-auth/react";
 import Sidebar from "@/components/Sidebar";
 import { 
@@ -51,34 +52,28 @@ interface AttendanceRegister {
 
 export default function ManagerAttendanceApproval() {
   const { data: session } = useSession();
-  const [registers, setRegisters] = useState<AttendanceRegister[]>([]);
-  const [loading, setLoading] = useState(true);
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [actionLoading, setActionLoading] = useState<string | null>(null);
   const [filterDate, setFilterDate] = useState(format(new Date(), "yyyy-MM-dd"));
   const [filterStatus, setFilterStatus] = useState<string>("all");
 
-  useEffect(() => {
-    fetchRegisters();
+  const queryParams = useMemo(() => {
+    const q = new URLSearchParams();
+    if (filterDate) q.append("date", filterDate);
+    if (filterStatus !== "all") q.append("status", filterStatus);
+    return q.toString();
   }, [filterDate, filterStatus]);
 
-  const fetchRegisters = async () => {
-    setLoading(true);
-    try {
-      const query = new URLSearchParams();
-      if (filterDate) query.append("date", filterDate);
-      if (filterStatus !== "all") query.append("status", filterStatus);
-      
-      const res = await fetch(`/api/attendance?${query.toString()}`);
-      if (res.ok) {
-        setRegisters(await res.json());
-      }
-    } catch (err) {
-      console.error("Error fetching attendance registers:", err);
-    } finally {
-      setLoading(false);
-    }
-  };
+  const { data: registersData, isLoading: loading, refetch: fetchRegisters } = useQuery({
+    queryKey: ["manager-attendance", queryParams],
+    queryFn: async () => {
+      const res = await fetch(`/api/attendance?${queryParams}`);
+      if (!res.ok) throw new Error("Failed to fetch");
+      return res.json();
+    },
+  });
+
+  const registers: AttendanceRegister[] = Array.isArray(registersData) ? registersData : [];
 
   const handleAction = async (registerId: string, action: "approve" | "reject") => {
     const notes = prompt(`Enter notes for this ${action} (optional):`);

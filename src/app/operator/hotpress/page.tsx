@@ -2,7 +2,8 @@
 
 import { useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
-import { useEffect, useState, useMemo } from "react";
+import { useEffect } from "react";
+import { useQuery } from "@tanstack/react-query";
 import Sidebar from "@/components/Sidebar";
 import { 
   Plus, Trash2, Send, CheckCircle, Clock, AlertTriangle, 
@@ -13,53 +14,33 @@ import {
 export default function HotPressOperatorDashboard() {
   const { data: session, status } = useSession();
   const router = useRouter();
-  const [products, setProducts] = useState<any[]>([]);
-  const [entries, setEntries] = useState<any[]>([]);
-  const [dailyLog, setDailyLog] = useState<any>(null);
-  const [allProdLists, setAllProdLists] = useState<any[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [viewMode, setViewMode] = useState<"ACTIVE" | "HISTORY">("ACTIVE");
-  const [machineInfo, setMachineInfo] = useState<any>(null);
-  const [error, setError] = useState("");
-  const [success, setSuccess] = useState("");
 
   useEffect(() => {
     if (status === "unauthenticated") router.push("/login");
     if (status === "authenticated" && (session?.user as any)?.role !== "OPERATOR") router.push("/");
   }, [status, session, router]);
 
-  const fetchData = async () => {
-    setLoading(true);
-    try {
+  const { data, isLoading: loading } = useQuery({
+    queryKey: ["operator-hotpress-dashboard"],
+    queryFn: async () => {
       const [p, e, lists, assignment] = await Promise.all([
         fetch("/api/company-products").then((r) => r.json()),
         fetch("/api/production-entries").then((r) => r.json()),
         fetch("/api/production-lists").then((r) => r.json()),
         fetch("/api/operator/assignment").then((r) => r.json()),
       ]);
+      return { p, e, lists, assignment };
+    },
+    enabled: status === "authenticated",
+  });
 
-      if (Array.isArray(p)) setProducts(p.filter((x: any) => x.isActive));
-      if (e.entries) setEntries(e.entries);
-      if (e.dailyLog) setDailyLog(e.dailyLog);
-      
-      const listData = lists && Array.isArray(lists.lists) ? lists.lists : (Array.isArray(lists) ? lists : []);
-      setAllProdLists(listData);
-      
-      if (assignment?.machine) {
-        setMachineInfo(assignment.machine);
-      }
-    } catch (err) {
-      console.error("Fetch error:", err);
-    } finally {
-      setLoading(false);
-    }
-  };
+  const products = Array.isArray(data?.p) ? data.p.filter((x: any) => x.isActive) : [];
+  const entries = data?.e?.entries || [];
+  const dailyLog = data?.e?.dailyLog || null;
+  const allProdLists = data?.lists && Array.isArray(data.lists.lists) ? data.lists.lists : (Array.isArray(data?.lists) ? data.lists : []);
+  const machineInfo = data?.assignment?.machine || null;
 
-  useEffect(() => {
-    if (status === "authenticated") fetchData();
-  }, [status]);
-
-  const totalToday = entries.reduce((sum, e) => sum + e.quantity, 0);
+  const totalToday = entries.reduce((sum: number, e: any) => sum + e.quantity, 0);
   const currentStatus = dailyLog?.status || "PENDING";
 
   const statusColors: Record<string, { text: string; bg: string; label: string }> = {
@@ -139,7 +120,7 @@ export default function HotPressOperatorDashboard() {
                      <p className="text-slate-500 font-bold uppercase text-[10px] tracking-widest">No production entries today</p>
                    </div>
                  ) : (
-                   entries.map(e => (
+                   entries.map((e: any) => (
                     <div key={e.id} className="bg-slate-900/60 border border-slate-800 p-4 rounded-2xl flex items-center justify-between">
                       <div className="flex items-center gap-4">
                         <div className="w-10 h-10 rounded-xl bg-orange-500/10 flex items-center justify-center font-black text-orange-400">
@@ -163,7 +144,7 @@ export default function HotPressOperatorDashboard() {
                  <ListChecks size={18} className="text-blue-400" /> Active Lists
                </h2>
                <div className="space-y-3">
-                 {allProdLists.slice(0, 5).map(list => (
+                 {allProdLists.slice(0, 5).map((list: any) => (
                    <div key={list.id} className="bg-slate-800/40 p-4 rounded-xl border border-slate-700/30">
                      <p className="text-white font-bold text-xs uppercase mb-1">{list.order?.customer?.name || "STOCK"}</p>
                      <p className="text-[10px] text-slate-500 font-black">{list.listNumber}</p>

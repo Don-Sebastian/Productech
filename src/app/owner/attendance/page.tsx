@@ -1,6 +1,7 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { useSession } from "next-auth/react";
 import Sidebar from "@/components/Sidebar";
 import { 
@@ -53,34 +54,25 @@ interface AttendanceRegister {
 }
 
 export default function OwnerAttendanceView() {
-  const { data: session } = useSession();
-  const [registers, setRegisters] = useState<AttendanceRegister[]>([]);
-  const [loading, setLoading] = useState(true);
+  const { data: session, status } = useSession();
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [filterDate, setFilterDate] = useState(format(new Date(), "yyyy-MM-dd"));
   const [filterStatus, setFilterStatus] = useState<string>("all");
 
-  useEffect(() => {
-    fetchRegisters();
-  }, [filterDate, filterStatus]);
-
-  const fetchRegisters = async () => {
-    setLoading(true);
-    try {
+  const { data: apiData, isLoading: loading } = useQuery({
+    queryKey: ["owner-attendance", filterDate, filterStatus],
+    queryFn: async () => {
       const query = new URLSearchParams();
       if (filterDate) query.append("date", filterDate);
       if (filterStatus !== "all") query.append("status", filterStatus);
-      
       const res = await fetch(`/api/attendance?${query.toString()}`);
-      if (res.ok) {
-        setRegisters(await res.json());
-      }
-    } catch (err) {
-      console.error("Error fetching attendance registers:", err);
-    } finally {
-      setLoading(false);
-    }
-  };
+      if (!res.ok) throw new Error("Failed to fetch");
+      return res.json();
+    },
+    enabled: status === "authenticated",
+  });
+
+  const registers: AttendanceRegister[] = useMemo(() => Array.isArray(apiData) ? apiData : [], [apiData]);
 
   const getStatusDisplay = (status: string) => {
     switch (status) {

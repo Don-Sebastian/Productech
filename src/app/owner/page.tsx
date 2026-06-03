@@ -2,7 +2,8 @@
 
 import { useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useEffect } from "react";
+import { useQuery } from "@tanstack/react-query";
 import Sidebar from "@/components/Sidebar";
 import {
   Factory,
@@ -19,37 +20,29 @@ import {
 export default function OwnerDashboard() {
   const { data: session, status } = useSession();
   const router = useRouter();
-  const [stats, setStats] = useState<any>(null);
-  const [recentBatches, setRecentBatches] = useState<any[]>([]);
-  const [glueStock, setGlueStock] = useState<any>(null);
-  const [glueThreshold, setGlueThreshold] = useState(1000);
-  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     if (status === "unauthenticated") router.push("/login");
     if (status === "authenticated" && (session?.user as any)?.role !== "OWNER") router.push("/");
   }, [status, session, router]);
 
-  useEffect(() => {
-    if (status === "authenticated") {
-      fetch("/api/dashboard/stats")
-        .then((res) => res.json())
-        .then((data) => {
-          setStats(data.stats);
-          setRecentBatches(data.recentBatches || []);
-          setLoading(false);
-        })
-        .catch(() => setLoading(false));
+  const { data: dashboardData, isLoading: statsLoading } = useQuery({
+    queryKey: ["owner-dashboard-stats"],
+    queryFn: () => fetch("/api/dashboard/stats").then(res => res.json()),
+    enabled: status === "authenticated",
+  });
 
-      fetch("/api/glue-stock")
-        .then((res) => res.json())
-        .then((data) => {
-          setGlueStock(data.stock);
-          setGlueThreshold(data.thresholdKg || 1000);
-        })
-        .catch(() => {});
-    }
-  }, [status]);
+  const { data: glueData, isLoading: glueLoading } = useQuery({
+    queryKey: ["owner-glue-stock"],
+    queryFn: () => fetch("/api/glue-stock").then(res => res.json()),
+    enabled: status === "authenticated",
+  });
+
+  const stats = dashboardData?.stats || null;
+  const recentBatches = dashboardData?.recentBatches || [];
+  const glueStock = glueData?.stock || null;
+  const glueThreshold = glueData?.thresholdKg || 1000;
+  const loading = statsLoading || glueLoading;
 
   if (status === "loading" || !session?.user) {
     return (

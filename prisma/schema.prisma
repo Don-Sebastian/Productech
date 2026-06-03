@@ -22,6 +22,9 @@ model Company {
   pressCapacityPerPress Int   @default(10) // Daylights (boards) per press per cook
   glueAlertThresholdKg  Float @default(1000) // Alert when glue stock drops below this (kg)
 
+  ownerId               String?            // Link to the owner
+  owner                 User?              @relation("CompanyOwner", fields: [ownerId], references: [id])
+
   companyProducts     CompanyProduct[]
   customers           Customer[]
   dailyProductionLogs DailyProductionLog[]
@@ -54,6 +57,8 @@ model Company {
   employees           Employee[]
   attendanceRegisters AttendanceRegister[]
   glueStock           GlueStock?
+  outboundTransfers   InventoryTransfer[] @relation("TransferSource")
+  inboundTransfers    InventoryTransfer[] @relation("TransferTarget")
 }
 
 model Section {
@@ -85,6 +90,7 @@ model User {
   updatedAt              DateTime             @updatedAt
   companyId              String?
   createdById            String?
+  ownedCompanies         Company[]            @relation("CompanyOwner")
   managerApprovedLogs    DailyProductionLog[] @relation("DailyLogManager")
   operatorDailyLogs      DailyProductionLog[] @relation("DailyLogOperator")
   supervisorApprovedLogs DailyProductionLog[] @relation("DailyLogSupervisor")
@@ -111,6 +117,7 @@ model User {
   managerRegisters       AttendanceRegister[] @relation("ManagerRegister")
   wageAdjustments        WageAdjustmentLog[]
   subDepartmentAssignments SubDepartmentAssignment[]
+  inventoryTransfers     InventoryTransfer[]  @relation("TransferredBy")
 
   @@index([companyId])
   @@index([createdById])
@@ -314,6 +321,9 @@ model HotPressSession {
   @@index([operatorId])
   @@index([shiftDate])
   @@index([approvalStatus])
+  @@index([companyId, status])              // live sessions query
+  @@index([companyId, shiftDate, status])   // today's stopped sessions
+  @@index([operatorId, companyId, status])  // operator active session lookup
 }
 
 model PressEntry {
@@ -570,6 +580,7 @@ model ProductType {
   inventoryItems    InventoryItem[]
   company           Company           @relation(fields: [companyId], references: [id], onDelete: Cascade)
   productionBatches ProductionBatch[]
+  inventoryTransfers InventoryTransfer[]
 
   @@index([companyId])
 }
@@ -719,6 +730,7 @@ model MachineAssignment {
   @@index([machineId])
   @@index([userId])
   @@index([companyId])
+  @@index([userId, role])   // supervisor/operator filtering
 }
 
 enum Role {
@@ -845,6 +857,8 @@ model PeelingSession {
   @@index([operatorId])
   @@index([companyId])
   @@index([shiftDate])
+  @@index([companyId, status])              // live sessions query
+  @@index([companyId, shiftDate, status])   // today's stopped sessions
 }
 
 model PeelingEntry {
@@ -899,6 +913,8 @@ model DryerSession {
   @@index([operatorId])
   @@index([companyId])
   @@index([shiftDate])
+  @@index([companyId, status])              // live sessions query
+  @@index([companyId, shiftDate, status])   // today's stopped sessions
 }
 
 model DryerBatch {
@@ -956,6 +972,7 @@ model FinishingLog {
   @@unique([operatorId, shiftDate])
   @@index([companyId])
   @@index([shiftDate])
+  @@index([companyId, shiftDate])   // composite for day-view queries
 }
 
 model FinishingEntry {
@@ -1166,4 +1183,25 @@ model GlueStockLog {
 model demo {
   id String @id @default(uuid()) @db.Text
   name String @default("demo") @db.Text
+}
+
+model InventoryTransfer {
+  id               String   @id @default(cuid())
+  sourceCompanyId  String
+  targetCompanyId  String
+  productTypeId    String
+  quantity         Int
+  transferredById  String
+  createdAt        DateTime @default(now())
+  notes            String?
+
+  sourceCompany    Company @relation("TransferSource", fields: [sourceCompanyId], references: [id])
+  targetCompany    Company @relation("TransferTarget", fields: [targetCompanyId], references: [id])
+  transferredBy    User    @relation("TransferredBy", fields: [transferredById], references: [id])
+  productType      ProductType @relation(fields: [productTypeId], references: [id])
+
+  @@index([sourceCompanyId])
+  @@index([targetCompanyId])
+  @@index([transferredById])
+  @@index([productTypeId])
 }

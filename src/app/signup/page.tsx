@@ -27,7 +27,7 @@ export default function Signup() {
           setAlreadySetUp(true);
           setTimeout(() => router.replace("/login"), 2000);
         }
-      } catch {}
+      } catch { }
       finally { setChecking(false); }
     }
     check();
@@ -120,7 +120,7 @@ export default function Signup() {
           <div className="inline-flex items-center justify-center w-16 h-16 bg-violet-600/20 rounded-2xl mb-4 backdrop-blur-sm border border-violet-500/30">
             <Shield className="text-violet-400" size={28} />
           </div>
-          <h1 className="text-4xl font-bold text-white mb-2 tracking-tight">CRPLY</h1>
+          <h1 className="text-4xl font-bold text-white mb-2 tracking-tight">PLYTRACK</h1>
           <p className="text-blue-300/70 text-sm">Production Management System</p>
           <div className="mt-3 inline-flex items-center gap-2 px-3 py-1.5 bg-amber-500/10 border border-amber-500/20 rounded-full">
             <Shield size={12} className="text-amber-400" />
@@ -158,7 +158,7 @@ export default function Signup() {
               <div className="relative">
                 <Mail className="absolute left-3.5 top-1/2 -translate-y-1/2 text-violet-400/50" size={16} />
                 <input
-                  type="email" name="email" placeholder="admin@crply.com" required
+                  type="email" name="email" placeholder="admin@plytrack.com" required
                   value={formData.email} onChange={handleChange}
                   className="w-full pl-11 pr-4 py-3 bg-white/5 border border-white/10 rounded-xl text-white placeholder-blue-300/30 focus:ring-2 focus:ring-violet-500/50 focus:border-violet-500/50 outline-none transition"
                 />

@@ -39,13 +39,13 @@ async function main() {
 
   // ==================== ADMIN ====================
   const admin = await prisma.user.create({
-    data: { email: "admin@crply.com", password: hashedPassword, name: "Platform Admin", role: "ADMIN" },
+    data: { email: "admin@plytrack.com", password: hashedPassword, name: "Platform Admin", role: "ADMIN" },
   });
   console.log(`✓ Admin: ${admin.email}`);
 
   // ==================== COMPANY ====================
   const company = await prisma.company.create({
-    data: { name: "CRPLY Demo Plywood", email: "demo@crply.com", phone: "+91 9876543210", location: "Kochi, Kerala" },
+    data: { name: "PLYTRACK Demo Plywood", email: "demo@plytrack.com", phone: "+91 9876543210", location: "Kochi, Kerala" },
   });
 
   // ==================== SECTIONS ====================
@@ -71,15 +71,15 @@ async function main() {
     data: { email: "manager@demo.com", password: demoPassword, name: "Suresh Menon", role: "MANAGER", phone: "+91 9876543212", companyId: company.id, createdById: owner.id },
   });
   const supervisor = await prisma.user.create({
-    data: { 
-      email: "supervisor@demo.com", password: demoPassword, name: "Anil Nair", role: "SUPERVISOR", 
+    data: {
+      email: "supervisor@demo.com", password: demoPassword, name: "Anil Nair", role: "SUPERVISOR",
       companyId: company.id, createdById: manager.id,
-      sections: { connect: [{ id: sectionHotpress.id }] } 
+      sections: { connect: [{ id: sectionHotpress.id }] }
     },
   });
   const pressOperator = await prisma.user.create({
-    data: { 
-      email: "press@demo.com", password: demoPassword, name: "Vijay Thomas", role: "OPERATOR", 
+    data: {
+      email: "press@demo.com", password: demoPassword, name: "Vijay Thomas", role: "OPERATOR",
       companyId: company.id, createdById: manager.id,
       sections: { connect: [{ id: sectionHotpress.id }] }
     },
@@ -154,9 +154,11 @@ async function main() {
     data: {
       orderNumber: "ORD-2026-001", customerId: customer.id,
       status: "CONFIRMED", priority: 1, companyId: company.id, createdById: manager.id,
-      items: { create: [
-        { categoryId: catAlternate.id, thicknessId: thicknesses[12].id, sizeId: sizes["8×4"].id, quantity: 200, brandSeal: true },
-      ] },
+      items: {
+        create: [
+          { categoryId: catAlternate.id, thicknessId: thicknesses[12].id, sizeId: sizes["8×4"].id, quantity: 200, brandSeal: true },
+        ]
+      },
     },
   });
   console.log(`✓ 1 sample order`);
@@ -167,7 +169,7 @@ async function main() {
   console.log("=".repeat(50));
   console.log("\n📋 Login Credentials:");
   console.log("─".repeat(40));
-  console.log("Admin:      admin@crply.com / admin123");
+  console.log("Admin:      admin@plytrack.com / admin123");
   console.log("Owner:      owner@demo.com / demo123");
   console.log("Manager:    manager@demo.com / demo123");
   console.log("Supervisor: supervisor@demo.com / demo123");

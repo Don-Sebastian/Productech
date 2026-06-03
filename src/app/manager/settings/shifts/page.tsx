@@ -1,6 +1,7 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { Plus, Trash2, Edit2, Clock } from "lucide-react";
 
 interface Shift {
@@ -16,10 +17,6 @@ interface Shift {
 }
 
 export default function ShiftsPage() {
-  const [shifts, setShifts] = useState<Shift[]>([]);
-  const [machines, setMachines] = useState<{ id: string; name: string }[]>([]);
-  const [subDepartments, setSubDepartments] = useState<{ id: string; name: string; machineId: string | null }[]>([]);
-  const [loading, setLoading] = useState(true);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   
@@ -31,26 +28,29 @@ export default function ShiftsPage() {
     subDepartmentId: "",
   });
 
-  useEffect(() => {
-    fetchData();
-  }, []);
-
-  const fetchData = async () => {
-    try {
+  const { data: pageData, isLoading: loading, refetch: fetchData } = useQuery({
+    queryKey: ["manager-shifts"],
+    queryFn: async () => {
       const [shiftsRes, machinesRes, subDeptsRes] = await Promise.all([
         fetch("/api/shifts"),
         fetch("/api/machines"),
         fetch("/api/sub-departments")
       ]);
-      setShifts(await shiftsRes.json());
-      setMachines(await machinesRes.json());
-      setSubDepartments(await subDeptsRes.json());
-    } catch (err) {
-      console.error(err);
-    } finally {
-      setLoading(false);
-    }
-  };
+      return {
+        shifts: await shiftsRes.json(),
+        machines: await machinesRes.json(),
+        subDepartments: await subDeptsRes.json(),
+      };
+    },
+  });
+
+  const { shifts, machines, subDepartments } = useMemo(() => {
+    return {
+      shifts: Array.isArray(pageData?.shifts) ? pageData.shifts : [],
+      machines: Array.isArray(pageData?.machines) ? pageData.machines : [],
+      subDepartments: Array.isArray(pageData?.subDepartments) ? pageData.subDepartments : [],
+    };
+  }, [pageData]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();

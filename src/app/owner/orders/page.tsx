@@ -3,6 +3,7 @@
 import { useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import { useEffect, useState, useMemo } from "react";
+import { useQuery } from "@tanstack/react-query";
 import Sidebar from "@/components/Sidebar";
 import { 
   Plus, X, Package, Clock, CheckCircle, Truck, Ban, 
@@ -14,8 +15,6 @@ export default function OwnerOrdersPage() {
   const { data: session, status } = useSession();
   const router = useRouter();
   
-  const [orders, setOrders] = useState<any[]>([]);
-  const [loading, setLoading] = useState(true);
   const [expandedOrder, setExpandedOrder] = useState<string | null>(null);
   const [expandedTimelineId, setExpandedTimelineId] = useState<string | null>(null);
   const [viewMode, setViewMode] = useState<"ACTIVE" | "HISTORY">("ACTIVE");
@@ -26,18 +25,20 @@ export default function OwnerOrdersPage() {
     if (status === "authenticated" && (session?.user as any)?.role !== "OWNER") router.push("/");
   }, [status, session, router]);
 
-  const fetchData = () => {
-    fetch("/api/orders")
-      .then((r) => r.json())
-      .then((o) => {
-        const list = o && Array.isArray(o.orders) ? o.orders : (Array.isArray(o) ? o : []);
-        setOrders(list);
-        setLoading(false);
-      })
-      .catch(() => setLoading(false));
-  };
+  const { data: apiData, isLoading: loading } = useQuery({
+    queryKey: ["owner-orders"],
+    queryFn: async () => {
+      const res = await fetch("/api/orders");
+      if (!res.ok) throw new Error("Failed to fetch");
+      return res.json();
+    },
+    enabled: status === "authenticated",
+  });
 
-  useEffect(() => { if (status === "authenticated") fetchData(); }, [status]);
+  const orders = useMemo(() => {
+    const o = apiData;
+    return o && Array.isArray(o.orders) ? o.orders : (Array.isArray(o) ? o : []);
+  }, [apiData]);
 
   const statusConfig: Record<string, { icon: any; color: string; bg: string; label: string }> = {
     PENDING: { icon: Clock, color: "text-amber-400", bg: "bg-amber-500/10", label: "Pending" },

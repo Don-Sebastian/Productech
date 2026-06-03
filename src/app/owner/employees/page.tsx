@@ -1,6 +1,7 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { 
   Users, 
   Search, 
@@ -46,12 +47,8 @@ interface Employee {
 }
 
 export default function OwnerEmployeeManagement() {
-  const [employees, setEmployees] = useState<Employee[]>([]);
-  const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
   const [filterMachine, setFilterMachine] = useState("all");
-  
-  const [machines, setMachines] = useState<{ id: string; name: string }[]>([]);
   
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingEmployee, setEditingEmployee] = useState<Employee | null>(null);
@@ -68,31 +65,22 @@ export default function OwnerEmployeeManagement() {
     photoData: null as string | null
   });
 
-  useEffect(() => {
-    fetchEmployees();
-    fetchMetadata();
-  }, []);
+  const { data: pageData, isLoading: loading, refetch: fetchEmployees } = useQuery({
+    queryKey: ["owner-employees"],
+    queryFn: async () => {
+      const [empRes, machRes] = await Promise.all([
+        fetch("/api/employees?includeInactive=true"),
+        fetch("/api/machines"),
+      ]);
+      return {
+        employees: await empRes.json(),
+        machines: await machRes.json(),
+      };
+    },
+  });
 
-  const fetchEmployees = async () => {
-    setLoading(true);
-    try {
-      const res = await fetch("/api/employees?includeInactive=true");
-      if (res.ok) setEmployees(await res.json());
-    } catch (err) {
-      console.error(err);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const fetchMetadata = async () => {
-    try {
-      const res = await fetch("/api/machines");
-      if (res.ok) setMachines(await res.json());
-    } catch (err) {
-      console.error(err);
-    }
-  };
+  const employees: Employee[] = useMemo(() => Array.isArray(pageData?.employees) ? pageData.employees : [], [pageData]);
+  const machines: { id: string; name: string }[] = useMemo(() => Array.isArray(pageData?.machines) ? pageData.machines : [], [pageData]);
 
   const handleUpdate = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -115,8 +103,9 @@ export default function OwnerEmployeeManagement() {
     }
   };
 
-  const filteredEmployees = employees.filter(emp => {
-    const matchesSearch = emp.name.toLowerCase().includes(searchQuery.toLowerCase());
+  const filteredEmployees = employees.filter((emp: any) => {
+    const matchesSearch = emp.name.toLowerCase().includes(searchQuery.toLowerCase()) || 
+                          emp.phone?.includes(searchQuery);
     const matchesMachine = filterMachine === "all" || emp.machineId === filterMachine;
     return matchesSearch && matchesMachine;
   });
@@ -135,11 +124,11 @@ export default function OwnerEmployeeManagement() {
         <div className="grid grid-cols-3 gap-6">
           <div className="bg-white p-4 px-6 rounded-3xl shadow-sm border border-gray-100 text-center">
             <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">Total Workers</p>
-            <p className="text-2xl font-black text-gray-900">{employees.filter(e => e.isActive).length}</p>
+            <p className="text-2xl font-black text-gray-900">{employees.filter((e: any) => e.isActive).length}</p>
           </div>
           <div className="bg-white p-4 px-6 rounded-3xl shadow-sm border border-gray-100 text-center">
             <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">Daily Wage</p>
-            <p className="text-2xl font-black text-emerald-600">₹{employees.filter(e => e.isActive && e.wageType === 'DAILY').reduce((acc, curr) => acc + curr.wageAmount, 0).toLocaleString()}</p>
+            <p className="text-2xl font-black text-emerald-600">₹{employees.filter((e: any) => e.isActive && e.wageType === 'DAILY').reduce((acc: any, curr: any) => acc + curr.wageAmount, 0).toLocaleString()}</p>
           </div>
           <div className="bg-white p-4 px-6 rounded-3xl shadow-sm border border-gray-100 text-center">
             <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">Wage Edits</p>

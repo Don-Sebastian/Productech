@@ -2,7 +2,8 @@
 
 import { useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useMemo } from "react";
+import { useQuery } from "@tanstack/react-query";
 import Sidebar from "@/components/Sidebar";
 import { Package, ChevronDown, ChevronUp, Pencil, Check, X, AlertTriangle } from "lucide-react";
 import { sortProducts } from "@/lib/sorting";
@@ -20,8 +21,6 @@ interface Product {
 export default function ManagerInventory() {
   const { data: session, status } = useSession();
   const router = useRouter();
-  const [products, setProducts] = useState<Product[]>([]);
-  const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState("All");
   const [expandedCats, setExpandedCats] = useState<Set<string>>(new Set());
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -32,14 +31,19 @@ export default function ManagerInventory() {
     if (status === "authenticated" && (session?.user as any)?.role !== "MANAGER") router.push("/");
   }, [status, session, router]);
 
-  const fetchProducts = () => {
-    fetch("/api/company-products").then((r) => r.json()).then((d) => {
-      if (Array.isArray(d)) setProducts(d.filter((p: Product) => p.isActive));
-      setLoading(false);
-    });
-  };
+  const { data: apiData, isLoading: loading, refetch: fetchProducts } = useQuery({
+    queryKey: ["manager-inventory"],
+    queryFn: async () => {
+      const res = await fetch("/api/company-products");
+      if (!res.ok) throw new Error("Failed to fetch");
+      return res.json();
+    },
+    enabled: status === "authenticated",
+  });
 
-  useEffect(() => { if (status === "authenticated") fetchProducts(); }, [status]);
+  const products = useMemo(() => {
+    return Array.isArray(apiData) ? apiData.filter((p: Product) => p.isActive) : [];
+  }, [apiData]);
 
   const categories = [...new Set(products.map((p) => p.category?.name))].filter(Boolean);
 

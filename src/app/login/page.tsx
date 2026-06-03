@@ -23,7 +23,7 @@ export default function Login() {
           router.replace("/signup");
           return;
         }
-      } catch {}
+      } catch { }
     }
     checkSetup();
   }, [router]);
@@ -110,7 +110,7 @@ export default function Login() {
           <div className="inline-flex items-center justify-center w-16 h-16 bg-blue-600/20 rounded-2xl mb-4 backdrop-blur-sm border border-blue-500/30">
             <span className="text-2xl font-bold text-blue-400">C</span>
           </div>
-          <h1 className="text-4xl font-bold text-white mb-2 tracking-tight">CRPLY</h1>
+          <h1 className="text-4xl font-bold text-white mb-2 tracking-tight">PLYTRACK</h1>
           <p className="text-blue-300/70 text-sm">Production Management System</p>
         </div>
 

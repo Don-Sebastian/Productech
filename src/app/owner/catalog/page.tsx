@@ -2,34 +2,34 @@
 
 import { useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useMemo } from "react";
+import { useQuery } from "@tanstack/react-query";
 import Sidebar from "@/components/Sidebar";
 import { Package, Layers, Info } from "lucide-react";
 
 export default function OwnerCatalogPage() {
   const { data: session, status } = useSession();
   const router = useRouter();
-  const [catalog, setCatalog] = useState<any>({ categories: [], thicknesses: [], sizes: [] });
-  const [products, setProducts] = useState<any[]>([]);
-  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     if (status === "unauthenticated") router.push("/login");
     if (status === "authenticated" && (session?.user as any)?.role !== "OWNER") router.push("/");
   }, [status, session, router]);
 
-  useEffect(() => {
-    if (status === "authenticated") {
-      Promise.all([
+  const { data: pageData, isLoading: loading } = useQuery({
+    queryKey: ["owner-catalog"],
+    queryFn: async () => {
+      const [c, p] = await Promise.all([
         fetch("/api/catalog").then((r) => r.json()),
         fetch("/api/company-products").then((r) => r.json()),
-      ]).then(([c, p]) => {
-        setCatalog(c);
-        if (Array.isArray(p)) setProducts(p);
-        setLoading(false);
-      });
-    }
-  }, [status]);
+      ]);
+      return { catalog: c, products: p };
+    },
+    enabled: status === "authenticated",
+  });
+
+  const catalog = useMemo(() => pageData?.catalog || { categories: [], thicknesses: [], sizes: [] }, [pageData]);
+  const products = useMemo(() => Array.isArray(pageData?.products) ? pageData.products : [], [pageData]);
 
   if (status === "loading" || !session?.user) {
     return <div className="flex items-center justify-center h-screen bg-slate-950"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-emerald-400" /></div>;

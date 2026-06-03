@@ -3,6 +3,7 @@
 import { useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import { useEffect, useState, useMemo } from "react";
+import { useQuery } from "@tanstack/react-query";
 import Sidebar from "@/components/Sidebar";
 import {
   Factory,
@@ -22,10 +23,6 @@ import { StatSkeleton, ListSkeleton } from "@/components/Skeleton";
 export default function ManagerProduction() {
   const { data: session, status } = useSession();
   const router = useRouter();
-  const [prodLists, setProdLists] = useState<any[]>([]);
-  const [pressSettings, setPressSettings] = useState<PressSettings>({ workingHoursPerDay: 8, numHotPresses: 1, pressCapacityPerPress: 10 });
-  const [productTimings, setProductTimings] = useState<any[]>([]);
-  const [loading, setLoading] = useState(true);
   const [expandedList, setExpandedList] = useState<string | null>(null);
   const [viewMode, setViewMode] = useState<"ACTIVE" | "HISTORY">("ACTIVE");
   const [statusFilter, setStatusFilter] = useState("ALL");
@@ -35,20 +32,31 @@ export default function ManagerProduction() {
     if (status === "authenticated" && (session?.user as any)?.role !== "MANAGER") router.push("/");
   }, [status, session, router]);
 
-  useEffect(() => {
-    if (status === "authenticated") {
-      fetch("/api/production-lists")
-        .then((res) => res.json())
-        .then((data) => {
-          const list = data && Array.isArray(data.lists) ? data.lists : (Array.isArray(data) ? data : []);
-          setProdLists(list);
-          if (data?.pressSettings) setPressSettings(data.pressSettings);
-          if (data?.productTimings) setProductTimings(data.productTimings);
-          setLoading(false);
-        })
-        .catch(() => setLoading(false));
+  const { data: pageData, isLoading: loading } = useQuery({
+    queryKey: ["manager-production-lists"],
+    queryFn: async () => {
+      const res = await fetch("/api/production-lists");
+      if (!res.ok) throw new Error("Failed to fetch");
+      return res.json();
+    },
+    enabled: status === "authenticated",
+  });
+
+  const { prodLists, pressSettings, productTimings } = useMemo(() => {
+    let prodLists: any[] = [];
+    let pressSettings: PressSettings = { workingHoursPerDay: 8, numHotPresses: 1, pressCapacityPerPress: 10 };
+    let productTimings: any[] = [];
+
+    if (pageData && Array.isArray(pageData.lists)) {
+      prodLists = pageData.lists;
+      if (pageData.pressSettings) pressSettings = pageData.pressSettings;
+      if (pageData.productTimings) productTimings = pageData.productTimings;
+    } else if (Array.isArray(pageData)) {
+      prodLists = pageData;
     }
-  }, [status]);
+
+    return { prodLists, pressSettings, productTimings };
+  }, [pageData]);
 
   const displayLists = useMemo(() => {
     return prodLists.filter(l => {

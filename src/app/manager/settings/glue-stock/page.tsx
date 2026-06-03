@@ -1,6 +1,7 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import {
@@ -37,9 +38,6 @@ interface GlueStockData {
 export default function GlueStockPage() {
   const { data: session, status } = useSession();
   const router = useRouter();
-  const [stock, setStock] = useState<GlueStockData | null>(null);
-  const [thresholdKg, setThresholdKg] = useState(1000);
-  const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [success, setSuccess] = useState("");
   const [error, setError] = useState("");
@@ -58,25 +56,28 @@ export default function GlueStockPage() {
     if (status === "authenticated" && (session?.user as any)?.role !== "MANAGER") router.push("/");
   }, [status, session, router]);
 
-  const fetchData = async () => {
-    try {
+  const { data: apiData, isLoading: loading, refetch: fetchData } = useQuery({
+    queryKey: ["manager-glue-stock"],
+    queryFn: async () => {
       const res = await fetch("/api/glue-stock");
-      if (res.ok) {
-        const data = await res.json();
-        setStock(data.stock);
-        setThresholdKg(data.thresholdKg);
-        setNewThreshold(String(data.thresholdKg));
-      }
-    } catch {
-      console.error("Failed to fetch glue stock");
-    } finally {
-      setLoading(false);
-    }
-  };
+      if (!res.ok) throw new Error("Failed to fetch");
+      return res.json();
+    },
+    enabled: status === "authenticated",
+  });
+
+  const { stock, thresholdKg } = useMemo(() => {
+    return {
+      stock: apiData?.stock || null,
+      thresholdKg: apiData?.thresholdKg || 1000,
+    };
+  }, [apiData]);
 
   useEffect(() => {
-    if (status === "authenticated") fetchData();
-  }, [status]);
+    if (apiData?.thresholdKg) {
+      setNewThreshold(String(apiData.thresholdKg));
+    }
+  }, [apiData?.thresholdKg]);
 
   const handleAction = async (action: string, payload: any) => {
     setSaving(true);
@@ -407,7 +408,7 @@ export default function GlueStockPage() {
                 </tr>
               </thead>
               <tbody>
-                {stock.logs.map((log) => {
+                {stock.logs.map((log: any) => {
                   const isAdd = log.quantityKg > 0;
                   const typeConfig: Record<string, { label: string; color: string }> = {
                     OPENING: { label: "Opening", color: "text-blue-400" },

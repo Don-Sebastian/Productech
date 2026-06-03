@@ -2,15 +2,14 @@
 
 import { useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useMemo } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { Plus, Trash2, Settings2 } from "lucide-react";
 
 export default function CustomizationsSettings() {
   const { data: session, status } = useSession();
   const router = useRouter();
   
-  const [customizations, setCustomizations] = useState<any[]>([]);
-  const [loading, setLoading] = useState(true);
   const [newName, setNewName] = useState("");
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
@@ -20,19 +19,17 @@ export default function CustomizationsSettings() {
     if (status === "authenticated" && (session?.user as any)?.role !== "MANAGER") router.push("/");
   }, [status, session, router]);
 
-  const fetchData = () => {
-    fetch("/api/customizations")
-      .then((r) => r.json())
-      .then((d) => {
-        if (Array.isArray(d)) setCustomizations(d.filter((c: any) => c.isActive));
-        setLoading(false);
-      })
-      .catch(() => setLoading(false));
-  };
+  const { data: apiData, isLoading: loading, refetch: fetchData } = useQuery({
+    queryKey: ["manager-customizations"],
+    queryFn: async () => {
+      const res = await fetch("/api/customizations");
+      if (!res.ok) throw new Error("Failed to fetch");
+      return res.json();
+    },
+    enabled: status === "authenticated",
+  });
 
-  useEffect(() => {
-    if (status === "authenticated") fetchData();
-  }, [status]);
+  const customizations = useMemo(() => Array.isArray(apiData) ? apiData.filter((c: any) => c.isActive) : [], [apiData]);
 
   const addCustomization = async () => {
     if (!newName.trim()) return;

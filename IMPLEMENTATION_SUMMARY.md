@@ -1,4 +1,4 @@
-# CRPLY - Phase 1 Implementation Summary
+# PLYTRACK - Phase 1 Implementation Summary
 
 ## 🎉 What's Been Built
 
@@ -226,13 +226,13 @@ POST /api/product-types
 After running `npm run db:seed`:
 
 ```
-Email: admin@crply.com
+Email: admin@plytrack.com
 Password: demo123
 ```
 
 Demo data includes:
 
-- 1 company (CRPLY Demo Company)
+- 1 company (PLYTRACK Demo Company)
 - 1 admin user
 - 3 product types (12mm, 18mm, 6mm plywood)
 - 3 raw materials (veneer, adhesive, lumber)
@@ -264,7 +264,7 @@ npm run db:seed
 ```bash
 npm run dev
 # Open http://localhost:3000
-# Login with admin@crply.com / demo123
+# Login with admin@plytrack.com / demo123
 ```
 
 ### 3. Explore Features

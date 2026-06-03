@@ -3,6 +3,7 @@
 import { useSession } from "next-auth/react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useState, Suspense, useMemo } from "react";
+import { useQuery } from "@tanstack/react-query";
 import Sidebar from "@/components/Sidebar";
 import { ShoppingCart, Clock, CheckCircle, Package, Ban, ChevronDown, ChevronUp, ListChecks, Truck, Star } from "lucide-react";
 
@@ -18,8 +19,6 @@ function SupervisorOrders() {
   const { data: session, status } = useSession();
   const router = useRouter();
   const searchParams = useSearchParams();
-  const [orders, setOrders] = useState<any[]>([]);
-  const [loading, setLoading] = useState(true);
   const [expandedOrder, setExpandedOrder] = useState<string | null>(null);
   const [expandedTimelineId, setExpandedTimelineId] = useState<string | null>(null);
   const [viewMode, setViewMode] = useState<"ACTIVE" | "HISTORY">("ACTIVE");
@@ -27,28 +26,29 @@ function SupervisorOrders() {
   const orderIdFromUrl = searchParams?.get('id');
 
   useEffect(() => {
-    if (orderIdFromUrl && orders.length > 0 && !expandedOrder) {
-      setExpandedOrder(orderIdFromUrl);
-    }
-  }, [orderIdFromUrl, orders, expandedOrder]);
-
-  useEffect(() => {
     if (status === "unauthenticated") router.push("/login");
     if (status === "authenticated" && (session?.user as any)?.role !== "SUPERVISOR") router.push("/");
   }, [status, session, router]);
 
+  const { data: apiData, isLoading: loading } = useQuery({
+    queryKey: ["supervisor-orders"],
+    queryFn: async () => {
+      const res = await fetch("/api/orders");
+      if (!res.ok) throw new Error("Failed to fetch orders");
+      return res.json();
+    },
+    enabled: status === "authenticated",
+  });
+
+  const orders = useMemo(() => {
+    return apiData && Array.isArray(apiData.orders) ? apiData.orders : (Array.isArray(apiData) ? apiData : []);
+  }, [apiData]);
+
   useEffect(() => {
-    if (status === "authenticated") {
-      fetch("/api/orders")
-        .then((r) => r.json())
-        .then((data) => {
-          const list = data && Array.isArray(data.orders) ? data.orders : (Array.isArray(data) ? data : []);
-          setOrders(list);
-          setLoading(false);
-        })
-        .catch(() => setLoading(false));
+    if (orderIdFromUrl && orders.length > 0 && !expandedOrder) {
+      setExpandedOrder(orderIdFromUrl);
     }
-  }, [status]);
+  }, [orderIdFromUrl, orders, expandedOrder]);
 
   if (status === "loading" || !session?.user) {
     return <div className="flex items-center justify-center h-screen bg-slate-950"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-amber-400" /></div>;

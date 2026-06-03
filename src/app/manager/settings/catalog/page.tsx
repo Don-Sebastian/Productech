@@ -3,7 +3,8 @@
 
 import { useSession } from "next-auth/react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useMemo } from "react";
+import { useQuery } from "@tanstack/react-query";
 import Sidebar from "@/components/Sidebar";
 import { Plus, X, Layers, Package, Trash2 } from "lucide-react";
 
@@ -11,9 +12,6 @@ export default function ManagerCatalog() {
   const { data: session, status } = useSession();
   const router = useRouter();
   const searchParams = useSearchParams();
-  const [catalog, setCatalog] = useState<any>({ categories: [], thicknesses: [], sizes: [] });
-  const [products, setProducts] = useState<any[]>([]);
-  const [loading, setLoading] = useState(true);
   const [showAdd, setShowAdd] = useState(false);
   const [addStep, setAddStep] = useState(0);
   const [selCat, setSelCat] = useState<any>(null);
@@ -47,26 +45,28 @@ export default function ManagerCatalog() {
     if (status === "authenticated" && (session?.user as any)?.role !== "MANAGER") router.push("/");
   }, [status, session, router]);
 
-  const fetchData = () => {
-    Promise.all([
-      fetch("/api/catalog", { cache: "no-store" }).then((r) => r.ok ? r.json() : Promise.reject("Catalog failed")),
-      fetch("/api/company-products", { cache: "no-store" }).then((r) => r.ok ? r.json() : Promise.reject("Products failed")),
-    ]).then(([c, p]) => {
-      console.log("Fetched catalog:", c);
-      setCatalog(c);
-      if (Array.isArray(p)) setProducts(p);
-      if (!selTimingCat && c.categories?.length) setSelTimingCat(c.categories[0]);
-      setLoading(false);
-    }).catch(err => {
-      console.error("Fetch error:", err);
-      setError("Failed to refresh data");
-      setLoading(false);
-    });
-  };
+  const { data: pageData, isLoading: loading, refetch: fetchData } = useQuery({
+    queryKey: ["manager-catalog"],
+    queryFn: async () => {
+      const [c, p] = await Promise.all([
+        fetch("/api/catalog").then((r) => r.ok ? r.json() : Promise.reject("Catalog failed")),
+        fetch("/api/company-products").then((r) => r.ok ? r.json() : Promise.reject("Products failed")),
+      ]);
+      return { c, p };
+    },
+    enabled: status === "authenticated",
+  });
+
+  const { catalog, products } = useMemo(() => {
+    return {
+      catalog: pageData?.c || { categories: [], thicknesses: [], sizes: [] },
+      products: Array.isArray(pageData?.p) ? pageData.p : [],
+    };
+  }, [pageData]);
 
   useEffect(() => {
-    if (status === "authenticated") fetchData();
-  }, [status]);
+    if (!selTimingCat && catalog.categories?.length) setSelTimingCat(catalog.categories[0]);
+  }, [catalog.categories, selTimingCat]);
 
   // Sync timingMap state when catalog loads
   useEffect(() => {

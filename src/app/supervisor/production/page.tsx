@@ -3,6 +3,7 @@
 import { useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
+import { useQuery } from "@tanstack/react-query";
 import Sidebar from "@/components/Sidebar";
 import {
   ClipboardList,
@@ -15,7 +16,6 @@ import {
 export default function SupervisorProduction() {
   const { data: session, status } = useSession();
   const router = useRouter();
-  const [productTypes, setProductTypes] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
   const [success, setSuccess] = useState("");
   const [error, setError] = useState("");
@@ -37,21 +37,24 @@ export default function SupervisorProduction() {
 
   useEffect(() => {
     if (status === "authenticated") {
-      // Set default section from user profile
       const userSection = (session?.user as any)?.section;
-      if (userSection) {
+      if (userSection && !formData.section) {
         setFormData((prev) => ({ ...prev, section: userSection }));
       }
-
-      // Fetch product types
-      fetch("/api/product-types")
-        .then((res) => res.json())
-        .then((data) => {
-          if (Array.isArray(data)) setProductTypes(data);
-        })
-        .catch(console.error);
     }
-  }, [status, session]);
+  }, [status, session, formData.section]);
+
+  const { data: ptData } = useQuery({
+    queryKey: ["product-types"],
+    queryFn: async () => {
+      const res = await fetch("/api/product-types");
+      if (!res.ok) throw new Error("Failed to fetch");
+      return res.json();
+    },
+    enabled: status === "authenticated",
+  });
+
+  const productTypes = Array.isArray(ptData) ? ptData : [];
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();

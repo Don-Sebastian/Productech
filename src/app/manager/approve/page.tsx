@@ -2,15 +2,14 @@
 
 import { useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useMemo } from "react";
+import { useQuery } from "@tanstack/react-query";
 import Sidebar from "@/components/Sidebar";
 import { ClipboardCheck, Check, X, Clock, CheckCircle, ChevronDown, ChevronUp, Package } from "lucide-react";
 
 export default function ManagerApproval() {
   const { data: session, status } = useSession();
   const router = useRouter();
-  const [logs, setLogs] = useState<any[]>([]);
-  const [loading, setLoading] = useState(true);
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [rejectNotes, setRejectNotes] = useState("");
   const [showReject, setShowReject] = useState<string | null>(null);
@@ -22,13 +21,17 @@ export default function ManagerApproval() {
     if (status === "authenticated" && !["MANAGER", "OWNER"].includes(role)) router.push("/");
   }, [status, session, router]);
 
-  const fetchLogs = () => {
-    fetch("/api/daily-production")
-      .then((r) => r.json())
-      .then((data) => { if (Array.isArray(data)) setLogs(data); setLoading(false); });
-  };
+  const { data: apiData, isLoading: loading, refetch: fetchLogs } = useQuery({
+    queryKey: ["manager-daily-production"],
+    queryFn: async () => {
+      const res = await fetch("/api/daily-production");
+      if (!res.ok) throw new Error("Failed to fetch");
+      return res.json();
+    },
+    enabled: status === "authenticated",
+  });
 
-  useEffect(() => { if (status === "authenticated") fetchLogs(); }, [status]);
+  const logs = useMemo(() => Array.isArray(apiData) ? apiData : [], [apiData]);
 
   const approve = async (logId: string) => {
     const res = await fetch("/api/daily-production", {

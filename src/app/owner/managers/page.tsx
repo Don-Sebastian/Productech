@@ -2,7 +2,8 @@
 
 import { useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
-import { useEffect } from "react";
+import { useEffect, useMemo } from "react";
+import { useQuery } from "@tanstack/react-query";
 import Sidebar from "@/components/Sidebar";
 import UserManagement from "@/components/UserManagement";
 
@@ -14,6 +15,18 @@ export default function OwnerManagers() {
     if (status === "unauthenticated") router.push("/login");
     if (status === "authenticated" && (session?.user as any)?.role !== "OWNER") router.push("/");
   }, [status, session, router]);
+
+  const { data: usersData, isLoading: loadingUsers, refetch: fetchUsers } = useQuery({
+    queryKey: ["users", "MANAGER"],
+    queryFn: async () => {
+      const res = await fetch("/api/users?role=MANAGER");
+      if (!res.ok) throw new Error("Failed to fetch users");
+      return res.json();
+    },
+    enabled: status === "authenticated",
+  });
+
+  const users = useMemo(() => Array.isArray(usersData) ? usersData : [], [usersData]);
 
   if (status === "loading" || !session?.user) {
     return (
@@ -32,6 +45,9 @@ export default function OwnerManagers() {
           title="Managers"
           description="Create and manage managers for your company. Managers can create supervisors and operators."
           accentColor="blue"
+          users={users}
+          loading={loadingUsers}
+          onRefresh={fetchUsers}
         />
       </main>
     </div>

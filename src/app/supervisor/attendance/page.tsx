@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { useSession } from "next-auth/react";
 import Sidebar from "@/components/Sidebar";
 import { 
@@ -20,7 +21,7 @@ import {
   Loader2,
   Search,
   User as UserIcon,
-  RotateCcw
+  RefreshCcw
 } from "lucide-react";
 import { format } from "date-fns";
 
@@ -60,11 +61,8 @@ interface AttendanceEntry {
 
 export default function SupervisorAttendance() {
   const { data: session } = useSession();
-  const [shifts, setShifts] = useState<Shift[]>([]);
-  const [employees, setEmployees] = useState<Employee[]>([]);
   const [selectedShift, setSelectedShift] = useState("");
   const [selectedDate, setSelectedDate] = useState(format(new Date(), "yyyy-MM-dd"));
-  const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [saving, setSaving] = useState(false);
   const [attendance, setAttendance] = useState<Record<string, AttendanceEntry>>({});
@@ -73,78 +71,65 @@ export default function SupervisorAttendance() {
   const [filterSubDept, setFilterSubDept] = useState("all");
   const [showSuccess, setShowSuccess] = useState("");
 
-  useEffect(() => {
-    fetchMetadata();
-  }, []);
-
-  useEffect(() => {
-    if (selectedShift && selectedDate) {
-      fetchExistingAttendance();
+  const { data: metaData, isLoading: metaLoading } = useQuery({
+    queryKey: ["supervisor-attendance-meta"],
+    queryFn: async () => {
+      const [sRes, eRes] = await Promise.all([
+        fetch("/api/shifts"),
+        fetch("/api/employees")
+      ]);
+      const shiftsData: Shift[] = sRes.ok ? await sRes.json() : [];
+      const employeesData: Employee[] = eRes.ok ? await eRes.json() : [];
+      return { shiftsData, employeesData };
     }
-  }, [selectedShift, selectedDate]);
+  });
 
-  const fetchMetadata = async () => {
-    setLoading(true);
-    try {
-      const sRes = await fetch("/api/shifts");
-      const shiftsData: Shift[] = await sRes.json();
-      
-      const eRes = await fetch("/api/employees");
-      const employeesData: Employee[] = await eRes.json();
-      
-      setShifts(shiftsData);
-      setEmployees(employeesData);
-      
-      if (shiftsData.length > 0) setSelectedShift(shiftsData[0].id);
-      
-      const initial: Record<string, AttendanceEntry> = {};
-      employeesData.forEach((emp: Employee) => {
-        initial[emp.id] = { employeeId: emp.id, status: "PRESENT", overtimeHours: 0, notes: "" };
+  const shifts = metaData?.shiftsData || [];
+  const employees = metaData?.employeesData || [];
+
+  useEffect(() => {
+    if (shifts.length > 0 && !selectedShift) {
+      setSelectedShift(shifts[0].id);
+    }
+  }, [shifts, selectedShift]);
+
+  const { data: registersData, isLoading: attendanceLoading, refetch: refetchAttendance } = useQuery({
+    queryKey: ["supervisor-attendance", selectedDate, selectedShift],
+    queryFn: async () => {
+      if (!selectedShift || !selectedDate) return [];
+      const res = await fetch(`/api/attendance?date=${selectedDate}&shiftId=${selectedShift}`);
+      if (!res.ok) throw new Error("Failed to fetch attendance");
+      return res.json();
+    },
+    enabled: !!selectedShift && !!selectedDate,
+  });
+
+  useEffect(() => {
+    if (metaLoading) return;
+    const initial: Record<string, AttendanceEntry> = {};
+    employees.forEach((emp: Employee) => {
+      initial[emp.id] = { employeeId: emp.id, status: "PRESENT", overtimeHours: 0, notes: "" };
+    });
+
+    if (registersData && registersData.length > 0) {
+      const reg = registersData[0];
+      setActiveRegister(reg);
+      reg.entries.forEach((entry: any) => {
+        initial[entry.employeeId] = {
+          employeeId: entry.employeeId,
+          status: entry.status,
+          overtimeHours: entry.overtimeHours,
+          notes: entry.notes || ""
+        };
       });
       setAttendance(initial);
-    } catch (err) {
-      console.error(err);
-    } finally {
-      setLoading(false);
+    } else {
+      setActiveRegister(null);
+      setAttendance(initial);
     }
-  };
+  }, [registersData, employees, metaLoading]);
 
-  const fetchExistingAttendance = async () => {
-    try {
-      const res = await fetch(`/api/attendance?date=${selectedDate}&shiftId=${selectedShift}`);
-      if (res.ok) {
-        const registers = await res.json();
-        if (registers.length > 0) {
-          const reg = registers[0];
-          setActiveRegister(reg);
-          const existing: Record<string, AttendanceEntry> = {};
-          
-          employees.forEach(emp => {
-            existing[emp.id] = { employeeId: emp.id, status: "PRESENT", overtimeHours: 0, notes: "" };
-          });
-          
-          reg.entries.forEach((entry: any) => {
-            existing[entry.employeeId] = {
-              employeeId: entry.employeeId,
-              status: entry.status,
-              overtimeHours: entry.overtimeHours,
-              notes: entry.notes || ""
-            };
-          });
-          setAttendance(prev => ({ ...prev, ...existing }));
-        } else {
-          setActiveRegister(null);
-          const initial: Record<string, AttendanceEntry> = {};
-          employees.forEach((emp: Employee) => {
-            initial[emp.id] = { employeeId: emp.id, status: "PRESENT", overtimeHours: 0, notes: "" };
-          });
-          setAttendance(prev => ({ ...prev, ...initial }));
-        }
-      }
-    } catch (err) {
-      console.error(err);
-    }
-  };
+  const loading = metaLoading || attendanceLoading;
 
   const cycleStatus = (employeeId: string) => {
     if (activeRegister && activeRegister.status !== 'PENDING') return;
@@ -218,7 +203,7 @@ export default function SupervisorAttendance() {
           setShowSuccess("Draft saved successfully!");
           setTimeout(() => setShowSuccess(""), 3000);
         }
-        fetchExistingAttendance();
+        refetchAttendance();
       }
     } catch (err) {
       console.error(err);

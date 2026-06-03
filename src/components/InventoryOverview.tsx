@@ -11,29 +11,19 @@ interface InventoryItem {
   minimumThreshold: number;
 }
 
-export default function InventoryOverview() {
-  const [inventory, setInventory] = useState<InventoryItem[]>([]);
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    const fetchInventory = async () => {
-      try {
-        const response = await fetch("/api/inventory");
-        const data = await response.json();
-        setInventory(data.slice(0, 5));
-      } catch (error) {
-        console.error("Error fetching inventory:", error);
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchInventory();
-  }, []);
-
+export default function InventoryOverview({ 
+  inventory = [], 
+  loading = false 
+}: { 
+  inventory?: InventoryItem[], 
+  loading?: boolean 
+}) {
   if (loading) return <div>Loading inventory...</div>;
+  const recentInventory = inventory.slice(0, 5);
 
-  const lowStockItems = inventory.filter(
+
+
+  const lowStockItems = recentInventory.filter(
     (item) => item.quantity <= item.minimumThreshold,
   );
 
@@ -41,11 +31,11 @@ export default function InventoryOverview() {
     <div className="bg-white rounded-lg shadow p-6">
       <h2 className="text-xl font-bold mb-6">Inventory Status</h2>
 
-      {inventory.length === 0 ? (
+      {recentInventory.length === 0 ? (
         <p className="text-gray-600 text-center py-8">No inventory items yet</p>
       ) : (
         <div className="space-y-4">
-          {inventory.map((item) => {
+          {recentInventory.map((item) => {
             const isLow = item.quantity <= item.minimumThreshold;
             return (
               <div

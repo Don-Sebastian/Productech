@@ -107,17 +107,15 @@ export async function GET(req: Request) {
         queryArgs.take = pageSize;
       }
 
-      const [historySessions, totalCount] = await Promise.all([
+      const [historySessions, totalCount, operators] = await Promise.all([
         prisma.hotPressSession.findMany(queryArgs),
         prisma.hotPressSession.count({ where }),
+        prisma.user.findMany({
+          where: { companyId, role: "OPERATOR" },
+          select: { id: true, name: true },
+          orderBy: { name: "asc" },
+        }),
       ]);
-
-      // Also get operators list for the filter dropdown
-      const operators = await prisma.user.findMany({
-        where: { companyId, role: "OPERATOR" },
-        select: { id: true, name: true },
-        orderBy: { name: "asc" },
-      });
 
       return NextResponse.json({
         sessions: historySessions,
@@ -129,56 +127,52 @@ export async function GET(req: Request) {
       });
     }
 
-    // Operator view: active + today's stopped
-    const activeSession = await prisma.hotPressSession.findFirst({
-      where: {
-        operatorId: userId,
-        companyId,
-        status: { in: ["RUNNING", "PAUSED", "MAINTENANCE"] },
-      },
-      include: sessionIncludes,
-    });
-
-    const todaySessions = await prisma.hotPressSession.findMany({
-      where: {
-        operatorId: userId,
-        companyId,
-        shiftDate,
-        status: "STOPPED",
-      },
-      include: sessionIncludes,
-      orderBy: { startTime: "desc" },
-    });
-
-    const products = await prisma.companyProduct.findMany({
-      where: { companyId, isActive: true },
-      include: {
-        category: { select: { id: true, name: true, sortOrder: true } },
-        thickness: { select: { id: true, value: true } },
-        size: { select: { id: true, label: true, length: true, width: true } },
-      },
-    });
-
-    // Also get active production lists
-    const productionLists = await prisma.productionList.findMany({
-      where: { companyId, status: { not: "COMPLETED" } },
-      include: {
-        order: { select: { orderNumber: true, customer: { select: { name: true } } } },
-        items: {
-          include: {
-            category: { select: { id: true, name: true, sortOrder: true } },
-            thickness: { select: { id: true, value: true } },
-            size: { select: { id: true, label: true, length: true, width: true } },
+    // Operator view: all 5 queries in parallel (was sequential)
+    const [activeSession, todaySessions, products, productionLists, productTimings] = await Promise.all([
+      prisma.hotPressSession.findFirst({
+        where: {
+          operatorId: userId,
+          companyId,
+          status: { in: ["RUNNING", "PAUSED", "MAINTENANCE"] },
+        },
+        include: sessionIncludes,
+      }),
+      prisma.hotPressSession.findMany({
+        where: {
+          operatorId: userId,
+          companyId,
+          shiftDate,
+          status: "STOPPED",
+        },
+        include: sessionIncludes,
+        orderBy: { startTime: "desc" },
+      }),
+      prisma.companyProduct.findMany({
+        where: { companyId, isActive: true },
+        include: {
+          category: { select: { id: true, name: true, sortOrder: true } },
+          thickness: { select: { id: true, value: true } },
+          size: { select: { id: true, label: true, length: true, width: true } },
+        },
+      }),
+      prisma.productionList.findMany({
+        where: { companyId, status: { not: "COMPLETED" } },
+        include: {
+          order: { select: { orderNumber: true, customer: { select: { name: true } } } },
+          items: {
+            include: {
+              category: { select: { id: true, name: true, sortOrder: true } },
+              thickness: { select: { id: true, value: true } },
+              size: { select: { id: true, label: true, length: true, width: true } },
+            }
           }
-        }
-      },
-      orderBy: { priority: "asc" }
-    });
-
-    // Get product timings for cook/cool timer
-    const productTimings = await prisma.productTiming.findMany({
-      where: { companyId },
-    });
+        },
+        orderBy: { priority: "asc" }
+      }),
+      prisma.productTiming.findMany({
+        where: { companyId },
+      }),
+    ]);
 
     return NextResponse.json({
       activeSession,
@@ -461,28 +455,26 @@ export async function POST(req: Request) {
           return NextResponse.json({ error: "Not authorized" }, { status: 403 });
         }
         const { sessionId: mgrSid } = body;
+        // Fetch session with only the fields needed for stock updates (select, not include)
         const sess = await prisma.hotPressSession.findUnique({
           where: { id: mgrSid },
           include: {
             entries: {
-              where: { unloadTime: { not: null } }, // only completed entries
-              include: {
-                category: true,
-                thickness: true,
-                size: true,
-              },
+              where: { unloadTime: { not: null } },
+              select: { type: true, quantity: true, categoryId: true, thicknessId: true, sizeId: true },
             },
-            glueEntries: true,
+            glueEntries: { select: { barrels: true } },
           },
         });
         if (!sess || sess.approvalStatus !== "SUPERVISOR_APPROVED") {
           return NextResponse.json({ error: "Session not pending manager approval" }, { status: 400 });
         }
 
-        // Update stock: for each completed entry, add quantity to CompanyProduct
-        for (const entry of sess.entries) {
-          if (entry.type === "COOK") {
-            await prisma.companyProduct.updateMany({
+        // Batch stock updates into a single $transaction (was N+1 loop)
+        const stockOps = sess.entries
+          .filter((e: any) => e.type === "COOK")
+          .map((entry: any) =>
+            prisma.companyProduct.updateMany({
               where: {
                 companyId,
                 categoryId: entry.categoryId,
@@ -490,72 +482,83 @@ export async function POST(req: Request) {
                 sizeId: entry.sizeId,
               },
               data: { currentStock: { increment: entry.quantity } },
-            });
-          }
-        }
+            })
+          );
 
         // Deduct glue from GlueStock (1 barrel = 125 kg)
         const totalBarrels = sess.glueEntries.reduce((sum: number, g: any) => sum + g.barrels, 0);
+        const glueOps: any[] = [];
+
         if (totalBarrels > 0) {
           const glueKg = totalBarrels * 125;
-          const glueStock = await (prisma as any).glueStock.findUnique({ where: { companyId } });
+          // Fetch glue stock + company threshold in parallel (was sequential)
+          const [glueStock, company] = await Promise.all([
+            (prisma as any).glueStock.findUnique({ where: { companyId } }),
+            prisma.company.findUnique({ where: { id: companyId }, select: { glueAlertThresholdKg: true } as any }),
+          ]);
+
           if (glueStock) {
             const newBalance = glueStock.currentKg - glueKg;
-            await (prisma as any).glueStock.update({
-              where: { companyId },
-              data: { currentKg: newBalance },
-            });
-            await (prisma as any).glueStockLog.create({
-              data: {
-                type: "DEDUCTION",
-                quantityKg: -glueKg,
-                balanceKg: newBalance,
-                notes: `Auto-deducted ${totalBarrels} barrels (${glueKg} kg) from approved session`,
-                glueStock: { connect: { id: glueStock.id } },
-                userId,
-              },
-            });
+            glueOps.push(
+              (prisma as any).glueStock.update({
+                where: { companyId },
+                data: { currentKg: newBalance },
+              }),
+              (prisma as any).glueStockLog.create({
+                data: {
+                  type: "DEDUCTION",
+                  quantityKg: -glueKg,
+                  balanceKg: newBalance,
+                  notes: `Auto-deducted ${totalBarrels} barrels (${glueKg} kg) from approved session`,
+                  glueStock: { connect: { id: glueStock.id } },
+                  userId,
+                },
+              }),
+            );
 
-            // Check if below threshold and notify
-            const company = await prisma.company.findUnique({
-              where: { id: companyId },
-              select: { glueAlertThresholdKg: true } as any,
-            });
             const threshold = (company as any)?.glueAlertThresholdKg || 1000;
             if (newBalance < threshold && newBalance >= 0) {
-              // Send notification to MANAGER and OWNER
-              await prisma.notification.createMany({
-                data: [
-                  {
-                    companyId,
-                    type: "GLUE_LOW_STOCK",
-                    title: "⚠️ Low Glue Stock Alert",
-                    message: `Glue stock is low: ${newBalance.toFixed(1)} kg remaining (${(newBalance / 125).toFixed(1)} barrels). Threshold: ${threshold} kg. Please refill soon.`,
-                    targetRole: "MANAGER",
-                    priority: 1,
-                  },
-                  {
-                    companyId,
-                    type: "GLUE_LOW_STOCK",
-                    title: "⚠️ Low Glue Stock Alert",
-                    message: `Glue stock is low: ${newBalance.toFixed(1)} kg remaining (${(newBalance / 125).toFixed(1)} barrels). Threshold: ${threshold} kg. Please refill soon.`,
-                    targetRole: "OWNER",
-                    priority: 1,
-                  },
-                ],
-              });
+              glueOps.push(
+                prisma.notification.createMany({
+                  data: [
+                    {
+                      companyId,
+                      type: "GLUE_LOW_STOCK",
+                      title: "⚠️ Low Glue Stock Alert",
+                      message: `Glue stock is low: ${newBalance.toFixed(1)} kg remaining (${(newBalance / 125).toFixed(1)} barrels). Threshold: ${threshold} kg. Please refill soon.`,
+                      targetRole: "MANAGER",
+                      priority: 1,
+                    },
+                    {
+                      companyId,
+                      type: "GLUE_LOW_STOCK",
+                      title: "⚠️ Low Glue Stock Alert",
+                      message: `Glue stock is low: ${newBalance.toFixed(1)} kg remaining (${(newBalance / 125).toFixed(1)} barrels). Threshold: ${threshold} kg. Please refill soon.`,
+                      targetRole: "OWNER",
+                      priority: 1,
+                    },
+                  ],
+                }),
+              );
             }
           }
         }
 
-        const updated = await prisma.hotPressSession.update({
-          where: { id: mgrSid },
-          data: {
-            approvalStatus: "MANAGER_APPROVED",
-            managerApprovedAt: new Date(),
-            managerId: userId,
-          },
-        });
+        // Execute all writes in a single atomic transaction
+        const allOps = [
+          ...stockOps,
+          ...glueOps,
+          prisma.hotPressSession.update({
+            where: { id: mgrSid },
+            data: {
+              approvalStatus: "MANAGER_APPROVED",
+              managerApprovedAt: new Date(),
+              managerId: userId,
+            },
+          }),
+        ];
+        const txResults = await prisma.$transaction(allOps);
+        const updated = txResults[txResults.length - 1];
         return NextResponse.json(updated);
       }
 
@@ -627,82 +630,93 @@ export async function POST(req: Request) {
           }
         });
 
-        // Add items and update stock
-        for (const item of items) {
-          if (!item.categoryId || !item.thicknessId || !item.sizeId || !item.quantity) continue;
+        // Batch add items and update stock in single $transaction (was N+1 loop)
+        const validItems = items.filter((item: any) => item.categoryId && item.thicknessId && item.sizeId && parseInt(item.quantity) > 0);
+        const itemOps = validItems.flatMap((item: any) => {
           const qty = parseInt(item.quantity);
-          if (qty <= 0) continue;
-          
-          await prisma.pressEntry.create({
-            data: {
-              type: "COOK",
-              loadTime: targetDate,
-              unloadTime: targetDate,
-              quantity: qty,
-              categoryId: item.categoryId,
-              thicknessId: item.thicknessId,
-              sizeId: item.sizeId,
-              sessionId: sessionAction.id,
-            }
-          });
-
-          // Update stock
-          await prisma.companyProduct.updateMany({
-            where: {
-              companyId,
-              categoryId: item.categoryId,
-              thicknessId: item.thicknessId,
-              sizeId: item.sizeId,
-            },
-            data: { currentStock: { increment: qty } },
-          });
-        }
+          return [
+            prisma.pressEntry.create({
+              data: {
+                type: "COOK",
+                loadTime: targetDate,
+                unloadTime: targetDate,
+                quantity: qty,
+                categoryId: item.categoryId,
+                thicknessId: item.thicknessId,
+                sizeId: item.sizeId,
+                sessionId: sessionAction.id,
+              }
+            }),
+            prisma.companyProduct.updateMany({
+              where: {
+                companyId,
+                categoryId: item.categoryId,
+                thicknessId: item.thicknessId,
+                sizeId: item.sizeId,
+              },
+              data: { currentStock: { increment: qty } },
+            }),
+          ];
+        });
 
         // Add glue and deduct stock
         const totalBarrels = parseFloat(glueBarrels) || 0;
+        const glueOps: any[] = [];
+
         if (totalBarrels > 0) {
-          await prisma.glueEntry.create({
-            data: {
-              sessionId: sessionAction.id,
-              time: targetDate,
-              barrels: totalBarrels,
-            }
-          });
+          glueOps.push(
+            prisma.glueEntry.create({
+              data: {
+                sessionId: sessionAction.id,
+                time: targetDate,
+                barrels: totalBarrels,
+              }
+            })
+          );
 
           const glueKg = totalBarrels * 125;
-          const glueStock = await (prisma as any).glueStock.findUnique({ where: { companyId } });
+          // Fetch glue stock + company threshold in parallel
+          const [glueStock, company] = await Promise.all([
+            (prisma as any).glueStock.findUnique({ where: { companyId } }),
+            prisma.company.findUnique({ where: { id: companyId }, select: { glueAlertThresholdKg: true } as any }),
+          ]);
+
           if (glueStock) {
             const newBalance = glueStock.currentKg - glueKg;
-            await (prisma as any).glueStock.update({
-              where: { companyId },
-              data: { currentKg: newBalance },
-            });
-            await (prisma as any).glueStockLog.create({
-              data: {
-                type: "DEDUCTION",
-                quantityKg: -glueKg,
-                balanceKg: newBalance,
-                notes: `Auto-deducted ${totalBarrels} barrels (${glueKg} kg) from manual summary`,
-                glueStock: { connect: { id: glueStock.id } },
-                userId,
-              },
-            });
+            glueOps.push(
+              (prisma as any).glueStock.update({
+                where: { companyId },
+                data: { currentKg: newBalance },
+              }),
+              (prisma as any).glueStockLog.create({
+                data: {
+                  type: "DEDUCTION",
+                  quantityKg: -glueKg,
+                  balanceKg: newBalance,
+                  notes: `Auto-deducted ${totalBarrels} barrels (${glueKg} kg) from manual summary`,
+                  glueStock: { connect: { id: glueStock.id } },
+                  userId,
+                },
+              }),
+            );
 
-            // Alerts
-            const company = await prisma.company.findUnique({
-              where: { id: companyId },
-              select: { glueAlertThresholdKg: true } as any,
-            });
             const threshold = (company as any)?.glueAlertThresholdKg || 1000;
             if (newBalance < threshold && newBalance >= 0) {
-              await prisma.notification.createMany({
-                data: [
-                  { companyId, type: "GLUE_LOW_STOCK", title: "⚠️ Low Glue Stock Alert", message: `Glue stock is low: ${newBalance.toFixed(1)} kg remaining. Please refill soon.`, targetRole: "MANAGER", priority: 1 },
-                  { companyId, type: "GLUE_LOW_STOCK", title: "⚠️ Low Glue Stock Alert", message: `Glue stock is low: ${newBalance.toFixed(1)} kg remaining. Please refill soon.`, targetRole: "OWNER", priority: 1 },
-                ]
-              });
+              glueOps.push(
+                prisma.notification.createMany({
+                  data: [
+                    { companyId, type: "GLUE_LOW_STOCK", title: "⚠️ Low Glue Stock Alert", message: `Glue stock is low: ${newBalance.toFixed(1)} kg remaining. Please refill soon.`, targetRole: "MANAGER", priority: 1 },
+                    { companyId, type: "GLUE_LOW_STOCK", title: "⚠️ Low Glue Stock Alert", message: `Glue stock is low: ${newBalance.toFixed(1)} kg remaining. Please refill soon.`, targetRole: "OWNER", priority: 1 },
+                  ]
+                }),
+              );
             }
           }
+        }
+
+        // Execute all item + glue writes in single transaction
+        if (itemOps.length > 0 || glueOps.length > 0) {
+          await prisma.$transaction([...itemOps, ...glueOps]);
         }
 
         return NextResponse.json(sessionAction);

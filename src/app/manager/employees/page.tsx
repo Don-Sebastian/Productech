@@ -1,6 +1,7 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { 
   Users, 
   Plus, 
@@ -45,14 +46,9 @@ interface Employee {
 }
 
 export default function ManagerEmployeeManagement() {
-  const [employees, setEmployees] = useState<Employee[]>([]);
-  const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
   const [filterMachine, setFilterMachine] = useState("all");
   const [filterSubDept, setFilterSubDept] = useState("all");
-  
-  const [machines, setMachines] = useState<{ id: string; name: string }[]>([]);
-  const [subDepts, setSubDepts] = useState<{ id: string; name: string }[]>([]);
   
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingEmployee, setEditingEmployee] = useState<Employee | null>(null);
@@ -69,35 +65,29 @@ export default function ManagerEmployeeManagement() {
     photoData: "" as string | null
   });
 
-  useEffect(() => {
-    fetchEmployees();
-    fetchMetadata();
-  }, []);
-
-  const fetchEmployees = async () => {
-    setLoading(true);
-    try {
-      const res = await fetch("/api/employees?includeInactive=true");
-      if (res.ok) setEmployees(await res.json());
-    } catch (err) {
-      console.error("Error fetching employees:", err);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const fetchMetadata = async () => {
-    try {
-      const [machRes, subRes] = await Promise.all([
+  const { data: pageData, isLoading: loading, refetch: fetchEmployees } = useQuery({
+    queryKey: ["manager-employees"],
+    queryFn: async () => {
+      const [empRes, machRes, subRes] = await Promise.all([
+        fetch("/api/employees?includeInactive=true"),
         fetch("/api/machines"),
-        fetch("/api/sub-departments")
+        fetch("/api/sub-departments"),
       ]);
-      if (machRes.ok) setMachines(await machRes.json());
-      if (subRes.ok) setSubDepts(await subRes.json());
-    } catch (err) {
-      console.error("Error fetching metadata:", err);
-    }
-  };
+      return {
+        employees: empRes.ok ? await empRes.json() : [],
+        machines: machRes.ok ? await machRes.json() : [],
+        subDepts: subRes.ok ? await subRes.json() : [],
+      };
+    },
+  });
+
+  const { employees, machines, subDepts } = useMemo(() => {
+    return {
+      employees: pageData?.employees || [],
+      machines: pageData?.machines || [],
+      subDepts: pageData?.subDepts || [],
+    };
+  }, [pageData]);
 
   const handleCreateOrUpdate = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -135,7 +125,7 @@ export default function ManagerEmployeeManagement() {
     }
   };
 
-  const filteredEmployees = employees.filter(emp => {
+  const filteredEmployees = employees.filter((emp: any) => {
     const matchesSearch = emp.name.toLowerCase().includes(searchQuery.toLowerCase()) || 
                           emp.phone?.includes(searchQuery);
     const matchesMachine = filterMachine === "all" || emp.machineId === filterMachine;
@@ -188,7 +178,7 @@ export default function ManagerEmployeeManagement() {
             className="px-4 py-2 bg-gray-50 border-none rounded-xl text-sm focus:ring-2 focus:ring-blue-500 min-w-[150px]"
           >
             <option value="all">Every Machine</option>
-            {machines.map(m => <option key={m.id} value={m.id}>{m.name}</option>)}
+            {machines.map((m: any) => <option key={m.id} value={m.id}>{m.name}</option>)}
           </select>
           <select 
             value={filterSubDept}
@@ -196,7 +186,7 @@ export default function ManagerEmployeeManagement() {
             className="px-4 py-2 bg-gray-50 border-none rounded-xl text-sm focus:ring-2 focus:ring-blue-500 min-w-[180px]"
           >
             <option value="all">Every Sub-Dept</option>
-            {subDepts.map(sd => <option key={sd.id} value={sd.id}>{sd.name}</option>)}
+            {subDepts.map((sd: any) => <option key={sd.id} value={sd.id}>{sd.name}</option>)}
           </select>
         </div>
       </div>
@@ -207,7 +197,7 @@ export default function ManagerEmployeeManagement() {
         </div>
       ) : (
         <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {filteredEmployees.map(emp => (
+          {filteredEmployees.map((emp: any) => (
             <div key={emp.id} className="bg-white rounded-3xl shadow-sm border border-gray-100 overflow-hidden hover:shadow-xl hover:border-blue-100 transition-all group">
               <div className="relative h-24 bg-gradient-to-br from-blue-500 to-indigo-600">
                 <div className="absolute -bottom-10 left-6">
@@ -360,7 +350,7 @@ export default function ManagerEmployeeManagement() {
                       className="w-full px-4 py-3 rounded-2xl bg-gray-50 border-none focus:ring-2 focus:ring-blue-500 font-medium"
                     >
                       <option value="">No Specific Machine</option>
-                      {machines.map(m => <option key={m.id} value={m.id}>{m.name}</option>)}
+                      {machines.map((m: any) => <option key={m.id} value={m.id}>{m.name}</option>)}
                     </select>
                   </div>
 
@@ -372,7 +362,7 @@ export default function ManagerEmployeeManagement() {
                       className="w-full px-4 py-3 rounded-2xl bg-gray-50 border-none focus:ring-2 focus:ring-blue-500 font-medium"
                     >
                       <option value="">No Sub-Department</option>
-                      {subDepts.filter(sd => !formData.machineId || (sd as any).machineId === formData.machineId).map(sd => (
+                      {subDepts.filter((sd: any) => !formData.machineId || sd.machineId === formData.machineId).map((sd: any) => (
                         <option key={sd.id} value={sd.id}>{sd.name}</option>
                       ))}
                     </select>

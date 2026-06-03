@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback, useRef } from "react";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import Sidebar from "@/components/Sidebar";
@@ -8,7 +9,7 @@ import MachineRequiredScreen from "@/components/MachineRequiredScreen";
 import { useMachineAssignment } from "@/hooks/useMachineAssignment";
 import LongPressButton from "@/components/LongPressButton";
 import {
-  Power, PowerOff, Flame, Timer, ArrowDown, ArrowUp, RotateCcw,
+  Power, PowerOff, Flame, Timer, ArrowDown, ArrowUp, RefreshCcw,
   Droplets, Pause, Play, Wrench, ChevronDown, ChevronUp,
   CheckCircle2, Send, Clock, Package, Edit3, X, Check, AlertTriangle
 } from "lucide-react";
@@ -100,7 +101,7 @@ function buildProductionSummary(entries: PressEntry[]) {
     totalCookTimeMs: number;
   }> = {};
 
-  entries.filter(e => e.type === "COOK" && e.unloadTime).forEach(e => {
+  entries.filter((e: any) => e.type === "COOK" && e.unloadTime).forEach((e: any) => {
     const key = `${e.category.name}|${e.thickness.value}|${e.size.length}x${e.size.width}`;
     if (!summary[key]) {
       summary[key] = {
@@ -137,13 +138,7 @@ export default function OperatorLogPage() {
   const router = useRouter();
   const role = (session?.user as any)?.role;
   const { assigned, loading: assignmentLoading, error: assignmentError, machine } = useMachineAssignment(role, status);
-  const [data, setData] = useState<{
-    activeSession: HotPressSession | null;
-    todaySessions: HotPressSession[];
-    products: Product[];
-    productionLists?: any[];
-  } | null>(null);
-  const [loading, setLoading] = useState(true);
+  const queryClient = useQueryClient();
 
   // Cook/Cool countdown timer
   const [timerType, setTimerType] = useState<"cook" | "cool" | null>(null);
@@ -182,45 +177,44 @@ export default function OperatorLogPage() {
     if (status === "unauthenticated") router.push("/login");
   }, [status, router]);
 
-  const fetchData = useCallback(async () => {
-    try {
+  const { data, isLoading: loading } = useQuery({
+    queryKey: ["hotpressData"],
+    queryFn: async () => {
       const res = await fetch("/api/hotpress");
-      if (res.ok) {
-        const d = await res.json();
-        setData(d);
+      if (!res.ok) throw new Error("Failed to fetch data");
+      return res.json();
+    },
+    enabled: status === "authenticated" && !!assigned,
+  });
+
+  const mutation = useMutation({
+    mutationFn: async ({ action, extra }: { action: string; extra: any }) => {
+      const res = await fetch("/api/hotpress", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action, ...extra }),
+      });
+      if (!res.ok) {
+        const err = await res.json();
+        throw new Error(err.error || "Action failed");
       }
-    } catch (err) {
-      console.error("Fetch error:", err);
-    } finally {
-      setLoading(false);
-    }
-  }, []);
-
-  useEffect(() => { if (status === "authenticated" && assigned) fetchData(); }, [fetchData, status, assigned]);
-
-  const [actionLoading, setActionLoading] = useState(false);
-
-  const doAction = async (action: string, extra: Record<string, any> = {}) => {
-    if (actionLoading) return; // prevent double-clicks
-    setActionLoading(true);
-    try {
-      // ⚡ Optimistic UI Update: Make the change instantly visible before the heavy refetch
-      setData(prev => {
-        if (!prev || !prev.activeSession) return prev;
+      return res.json();
+    },
+    onMutate: async ({ action, extra }) => {
+      await queryClient.cancelQueries({ queryKey: ["hotpressData"] });
+      const prev = queryClient.getQueryData<any>(["hotpressData"]);
+      if (prev && prev.activeSession) {
         const s = { ...prev.activeSession };
-        
         if (action === "pause") s.status = "PAUSED";
         else if (action === "resume") s.status = "RUNNING";
         else if (action === "maintenance") s.status = "MAINTENANCE";
         else if (action === "stop") {
           s.status = "STOPPED";
           s.stopTime = new Date().toISOString();
-        }
-        else if (action === "load") {
-          const catName = prev.products.find(p => p.category.id === s.currentCategoryId)?.category.name || "";
-          const pThick = prev.products.find(p => p.thickness.id === s.currentThicknessId)?.thickness.value || 0;
-          const pSize = prev.products.find(p => p.size.id === s.currentSizeId)?.size || { length: 0, width: 0, label: "" };
-          
+        } else if (action === "load") {
+          const catName = prev.products.find((p: any) => p.category.id === s.currentCategoryId)?.category.name || "";
+          const pThick = prev.products.find((p: any) => p.thickness.id === s.currentThicknessId)?.thickness.value || 0;
+          const pSize = prev.products.find((p: any) => p.size.id === s.currentSizeId)?.size || { length: 0, width: 0, label: "" };
           s.entries = [...s.entries, {
             id: `temp-${Date.now()}`,
             type: extra.type as "COOK" | "REPRESS",
@@ -233,40 +227,32 @@ export default function OperatorLogPage() {
             thickness: { id: s.currentThicknessId!, value: pThick },
             size: { id: s.currentSizeId!, ...pSize }
           }];
-        }
-        else if (action === "unload") {
-          s.entries = s.entries.map(e => 
+        } else if (action === "unload") {
+          s.entries = s.entries.map((e: any) =>
             e.id === extra.entryId ? { ...e, unloadTime: new Date().toISOString() } : e
           );
-        }
-        else if (action === "glue") {
+        } else if (action === "glue") {
           s.glueEntries = [...s.glueEntries, {
             id: `temp-${Date.now()}`,
             time: new Date().toISOString(),
             barrels: extra.barrels
           }];
         }
-        return { ...prev, activeSession: s };
-      });
-
-      const res = await fetch("/api/hotpress", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ action, ...extra }),
-      });
-      
-      if (res.ok) {
-        fetchData(); // Silently sync background
-      } else {
-        const err = await res.json();
-        alert(err.error || "Action failed");
-        fetchData(); // Rollback UI if failed
+        queryClient.setQueryData(["hotpressData"], { ...prev, activeSession: s });
       }
-    } catch { 
-      alert("Network error"); 
-      fetchData(); // Rollback UI
-    }
-    finally { setActionLoading(false); }
+      return { prev };
+    },
+    onError: (err, variables, context) => {
+      alert(err.message);
+      queryClient.setQueryData(["hotpressData"], context?.prev);
+    },
+    onSettled: () => {
+      queryClient.invalidateQueries({ queryKey: ["hotpressData"] });
+    },
+  });
+
+  const doAction = async (action: string, extra: Record<string, any> = {}) => {
+    mutation.mutate({ action, extra });
   };
 
   // Timer countdown effect
@@ -381,18 +367,18 @@ export default function OperatorLogPage() {
 
   const sess = data?.activeSession;
   const isRunning = sess && ["RUNNING", "PAUSED", "MAINTENANCE"].includes(sess.status);
-  const isCooking = sess?.entries.some(e => e.loadTime && !e.unloadTime);
-  const cookingEntry = sess?.entries.find(e => e.loadTime && !e.unloadTime);
+  const isCooking = sess?.entries.some((e: any) => e.loadTime && !e.unloadTime);
+  const cookingEntry = sess?.entries.find((e: any) => e.loadTime && !e.unloadTime);
 
   // Calculate stats
-  const cooks = sess?.entries.filter(e => e.type === "COOK" && e.unloadTime) || [];
-  const represses = sess?.entries.filter(e => e.type === "REPRESS" && e.unloadTime) || [];
-  const totalSheets = sess?.entries.filter(e => e.unloadTime).reduce((s, e) => s + e.quantity, 0) || 0;
-  const totalGlue = sess?.glueEntries.reduce((s, e) => s + e.barrels, 0) || 0;
+  const cooks = sess?.entries.filter((e: any) => e.type === "COOK" && e.unloadTime) || [];
+  const represses = sess?.entries.filter((e: any) => e.type === "REPRESS" && e.unloadTime) || [];
+  const totalSheets = sess?.entries.filter((e: any) => e.unloadTime).reduce((s: any, e: any) => s + e.quantity, 0) || 0;
+  const totalGlue = sess?.glueEntries.reduce((s: any, e: any) => s + e.barrels, 0) || 0;
 
   // Product selection helpers
   const products = data?.products || [];
-  const categories = [...new Map(products.map(p => [p.category.id, p.category])).values()].sort((a, b) => b.sortOrder - a.sortOrder);
+  const categories = [...new Map(products.map((p: any) => [p.category.id, p.category])).values()].sort((a: any, b: any) => b.sortOrder - a.sortOrder);
 
   const pickCategory = (catId: string) => { setPickCat(catId); setPickStep("thickness"); };
   const pickThickness = (thId: string) => { setPickThick(thId); setPickStep("size"); };
@@ -418,13 +404,13 @@ export default function OperatorLogPage() {
   };
 
   const getFilteredThicknesses = () => {
-    const ts = products.filter(p => p.category.id === pickCat).map(p => p.thickness);
-    return [...new Map(ts.map(t => [t.id, t])).values()].sort((a, b) => b.value - a.value);
+    const ts = products.filter((p: any) => p.category.id === pickCat).map((p: any) => p.thickness);
+    return [...new Map(ts.map((t: any) => [t.id, t])).values()].sort((a: any, b: any) => b.value - a.value);
   };
 
   const getFilteredSizes = () => {
-    const ss = products.filter(p => p.category.id === pickCat && p.thickness.id === pickThick).map(p => p.size);
-    return [...new Map(ss.map(s => [s.id, s])).values()].sort((a, b) => {
+    const ss = products.filter((p: any) => p.category.id === pickCat && p.thickness.id === pickThick).map((p: any) => p.size);
+    return [...new Map(ss.map((s: any) => [s.id, s])).values()].sort((a: any, b: any) => {
       if (a.length !== b.length) return b.length - a.length;
       return b.width - a.width;
     });
@@ -434,7 +420,7 @@ export default function OperatorLogPage() {
   const currentProduct = (() => {
     if (!sess?.currentCategoryId || !sess?.currentThicknessId || !sess?.currentSizeId) return null;
     const p = products.find(
-      pp => pp.category.id === sess.currentCategoryId &&
+      (pp: any) => pp.category.id === sess.currentCategoryId &&
         pp.thickness.id === sess.currentThicknessId &&
         pp.size.id === sess.currentSizeId
     );
@@ -444,7 +430,7 @@ export default function OperatorLogPage() {
   // Running totals tracker per thickness+size for display
   const buildRunningTotals = (entries: PressEntry[]) => {
     const totals: Record<string, number> = {};
-    return entries.filter(e => e.unloadTime).map(e => {
+    return entries.filter((e: any) => e.unloadTime).map((e: any) => {
       if (e.type === "COOK") {
         const key = `${e.thickness.value}|${e.size.length}x${e.size.width}`;
         totals[key] = (totals[key] || 0) + e.quantity;
@@ -487,7 +473,7 @@ export default function OperatorLogPage() {
         {data?.todaySessions && data.todaySessions.length > 0 && (
           <div className="space-y-3">
             <h2 className="text-lg font-semibold text-white">Today&apos;s Sessions</h2>
-            {data.todaySessions.map(s => (
+            {data.todaySessions.map((s: any) => (
               <SessionCard key={s.id} session={s} onSubmit={() => doAction("operatorSubmit", { sessionId: s.id })} products={products} />
             ))}
           </div>
@@ -666,7 +652,7 @@ export default function OperatorLogPage() {
             disabled={!currentProduct}
             className="w-full py-4 bg-gradient-to-r from-yellow-700 to-amber-700 text-white text-lg font-bold rounded-2xl shadow-lg disabled:opacity-50"
           >
-            <RotateCcw size={20} /> REPRESS
+            <RefreshCcw size={20} /> REPRESS
           </LongPressButton>
         </>
       )}
@@ -811,7 +797,7 @@ export default function OperatorLogPage() {
                     const totals: Record<string, number> = {};
                     const allEntries = sess.entries;
 
-                    return allEntries.map((entry, idx) => {
+                    return allEntries.map((entry: any, idx: any) => {
                       let runTotal: number | null = null;
                       if (entry.type === "COOK" && entry.unloadTime) {
                         const key = `${entry.thickness.value}|${entry.size.length}x${entry.size.width}`;
@@ -835,7 +821,7 @@ export default function OperatorLogPage() {
                             <td className="py-2 px-1 text-slate-400">{idx + 1}</td>
                             <td className="py-2 px-1">
                               {entry.type === "REPRESS" ? (
-                                <span className="text-amber-400 flex items-center gap-1"><RotateCcw size={10} /> R</span>
+                                <span className="text-amber-400 flex items-center gap-1"><RefreshCcw size={10} /> R</span>
                               ) : (
                                 <span className="text-emerald-400 flex items-center gap-1"><Flame size={10} /> C</span>
                               )}
@@ -888,7 +874,7 @@ export default function OperatorLogPage() {
             </div>
 
             {/* Glue entries */}
-            {sess.glueEntries.map(g => (
+            {sess.glueEntries.map((g: any) => (
               <div key={g.id} className="mx-2 mt-1 py-1.5 px-3 bg-cyan-900/20 border border-cyan-700/20 rounded-lg flex justify-between items-center">
                 <span className="text-cyan-400 text-xs flex items-center gap-2">
                   <Droplets size={12} /> Glue: {g.barrels} barrel(s)
@@ -898,7 +884,7 @@ export default function OperatorLogPage() {
             ))}
 
             {/* Pause events */}
-            {sess.pauseEvents.map(p => (
+            {sess.pauseEvents.map((p: any) => (
               <div key={p.id} className="mx-2 mt-1 py-1.5 px-3 bg-amber-900/20 border border-amber-700/20 rounded-lg flex justify-between items-center">
                 <span className="text-amber-400 text-xs flex items-center gap-2">
                   {p.type === "MAINTENANCE" ? <Wrench size={12} /> : <Pause size={12} />}
@@ -944,7 +930,7 @@ export default function OperatorLogPage() {
             <div className="p-4 space-y-3 overflow-y-auto grow">
               {pickMode === "productionLists" ? (
                 <div className="space-y-4">
-                  {data?.productionLists?.map(list => (
+                  {data?.productionLists?.map((list: any) => (
                     <div key={list.id} className="bg-slate-900/50 border border-slate-700/50 rounded-xl p-3">
                       <div className="flex justify-between items-center mb-2">
                         <span className="text-amber-400 bg-amber-500/10 px-2 py-0.5 rounded-md border border-amber-500/20 uppercase tracking-widest font-black text-xs">
@@ -993,19 +979,19 @@ export default function OperatorLogPage() {
                   <p className="text-slate-400 text-xs mb-2">
                     {pickStep === "category" ? "1. Category" : pickStep === "thickness" ? "2. Thickness" : "3. Size"}
                   </p>
-                  {pickStep === "category" && categories.map(c => (
+                  {pickStep === "category" && categories.map((c: any) => (
                     <button key={c.id} onClick={() => pickCategory(c.id)}
                       className="w-full py-4 px-4 bg-slate-700/50 text-white text-lg font-medium rounded-xl hover:bg-slate-700 transition text-left active:scale-[0.98]">
                       {c.name}
                     </button>
                   ))}
-                  {pickStep === "thickness" && getFilteredThicknesses().map(t => (
+                  {pickStep === "thickness" && getFilteredThicknesses().map((t: any) => (
                     <button key={t.id} onClick={() => pickThickness(t.id)}
                       className="w-full py-4 px-4 bg-slate-700/50 text-white text-lg font-medium rounded-xl hover:bg-slate-700 transition text-left active:scale-[0.98]">
                       {t.value}mm
                     </button>
                   ))}
-                  {pickStep === "size" && getFilteredSizes().map(s => (
+                  {pickStep === "size" && getFilteredSizes().map((s: any) => (
                     <button key={s.id} onClick={() => pickSize(s.id)}
                       className="w-full py-4 px-4 bg-slate-700/50 text-white text-lg font-medium rounded-xl hover:bg-slate-700 transition text-left active:scale-[0.98]">
                       {s.length} × {s.width} ({s.label})
@@ -1045,9 +1031,9 @@ function SessionCard({
   const [showLog, setShowLog] = useState(false);
   const [showSummary, setShowSummary] = useState(false);
 
-  const cooks = session.entries.filter(e => e.type === "COOK" && e.unloadTime);
-  const represses = session.entries.filter(e => e.type === "REPRESS" && e.unloadTime);
-  const totalSheets = session.entries.filter(e => e.type === "COOK" && e.unloadTime).reduce((s, e) => s + e.quantity, 0);
+  const cooks = session.entries.filter((e: any) => e.type === "COOK" && e.unloadTime);
+  const represses = session.entries.filter((e: any) => e.type === "REPRESS" && e.unloadTime);
+  const totalSheets = session.entries.filter((e: any) => e.type === "COOK" && e.unloadTime).reduce((s: any, e: any) => s + e.quantity, 0);
   const totalGlue = session.glueEntries.reduce((s, e) => s + e.barrels, 0);
 
   const summary = buildProductionSummary(session.entries);

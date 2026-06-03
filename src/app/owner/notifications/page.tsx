@@ -2,48 +2,62 @@
 
 import { useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo } from "react";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import Sidebar from "@/components/Sidebar";
 import { Bell, BellOff, Check, Package, ListChecks, AlertTriangle, Clock } from "lucide-react";
 
 export default function NotificationsPage() {
   const { data: session, status } = useSession();
   const router = useRouter();
-  const [notifications, setNotifications] = useState<any[]>([]);
-  const [loading, setLoading] = useState(true);
+  const queryClient = useQueryClient();
 
   useEffect(() => {
     if (status === "unauthenticated") router.push("/login");
   }, [status, router]);
 
-  const fetchNotifications = () => {
-    fetch("/api/notifications")
-      .then((r) => r.json())
-      .then((data) => { if (Array.isArray(data)) setNotifications(data); setLoading(false); })
-      .catch(() => setLoading(false));
-  };
+  const { data: apiData, isLoading: loading } = useQuery({
+    queryKey: ["owner-notifications"],
+    queryFn: async () => {
+      const res = await fetch("/api/notifications");
+      if (!res.ok) throw new Error("Failed to fetch");
+      return res.json();
+    },
+    enabled: status === "authenticated",
+  });
 
-  useEffect(() => { if (status === "authenticated") fetchNotifications(); }, [status]);
+  const notifications = useMemo(() => Array.isArray(apiData) ? apiData : [], [apiData]);
 
-  const markAllRead = async () => {
-    await fetch("/api/notifications", {
-      method: "PUT",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ markAllRead: true }),
-    });
-    fetchNotifications();
-    window.dispatchEvent(new Event("notifications_read"));
-  };
+  const markAllReadMutation = useMutation({
+    mutationFn: async () => {
+      await fetch("/api/notifications", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ markAllRead: true }),
+      });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["owner-notifications"] });
+      window.dispatchEvent(new Event("notifications_read"));
+    },
+  });
 
-  const markRead = async (id: string) => {
-    await fetch("/api/notifications", {
-      method: "PUT",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ notificationIds: [id] }),
-    });
-    fetchNotifications();
-    window.dispatchEvent(new Event("notifications_read"));
-  };
+  const markReadMutation = useMutation({
+    mutationFn: async (id: string) => {
+      await fetch("/api/notifications", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ notificationIds: [id] }),
+      });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["owner-notifications"] });
+      window.dispatchEvent(new Event("notifications_read"));
+    },
+  });
+
+  const markAllRead = () => markAllReadMutation.mutate();
+  const markRead = (id: string) => markReadMutation.mutate(id);
 
   if (status === "loading" || !session?.user) {
     return <div className="flex items-center justify-center h-screen bg-slate-950"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-400" /></div>;

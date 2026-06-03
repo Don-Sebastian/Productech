@@ -197,13 +197,14 @@ export async function POST(request: NextRequest) {
         return NextResponse.json({ error: "Log not ready for manager approval" }, { status: 400 });
       }
 
-      // Update stock for each entry
-      for (const entry of log.entries) {
-        await prisma.companyProduct.update({
+      // Batch stock updates into single $transaction (was N+1 loop)
+      const stockOps = log.entries.map((entry: any) =>
+        prisma.companyProduct.update({
           where: { id: entry.productId },
           data: { currentStock: { increment: entry.quantity } },
-        });
-      }
+        })
+      );
+      if (stockOps.length > 0) await prisma.$transaction(stockOps);
 
       const updated = await prisma.dailyProductionLog.update({
         where: { id: logId },

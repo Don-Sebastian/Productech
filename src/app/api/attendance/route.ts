@@ -144,22 +144,22 @@ export async function POST(request: NextRequest) {
       if (register.supervisorId !== userId) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
       if (register.status !== "PENDING") return NextResponse.json({ error: "Already submitted" }, { status: 400 });
 
-      // Count entries for notification context
-      const entryCount = await prisma.attendanceEntry.count({ where: { registerId } });
+      // Parallel: update status + count entries + fetch supervisor + fetch managers (was 4 sequential queries)
+      const [updated, entryCount, supervisor, managers] = await Promise.all([
+        prisma.attendanceRegister.update({
+          where: { id: registerId },
+          data: { status: "APPROVED" },
+        }),
+        prisma.attendanceEntry.count({ where: { registerId } }),
+        prisma.user.findUnique({ where: { id: userId }, select: { name: true } }),
+        prisma.user.findMany({ where: { companyId: register.companyId, role: "MANAGER", isActive: true } }),
+      ]);
 
-      const updated = await prisma.attendanceRegister.update({
-        where: { id: registerId },
-        data: { status: "APPROVED" },
-      });
-
-      // Fetch supervisor name for notification
-      const supervisor = await prisma.user.findUnique({ where: { id: userId }, select: { name: true } });
       const shiftInfo = (register as any).shift;
       const machineName = shiftInfo?.machine?.name || "";
       const shiftName = shiftInfo?.name || "";
 
-      // Notify managers
-      const managers = await prisma.user.findMany({ where: { companyId: register.companyId, role: "MANAGER", isActive: true } });
+      // Notify managers (depends on managers result above)
       await prisma.notification.createMany({
         data: managers.map(m => ({
           type: "ATTENDANCE_SUBMITTED",

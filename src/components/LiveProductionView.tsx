@@ -1,10 +1,11 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
+
 import {
   Clock, Flame, TreePine, Wind, Scissors, Pause,
   Power, PowerOff, Activity, AlertCircle, Maximize2,
-  Minimize2, ArrowUp, ArrowDown, User
+  Minimize2, ArrowUp, ArrowDown, User, RefreshCcw
 } from "lucide-react";
 
 interface LiveSession {
@@ -52,40 +53,29 @@ function durStr(ms: number): string {
   return rm > 0 ? `${h}h ${rm}m` : `${h}h`;
 }
 
-export default function LiveProductionView() {
-  const [sessions, setSessions] = useState<LiveSession[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  const [lastUpdated, setLastUpdated] = useState<Date>(new Date());
-  
+export default function LiveProductionView({
+  sessions = [],
+  loading = false,
+  error = null,
+  onRefresh = async () => {},
+}: {
+  sessions?: LiveSession[];
+  loading?: boolean;
+  error?: string | null;
+  onRefresh?: () => Promise<void> | void;
+}) {
   // Real-time durations
   const [now, setNow] = useState(Date.now());
+  const [isRefreshing, setIsRefreshing] = useState(false);
 
-  const fetchLiveLogs = useCallback(async () => {
+  const handleRefresh = async () => {
+    setIsRefreshing(true);
     try {
-      const res = await fetch("/api/logs/machine/live");
-      if (res.ok) {
-        const d = await res.json();
-        setSessions(d.sessions || []);
-        setError(null);
-        setLastUpdated(new Date());
-      } else {
-        const d = await res.json();
-        setError(d.error || "Failed to fetch live logs");
-      }
-    } catch (err) {
-      setError("Network error fetching live logs");
+      await onRefresh();
     } finally {
-      setLoading(false);
+      setIsRefreshing(false);
     }
-  }, []);
-
-  // Poll every 10 seconds for DB updates
-  useEffect(() => {
-    fetchLiveLogs();
-    const interval = setInterval(fetchLiveLogs, 10000);
-    return () => clearInterval(interval);
-  }, [fetchLiveLogs]);
+  };
 
   // Update real-time counters every second
   useEffect(() => {
@@ -107,12 +97,12 @@ export default function LiveProductionView() {
       <div className="flex flex-col items-center justify-center p-8 bg-red-900/10 border border-red-500/20 rounded-2xl">
         <AlertCircle className="text-red-500 mb-2" size={32} />
         <p className="text-red-400 font-medium">{error}</p>
-        <button onClick={fetchLiveLogs} className="mt-4 px-4 py-2 bg-slate-800 text-white rounded-lg text-sm hover:bg-slate-700">Retry</button>
+        <button onClick={() => window.location.reload()} className="mt-4 px-4 py-2 bg-slate-800 text-white rounded-lg text-sm hover:bg-slate-700">Retry</button>
       </div>
     );
   }
 
-  const activeCount = sessions.filter(s => s.isActive).length;
+  const activeCount = sessions.filter((s: any) => s.isActive).length;
 
   return (
     <div className="space-y-4">
@@ -126,9 +116,17 @@ export default function LiveProductionView() {
           <span className="bg-slate-800 text-slate-300 text-xs px-2 py-0.5 rounded-full font-bold ml-2">
             {activeCount} Active
           </span>
+          <button 
+            onClick={handleRefresh}
+            disabled={isRefreshing || loading}
+            className="ml-2 flex items-center gap-1.5 text-xs bg-slate-800/80 hover:bg-slate-700 text-slate-300 px-3 py-1.5 rounded-lg transition disabled:opacity-50"
+          >
+            <RefreshCcw size={12} className={isRefreshing ? "animate-spin" : ""} />
+            Refresh
+          </button>
         </div>
         <p className="text-xs text-slate-500">
-          Updated: {lastUpdated.toLocaleTimeString()}
+          Updated: {new Date().toLocaleTimeString()}
         </p>
       </div>
 
@@ -138,7 +136,7 @@ export default function LiveProductionView() {
         </div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
-          {sessions.map(s => (
+          {sessions.map((s: any) => (
             <LiveCard key={`${s.section}-${s.id}`} session={s} now={now} />
           ))}
         </div>

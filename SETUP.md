@@ -1,4 +1,4 @@
-# CRPLY Production Manager - Phase 1 Setup Guide
+# PLYTRACK Production Manager - Phase 1 Setup Guide
 
 ## What's Been Built for You ✅
 
@@ -91,7 +91,7 @@ Open http://localhost:3000
 
 **Login with:**
 
-- Email: `admin@crply.com`
+- Email: `admin@plytrack.com`
 - Password: `demo123`
 
 ---
@@ -131,7 +131,7 @@ prisma/
 
 ## 🎯 What You Can Do Now
 
-### As Admin (admin@crply.com):
+### As Admin (admin@plytrack.com):
 
 1. View dashboard with production KPIs
 2. Create new production batches
@@ -317,7 +317,7 @@ Your plywood production management system is ready to use.
 
 1. Run `npm run dev`
 2. Visit http://localhost:3000
-3. Login with admin@crply.com / demo123
+3. Login with admin@plytrack.com / demo123
 4. Explore the dashboard!
 
 Questions? Check the README.md for detailed documentation.

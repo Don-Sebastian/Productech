@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback, useRef } from "react";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import Sidebar from "@/components/Sidebar";
@@ -33,8 +34,7 @@ export default function DryerDashboard() {
   const role = (session?.user as any)?.role;
   const { assigned, loading: assignmentLoading, error: assignmentError } = useMachineAssignment(role, status);
 
-  const [data, setData] = useState<any>(null);
-  const [loading, setLoading] = useState(true);
+  const queryClient = useQueryClient();
 
   // Check form
   const [showCheckForm, setShowCheckForm] = useState(false);
@@ -59,15 +59,15 @@ export default function DryerDashboard() {
     if (status === "unauthenticated") router.push("/login");
   }, [status, router]);
 
-  const fetchData = useCallback(async () => {
-    try {
+  const { data, isLoading: loading } = useQuery({
+    queryKey: ["dryerData"],
+    queryFn: async () => {
       const res = await fetch("/api/dryer");
-      if (res.ok) setData(await res.json());
-    } catch (err) { console.error("Fetch error:", err); }
-    finally { setLoading(false); }
-  }, []);
-
-  useEffect(() => { if (status === "authenticated" && assigned) fetchData(); }, [fetchData, status, assigned]);
+      if (!res.ok) throw new Error("Failed to fetch data");
+      return res.json();
+    },
+    enabled: status === "authenticated" && !!assigned,
+  });
 
   // Auto-check reminder timer
   useEffect(() => {
@@ -95,19 +95,69 @@ export default function DryerDashboard() {
     return () => { if (reminderTimeout.current) clearTimeout(reminderTimeout.current); };
   }, [data?.activeSession?.autoCheckEnabled, data?.activeSession?.checks?.length, data?.activeSession?.status]);
 
-  const doAction = async (action: string, extra: Record<string, any> = {}) => {
-    try {
+  const mutation = useMutation({
+    mutationFn: async ({ action, extra }: { action: string; extra: any }) => {
       const res = await fetch("/api/dryer", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ action, ...extra }),
       });
-      if (res.ok) {
-        await fetchData();
-        setReminderAlert(false);
+      if (!res.ok) {
+        const err = await res.json();
+        throw new Error(err.error || "Action failed");
       }
-      else { const err = await res.json(); alert(err.error || "Action failed"); }
-    } catch { alert("Network error"); }
+      return res.json();
+    },
+    onMutate: async ({ action, extra }) => {
+      await queryClient.cancelQueries({ queryKey: ["dryerData"] });
+      const prev = queryClient.getQueryData<any>(["dryerData"]);
+      if (prev && prev.activeSession) {
+        const s = { ...prev.activeSession };
+        if (action === "pause") s.status = "PAUSED";
+        else if (action === "resume") s.status = "RUNNING";
+        else if (action === "maintenance") s.status = "MAINTENANCE";
+        else if (action === "stop") {
+          s.status = "STOPPED";
+          s.stopTime = new Date().toISOString();
+        } else if (action === "loadBatch") {
+          s.batches = [...(s.batches || []), {
+            id: `temp-${Date.now()}`,
+            veneerThickness: parseFloat(extra.veneerThickness),
+            quantity: parseInt(extra.quantity),
+            loadTime: new Date().toISOString(),
+            unloadTime: null,
+          }];
+        } else if (action === "unloadBatch") {
+          s.batches = s.batches?.map((b: any) => 
+            b.id === extra.batchId ? { ...b, unloadTime: new Date().toISOString() } : b
+          );
+        } else if (action === "addCheck") {
+          s.checks = [...(s.checks || []), {
+            id: `temp-${Date.now()}`,
+            beltSpeed: parseFloat(extra.beltSpeed),
+            dryerTemp: parseInt(extra.dryerTemp),
+            boilerTemp: parseInt(extra.boilerTemp),
+            timestamp: new Date().toISOString(),
+          }];
+        } else if (action === "toggleAutoCheck") {
+          s.autoCheckEnabled = extra.enabled;
+        }
+        queryClient.setQueryData(["dryerData"], { ...prev, activeSession: s });
+      }
+      return { prev };
+    },
+    onError: (err, variables, context) => {
+      alert(err.message);
+      queryClient.setQueryData(["dryerData"], context?.prev);
+    },
+    onSettled: () => {
+      setReminderAlert(false);
+      queryClient.invalidateQueries({ queryKey: ["dryerData"] });
+    },
+  });
+
+  const doAction = async (action: string, extra: Record<string, any> = {}) => {
+    mutation.mutate({ action, extra });
   };
 
   if (status === "loading" || assignmentLoading) {

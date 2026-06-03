@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { auth } from "@/lib/auth";
+import { activeProductionListsQuery } from "@/lib/queries";
 
 export async function GET() {
   try {
@@ -31,20 +32,7 @@ export async function GET() {
         },
         orderBy: { startTime: "desc" },
       }),
-      prisma.productionList.findMany({
-        where: { companyId, status: { not: "COMPLETED" } },
-        include: {
-          order: { select: { orderNumber: true, customer: { select: { name: true } } } },
-          items: {
-            include: {
-              category: { select: { id: true, name: true } },
-              thickness: { select: { id: true, value: true } },
-              size: { select: { id: true, label: true, length: true, width: true } },
-            },
-          },
-        },
-        orderBy: { priority: "asc" },
-      }),
+      activeProductionListsQuery(companyId),
     ]);
 
     return NextResponse.json({ activeSession, todaySessions, productionLists });

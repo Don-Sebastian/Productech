@@ -70,7 +70,7 @@ export default function Home() {
               <div className="bg-amber-500 p-2 rounded-xl">
                 <Factory className="text-slate-900 w-6 h-6" />
               </div>
-              <span className="text-2xl font-black tracking-tight text-white">CRPLY</span>
+              <span className="text-2xl font-black tracking-tight text-white">Plytrack</span>
             </div>
             <div className="hidden md:flex space-x-8">
               <a href="#features" className="text-sm font-semibold text-slate-400 hover:text-amber-400 transition-colors">Features</a>
@@ -181,7 +181,7 @@ export default function Home() {
                 Ready to upgrade your factory?
               </h2>
               <p className="text-slate-400 text-lg mb-8">
-                Get in touch with us to schedule a demo and see how CRPLY can transform your plywood production process.
+                Get in touch with us to schedule a demo and see how Plytrack can transform your plywood production process.
               </p>
               
               <div className="space-y-6">
@@ -209,7 +209,7 @@ export default function Home() {
                   </div>
                   <div>
                     <p className="text-white font-bold">Email</p>
-                    <p className="text-slate-400 text-sm">hello@crply.in</p>
+                    <p className="text-slate-400 text-sm">hello@Plytrack.in</p>
                   </div>
                 </div>
               </div>
@@ -255,9 +255,9 @@ export default function Home() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col md:flex-row items-center justify-between gap-4">
           <div className="flex items-center gap-2">
             <Factory className="text-amber-500 w-6 h-6" />
-            <span className="text-xl font-black tracking-tight text-white">CRPLY</span>
+            <span className="text-xl font-black tracking-tight text-white">Plytrack</span>
           </div>
-          <p className="text-slate-500 text-sm">© {new Date().getFullYear()} CRPLY Production Systems. All rights reserved.</p>
+          <p className="text-slate-500 text-sm">© {new Date().getFullYear()} Plytrack Production Systems. All rights reserved.</p>
           <div className="flex gap-4">
             <Link href="/login" className="text-slate-500 hover:text-white text-sm font-semibold transition-colors">Login</Link>
             <Link href="/signup" className="text-slate-500 hover:text-white text-sm font-semibold transition-colors">Signup</Link>

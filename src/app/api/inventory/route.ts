@@ -54,31 +54,25 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Create inventory log
-    const log = await prisma.inventoryLog.create({
-      data: {
-        inventoryItemId,
-        quantity: parseInt(quantity),
-        type,
-        reason,
-        loggedById: userId,
-      },
-    });
-
-    // Update inventory item quantity
-    const inventoryItem = await prisma.inventoryItem.findUnique({
-      where: { id: inventoryItemId },
-    });
-
-    if (inventoryItem) {
-      await prisma.inventoryItem.update({
+    // Atomic: create log + update stock in single transaction (was 3 sequential queries with race condition)
+    const [log] = await prisma.$transaction([
+      prisma.inventoryLog.create({
+        data: {
+          inventoryItemId,
+          quantity: parseInt(quantity),
+          type,
+          reason,
+          loggedById: userId,
+        },
+      }),
+      prisma.inventoryItem.update({
         where: { id: inventoryItemId },
         data: {
-          quantity: inventoryItem.quantity + parseInt(quantity),
+          quantity: { increment: parseInt(quantity) },
           lastRestocked: new Date(),
         },
-      });
-    }
+      }),
+    ]);
 
     return NextResponse.json(log, { status: 201 });
   } catch (error) {

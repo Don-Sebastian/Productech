@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useSession } from "next-auth/react";
 import Sidebar from "@/components/Sidebar";
 import { 
@@ -133,8 +134,7 @@ function DroppableColumn({ id, title, count, children }: { id: string; title: st
 
 export default function SupervisorEmployees() {
   const { data: session } = useSession();
-  const [employees, setEmployees] = useState<Employee[]>([]);
-  const [loading, setLoading] = useState(true);
+  const queryClient = useQueryClient();
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingEmployee, setEditingEmployee] = useState<Employee | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
@@ -143,9 +143,6 @@ export default function SupervisorEmployees() {
   const [saving, setSaving] = useState(false);
   const [showSuccess, setShowSuccess] = useState("");
   
-  const [machines, setMachines] = useState<{ id: string; name: string }[]>([]);
-  const [subDepts, setSubDepts] = useState<SubDepartment[]>([]);
-
   const [formData, setFormData] = useState({
     name: "",
     phone: "",
@@ -161,35 +158,30 @@ export default function SupervisorEmployees() {
 
   const [activeEmpId, setActiveEmpId] = useState<string | null>(null);
 
-  useEffect(() => {
-    fetchEmployees();
-    fetchMetadata();
-  }, []);
-
-  const fetchEmployees = async () => {
-    setLoading(true);
-    try {
+  const { data: empData, isLoading: loading, refetch: fetchEmployees } = useQuery({
+    queryKey: ["supervisor-employees"],
+    queryFn: async () => {
       const res = await fetch("/api/employees");
-      if (res.ok) setEmployees(await res.json());
-    } catch (err) {
-      console.error(err);
-    } finally {
-      setLoading(false);
+      if (!res.ok) throw new Error("Failed to fetch employees");
+      return res.json();
     }
-  };
+  });
+  const employees: Employee[] = empData || [];
 
-  const fetchMetadata = async () => {
-    try {
+  const { data: metaData } = useQuery({
+    queryKey: ["supervisor-metadata"],
+    queryFn: async () => {
       const [mRes, sRes] = await Promise.all([
         fetch("/api/machines"),
         fetch("/api/sub-departments")
       ]);
-      if (mRes.ok) setMachines(await mRes.json());
-      if (sRes.ok) setSubDepts(await sRes.json());
-    } catch (err) {
-      console.error(err);
+      const machines = mRes.ok ? await mRes.json() : [];
+      const subDepts = sRes.ok ? await sRes.json() : [];
+      return { machines, subDepts };
     }
-  };
+  });
+  const machines = metaData?.machines || [];
+  const subDepts = metaData?.subDepts || [];
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -275,11 +267,11 @@ export default function SupervisorEmployees() {
     setIsModalOpen(true);
   };
 
-  const filteredFormSubDepts = subDepts.filter(sd => 
+  const filteredFormSubDepts = subDepts.filter((sd: any) => 
     !formData.machineId || sd.machineId === formData.machineId || !sd.machineId
   );
 
-  const filteredEmployees = employees.filter(emp => {
+  const filteredEmployees = employees.filter((emp: any) => {
     const matchesSearch = !searchQuery || emp.name.toLowerCase().includes(searchQuery.toLowerCase()) || emp.phone?.includes(searchQuery);
     const matchesMachine = filterMachine === "all" || emp.machineId === filterMachine;
     const matchesSubDept = filterSubDept === "all" || emp.subDepartmentId === filterSubDept;
@@ -304,11 +296,11 @@ export default function SupervisorEmployees() {
     const newSubDeptId = targetId === "unassigned" ? null : targetId;
     if (emp.subDepartmentId === newSubDeptId) return;
 
-    const targetSubDept = subDepts.find(sd => sd.id === newSubDeptId);
+    const targetSubDept = subDepts.find((sd: any) => sd.id === newSubDeptId);
     const newMachineId = targetSubDept?.machineId || emp.machineId;
 
     // Optimistic Update
-    setEmployees(prev => prev.map(e => {
+    queryClient.setQueryData(["supervisor-employees"], (prev: Employee[]) => prev?.map(e => {
        if (e.id === empId) {
           return {
              ...e,
@@ -338,7 +330,7 @@ export default function SupervisorEmployees() {
 
   const columns = [
     { id: "unassigned", title: "Unassigned / General" },
-    ...subDepts.map(sd => ({ id: sd.id, title: sd.name }))
+    ...subDepts.map((sd: any) => ({ id: sd.id, title: sd.name }))
   ];
 
   const activeEmpInfo = activeEmpId ? employees.find(e => e.id === activeEmpId) : null;
@@ -397,7 +389,7 @@ export default function SupervisorEmployees() {
               className="bg-slate-900 border border-slate-800 rounded-2xl px-6 py-4 text-white font-semibold outline-none focus:ring-2 focus:ring-blue-500/50"
             >
               <option value="all">Every Machine</option>
-              {machines.map(m => <option key={m.id} value={m.id}>{m.name}</option>)}
+              {machines.map((m: any) => <option key={m.id} value={m.id}>{m.name}</option>)}
             </select>
           )}
         </div>
@@ -419,7 +411,7 @@ export default function SupervisorEmployees() {
           <DndContext sensors={sensors} collisionDetection={closestCorners} onDragStart={handleDragStart} onDragEnd={handleDragEnd}>
             <div className="flex overflow-x-auto snap-x gap-6 pb-8 hide-scrollbar">
               {columns.map(col => {
-                const colEmployees = filteredEmployees.filter(emp => col.id === "unassigned" ? !emp.subDepartmentId : emp.subDepartmentId === col.id);
+                const colEmployees = filteredEmployees.filter((emp: any) => col.id === "unassigned" ? !emp.subDepartmentId : emp.subDepartmentId === col.id);
                 // hide column if empty and unassigned, to avoid clutter? No, keep it always
                 return (
                   <DroppableColumn key={col.id} id={col.id} title={col.title} count={colEmployees.length}>
@@ -518,7 +510,7 @@ export default function SupervisorEmployees() {
                           className="w-full bg-slate-800 border border-slate-700 rounded-2xl p-4 text-white font-bold outline-none focus:ring-2 focus:ring-blue-500/50"
                         >
                           <option value="">No Machine</option>
-                          {machines.map(m => <option key={m.id} value={m.id}>{m.name}</option>)}
+                          {machines.map((m: any) => <option key={m.id} value={m.id}>{m.name}</option>)}
                         </select>
                       </div>
                       <div>
@@ -529,7 +521,7 @@ export default function SupervisorEmployees() {
                           className="w-full bg-slate-800 border border-slate-700 rounded-2xl p-4 text-white font-bold outline-none focus:ring-2 focus:ring-blue-500/50"
                         >
                           <option value="">General Helper</option>
-                          {filteredFormSubDepts.map(sd => (
+                          {filteredFormSubDepts.map((sd: any) => (
                             <option key={sd.id} value={sd.id}>{sd.name}</option>
                           ))}
                         </select>

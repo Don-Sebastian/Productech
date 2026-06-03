@@ -2,7 +2,8 @@
 
 import { useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useEffect } from "react";
+import { useQuery } from "@tanstack/react-query";
 import Sidebar from "@/components/Sidebar";
 import MachineRequiredScreen from "@/components/MachineRequiredScreen";
 import { useMachineAssignment } from "@/hooks/useMachineAssignment";
@@ -20,25 +21,17 @@ export default function SupervisorDashboard() {
   const router = useRouter();
   const role = (session?.user as any)?.role;
   const { assigned, loading: assignmentLoading, error: assignmentError } = useMachineAssignment(role, status);
-  const [stats, setStats] = useState<any>(null);
-  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     if (status === "unauthenticated") router.push("/login");
     if (status === "authenticated" && (session?.user as any)?.role !== "SUPERVISOR") router.push("/");
   }, [status, session, router]);
 
-  useEffect(() => {
-    if (status === "authenticated" && assigned) {
-      fetch("/api/dashboard/stats")
-        .then((res) => res.json())
-        .then((data) => {
-          setStats(data);
-          setLoading(false);
-        })
-        .catch(() => setLoading(false));
-    }
-  }, [status, assigned]);
+  const { data: stats, isLoading: loading } = useQuery({
+    queryKey: ["supervisor-dashboard-stats"],
+    queryFn: () => fetch("/api/dashboard/stats").then((res) => res.json()),
+    enabled: status === "authenticated" && assigned,
+  });
 
   if (status === "loading" || !session?.user || assignmentLoading) {
     return (

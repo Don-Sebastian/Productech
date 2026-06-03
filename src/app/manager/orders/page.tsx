@@ -3,6 +3,7 @@
 import { useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import { useEffect, useState, useMemo } from "react";
+import { useQuery } from "@tanstack/react-query";
 import Sidebar from "@/components/Sidebar";
 import { Plus, X, Package, Clock, CheckCircle, Truck, Ban, ChevronDown, ChevronUp, Trash2, AlertTriangle, Star, CalendarClock } from "lucide-react";
 import { calcListProductionMinutes, calcEstimatedDates, formatDate, formatDays, type PressSettings } from "@/lib/productionEstimate";
@@ -10,12 +11,6 @@ import { calcListProductionMinutes, calcEstimatedDates, formatDate, formatDays, 
 export default function ManagerOrders() {
   const { data: session, status } = useSession();
   const router = useRouter();
-  const [orders, setOrders] = useState<any[]>([]);
-  const [pressSettings, setPressSettings] = useState<PressSettings>({ workingHoursPerDay: 8, numHotPresses: 1, pressCapacityPerPress: 10 });
-  const [productTimings, setProductTimings] = useState<any[]>([]);
-  const [products, setProducts] = useState<any[]>([]);
-  const [customizations, setCustomizations] = useState<any[]>([]);
-  const [loading, setLoading] = useState(true);
   const [showCreate, setShowCreate] = useState(false);
   const [editingOrderId, setEditingOrderId] = useState<string | null>(null);
   const [expandedOrder, setExpandedOrder] = useState<string | null>(null);
@@ -50,27 +45,41 @@ export default function ManagerOrders() {
     if (status === "authenticated" && !(["MANAGER", "OWNER"] as string[]).includes((session?.user as any)?.role)) router.push("/");
   }, [status, session, router]);
 
-  const fetchData = () => {
-    Promise.all([
-      fetch("/api/orders").then((r) => r.json()),
-      fetch("/api/company-products").then((r) => r.json()),
-      fetch("/api/customizations").then((r) => r.json()),
-    ]).then(([o, p, custom]) => {
-      // Handle new { orders, pressSettings, productTimings } shape
-      if (o && Array.isArray(o.orders)) {
-        setOrders(o.orders);
-        if (o.pressSettings) setPressSettings(o.pressSettings);
-        if (o.productTimings) setProductTimings(o.productTimings);
-      } else if (Array.isArray(o)) {
-        setOrders(o);
-      }
-      if (Array.isArray(p)) setProducts(p.filter((x: any) => x.isActive));
-      if (Array.isArray(custom)) setCustomizations(custom);
-      setLoading(false);
-    });
-  };
+  const { data: pageData, isLoading: loading, refetch: fetchData } = useQuery({
+    queryKey: ["manager-orders"],
+    queryFn: async () => {
+      const [o, p, custom] = await Promise.all([
+        fetch("/api/orders").then((r) => r.json()),
+        fetch("/api/company-products").then((r) => r.json()),
+        fetch("/api/customizations").then((r) => r.json()),
+      ]);
+      return { o, p, custom };
+    },
+    enabled: status === "authenticated",
+  });
 
-  useEffect(() => { if (status === "authenticated") fetchData(); }, [status]);
+  const { orders, pressSettings, productTimings, products, customizations } = useMemo(() => {
+    let orders: any[] = [];
+    let pressSettings: PressSettings = { workingHoursPerDay: 8, numHotPresses: 1, pressCapacityPerPress: 10 };
+    let productTimings: any[] = [];
+    let products: any[] = [];
+    let customizations: any[] = [];
+
+    if (pageData) {
+      const { o, p, custom } = pageData;
+      if (o && Array.isArray(o.orders)) {
+        orders = o.orders;
+        if (o.pressSettings) pressSettings = o.pressSettings;
+        if (o.productTimings) productTimings = o.productTimings;
+      } else if (Array.isArray(o)) {
+        orders = o;
+      }
+      if (Array.isArray(p)) products = p.filter((x: any) => x.isActive);
+      if (Array.isArray(custom)) customizations = custom;
+    }
+
+    return { orders, pressSettings, productTimings, products, customizations };
+  }, [pageData]);
 
   // Derived properties from products (catalog-based)
   const categories = [...new Map(products.map((p) => [p.category?.name, p.category])).values()]

@@ -1,10 +1,11 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { useSession } from "next-auth/react";
 import {
   Clock, Package, Timer, Power, PowerOff,
-  Flame, RotateCcw, Droplets, Wrench, Pause,
+  Flame, RefreshCcw, Droplets, Wrench, Pause,
   ChevronDown, ChevronUp, User, Search,
   Calendar, Filter, CheckCircle2, XCircle,
   ShieldCheck, Send, AlertTriangle, FileText,
@@ -106,10 +107,6 @@ interface ProductionHistoryProps {
 }
 
 export default function ProductionHistory({ showOperatorFilter = false }: ProductionHistoryProps) {
-  const [sessions, setSessions] = useState<HotPressSession[]>([]);
-  const [operators, setOperators] = useState<{ id: string; name: string }[]>([]);
-  const [loading, setLoading] = useState(true);
-
   // Filters
   const [fromDate, setFromDate] = useState("");
   const [toDate, setToDate] = useState("");
@@ -120,12 +117,10 @@ export default function ProductionHistory({ showOperatorFilter = false }: Produc
 
   // Pagination
   const [currentPage, setCurrentPage] = useState(1);
-  const [totalCount, setTotalCount] = useState(0);
-  const [totalPages, setTotalPages] = useState(1);
 
-  const fetchData = useCallback(async () => {
-    setLoading(true);
-    try {
+  const { data, isLoading: loading, refetch } = useQuery({
+    queryKey: ["production-history", currentPage, fromDate, toDate, approvalFilter, operatorFilter],
+    queryFn: async () => {
       let url = `/api/hotpress?view=history&page=${currentPage}`;
       if (fromDate) url += `&from=${fromDate}`;
       if (toDate) url += `&to=${toDate}`;
@@ -133,21 +128,15 @@ export default function ProductionHistory({ showOperatorFilter = false }: Produc
       if (operatorFilter !== "ALL") url += `&operator=${operatorFilter}`;
 
       const res = await fetch(url);
-      if (res.ok) {
-        const d = await res.json();
-        setSessions(d.sessions || []);
-        setOperators(d.operators || []);
-        setTotalCount(d.totalCount || 0);
-        setTotalPages(d.totalPages || 1);
-      }
-    } catch (err) {
-      console.error("History fetch error:", err);
-    } finally {
-      setLoading(false);
-    }
-  }, [fromDate, toDate, approvalFilter, operatorFilter, currentPage]);
+      if (!res.ok) throw new Error("Failed to fetch history");
+      return res.json();
+    },
+  });
 
-  useEffect(() => { fetchData(); }, [fetchData]);
+  const sessions = data?.sessions || [];
+  const operators = data?.operators || [];
+  const totalCount = data?.totalCount || 0;
+  const totalPages = data?.totalPages || 1;
 
   // Quick date presets
   const setToday = () => {
@@ -183,19 +172,19 @@ export default function ProductionHistory({ showOperatorFilter = false }: Produc
   }, [fromDate, toDate, approvalFilter, operatorFilter]);
 
   // Aggregate stats (exclude REJECTED sessions from totals)
-  const nonRejected = sessions.filter(s => s.approvalStatus !== "REJECTED");
+  const nonRejected = sessions.filter((s: any) => s.approvalStatus !== "REJECTED");
   const totalSessions = nonRejected.length;
-  const totalSheets = nonRejected.reduce((s, sess) =>
-    s + sess.entries.filter(e => e.type === "COOK" && e.unloadTime).reduce((a, e) => a + e.quantity, 0), 0);
-  const totalSqFt = nonRejected.reduce((s, sess) =>
-    s + sess.entries.filter(e => e.type === "COOK" && e.unloadTime).reduce((a, e) => a + (e.quantity * (e.size?.sqft || 0)), 0), 0);
-  const totalGlue = nonRejected.reduce((s, sess) =>
-    s + sess.glueEntries.reduce((a, e) => a + e.barrels, 0), 0);
-  const approvedCount = sessions.filter(s => s.approvalStatus === "MANAGER_APPROVED").length;
+  const totalSheets = nonRejected.reduce((s: number, sess: any) =>
+    s + sess.entries.filter((e: any) => e.type === "COOK" && e.unloadTime).reduce((a: number, e: any) => a + e.quantity, 0), 0);
+  const totalSqFt = nonRejected.reduce((s: number, sess: any) =>
+    s + sess.entries.filter((e: any) => e.type === "COOK" && e.unloadTime).reduce((a: number, e: any) => a + (e.quantity * (e.size?.sqft || 0)), 0), 0);
+  const totalGlue = nonRejected.reduce((s: number, sess: any) =>
+    s + sess.glueEntries.reduce((a: number, e: any) => a + e.barrels, 0), 0);
+  const approvedCount = sessions.filter((s: any) => s.approvalStatus === "MANAGER_APPROVED").length;
 
   // Group sessions by date
   const grouped: Record<string, HotPressSession[]> = {};
-  sessions.forEach(s => {
+  sessions.forEach((s: any) => {
     const dateKey = fmtDate(s.shiftDate);
     if (!grouped[dateKey]) grouped[dateKey] = [];
     grouped[dateKey].push(s);
@@ -332,7 +321,7 @@ export default function ProductionHistory({ showOperatorFilter = false }: Produc
                   <select value={operatorFilter} onChange={e => setOperatorFilter(e.target.value)}
                     className="w-full px-3 py-2.5 bg-slate-900 border border-slate-700 rounded-xl text-white text-sm focus:ring-2 focus:ring-blue-500/50 outline-none">
                     <option value="ALL">All Operators</option>
-                    {operators.map(op => (
+                    {operators.map((op: any) => (
                       <option key={op.id} value={op.id}>{op.name}</option>
                     ))}
                   </select>
@@ -367,8 +356,8 @@ export default function ProductionHistory({ showOperatorFilter = false }: Produc
                 <span className="text-xs text-slate-600">({dateSessions.length} session{dateSessions.length > 1 ? "s" : ""})</span>
               </div>
               <div className="space-y-3">
-                {dateSessions.map(sess => (
-                  <HistorySessionCard key={sess.id} session={sess} onRefresh={fetchData} />
+                {dateSessions.map((sess: any) => (
+                  <HistorySessionCard key={sess.id} session={sess} onRefresh={refetch} />
                 ))}
               </div>
             </div>

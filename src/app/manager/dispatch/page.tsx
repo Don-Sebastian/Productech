@@ -2,7 +2,8 @@
 
 import { useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
-import { useEffect, useState, Suspense } from "react";
+import { useEffect, useState, Suspense, useMemo } from "react";
+import { useQuery } from "@tanstack/react-query";
 import Sidebar from "@/components/Sidebar";
 import { Truck, Check, Package, X, CheckSquare, Clock, AlertTriangle } from "lucide-react";
 
@@ -10,8 +11,6 @@ function ManagerDispatchContent() {
   const { data: session, status } = useSession();
   const router = useRouter();
   
-  const [dispatchLoads, setDispatchLoads] = useState<any[]>([]);
-  const [loading, setLoading] = useState(true);
   const [actionLoading, setActionLoading] = useState<string | null>(null);
   
   const [editingLoadId, setEditingLoadId] = useState<string | null>(null);
@@ -22,19 +21,17 @@ function ManagerDispatchContent() {
     if (status === "authenticated" && (session?.user as any)?.role !== "MANAGER") router.push("/");
   }, [status, session, router]);
 
-  const fetchLoads = () => {
-    fetch("/api/dispatch")
-      .then((r) => r.json())
-      .then((d) => {
-        if (Array.isArray(d)) setDispatchLoads(d);
-        setLoading(false);
-      })
-      .catch(() => setLoading(false));
-  };
+  const { data: apiData, isLoading: loading, refetch: fetchLoads } = useQuery({
+    queryKey: ["manager-dispatch"],
+    queryFn: async () => {
+      const res = await fetch("/api/dispatch");
+      if (!res.ok) throw new Error("Failed to fetch");
+      return res.json();
+    },
+    enabled: status === "authenticated",
+  });
 
-  useEffect(() => {
-    if (status === "authenticated") fetchLoads();
-  }, [status]);
+  const dispatchLoads = useMemo(() => Array.isArray(apiData) ? apiData : [], [apiData]);
 
   const [stockShortages, setStockShortages] = useState<any[] | null>(null);
 

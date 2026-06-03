@@ -2,14 +2,13 @@
 
 import { useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useMemo } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { TreePine, Plus, Trash2, X } from "lucide-react";
 
 export default function PeelingCatalogPage() {
   const { data: session, status } = useSession();
   const router = useRouter();
-  const [materials, setMaterials] = useState<any[]>([]);
-  const [loading, setLoading] = useState(true);
   const [showAdd, setShowAdd] = useState(false);
   const [treeType, setTreeType] = useState("");
   const [veneerThickness, setVeneerThickness] = useState("");
@@ -21,15 +20,17 @@ export default function PeelingCatalogPage() {
     if (status === "authenticated" && (session?.user as any)?.role !== "MANAGER") router.push("/");
   }, [status, session, router]);
 
-  const fetchData = async () => {
-    try {
+  const { data: apiData, isLoading: loading, refetch: fetchData } = useQuery({
+    queryKey: ["manager-peeling-catalog"],
+    queryFn: async () => {
       const res = await fetch("/api/peeling-catalog");
-      if (res.ok) setMaterials(await res.json());
-    } catch (err) { console.error(err); }
-    finally { setLoading(false); }
-  };
+      if (!res.ok) throw new Error("Failed to fetch");
+      return res.json();
+    },
+    enabled: status === "authenticated",
+  });
 
-  useEffect(() => { if (status === "authenticated") fetchData(); }, [status]);
+  const materials = useMemo(() => Array.isArray(apiData) ? apiData : [], [apiData]);
 
   const addMaterial = async () => {
     if (!treeType.trim() || !veneerThickness) { setError("Both fields are required"); return; }

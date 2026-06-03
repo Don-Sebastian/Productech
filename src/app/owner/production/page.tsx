@@ -3,6 +3,7 @@
 import { useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import { useEffect, useState, useMemo } from "react";
+import { useQuery } from "@tanstack/react-query";
 import Sidebar from "@/components/Sidebar";
 import {
   Factory,
@@ -26,10 +27,6 @@ import { StatSkeleton, ListSkeleton } from "@/components/Skeleton";
 export default function OwnerProduction() {
   const { data: session, status } = useSession();
   const router = useRouter();
-  const [prodLists, setProdLists] = useState<any[]>([]);
-  const [pressSettings, setPressSettings] = useState<PressSettings>({ workingHoursPerDay: 8, numHotPresses: 1, pressCapacityPerPress: 10 });
-  const [productTimings, setProductTimings] = useState<any[]>([]);
-  const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState("ALL");
   const [viewMode, setViewMode] = useState<"ACTIVE" | "HISTORY">("ACTIVE");
@@ -40,23 +37,31 @@ export default function OwnerProduction() {
     if (status === "authenticated" && (session?.user as any)?.role !== "OWNER") router.push("/");
   }, [status, session, router]);
 
-  useEffect(() => {
-    if (status === "authenticated") {
-      fetch("/api/production-lists")
-        .then((res) => res.json())
-        .then((data) => {
-          const list = data && Array.isArray(data.lists) ? data.lists : (Array.isArray(data) ? data : []);
-          setProdLists(list);
-          if (data?.pressSettings) setPressSettings(data.pressSettings);
-          if (data?.productTimings) setProductTimings(data.productTimings);
-          setLoading(false);
-        })
-        .catch(() => setLoading(false));
-    }
-  }, [status]);
+  const { data: apiData, isLoading: loading } = useQuery({
+    queryKey: ["owner-production-lists"],
+    queryFn: async () => {
+      const res = await fetch("/api/production-lists");
+      if (!res.ok) throw new Error("Failed to fetch");
+      return res.json();
+    },
+    enabled: status === "authenticated",
+  });
+
+  const prodLists = useMemo(() => {
+    const data = apiData;
+    return data && Array.isArray(data.lists) ? data.lists : (Array.isArray(data) ? data : []);
+  }, [apiData]);
+
+  const pressSettings: PressSettings = useMemo(() => {
+    return apiData?.pressSettings || { workingHoursPerDay: 8, numHotPresses: 1, pressCapacityPerPress: 10 };
+  }, [apiData]);
+
+  const productTimings = useMemo(() => {
+    return apiData?.productTimings || [];
+  }, [apiData]);
 
   const displayLists = useMemo(() => {
-    return prodLists.filter(l => {
+    return prodLists.filter((l: any) => {
       const isFinal = l.status === "COMPLETED" && (l.order ? ["DISPATCHED", "COMPLETED", "CANCELLED"].includes(l.order.status) : true);
       const matchesMode = viewMode === "ACTIVE" ? !isFinal : isFinal;
       const matchesSearch = 
@@ -66,7 +71,7 @@ export default function OwnerProduction() {
       const matchesStatus = statusFilter === "ALL" || l.status === statusFilter;
       
       return matchesMode && matchesSearch && matchesStatus;
-    }).sort((a, b) => {
+    }).sort((a: any, b: any) => {
        if (a.priority !== b.priority) return a.priority - b.priority;
        return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
     });
@@ -155,15 +160,15 @@ export default function OwnerProduction() {
               </div>
               <div className="bg-slate-800/40 border border-slate-700/50 rounded-2xl p-5 shadow-sm">
                 <p className="text-slate-500 text-[10px] font-black uppercase tracking-widest mb-1 px-1">Active</p>
-                <p className="text-3xl font-black text-amber-400">{prodLists.filter(l => !["COMPLETED","REJECTED","CANCELLED"].includes(l.status)).length}</p>
+                <p className="text-3xl font-black text-amber-400">{prodLists.filter((l: any) => !["COMPLETED","REJECTED","CANCELLED"].includes(l.status)).length}</p>
               </div>
               <div className="bg-slate-800/40 border border-slate-700/50 rounded-2xl p-5 shadow-sm">
                 <p className="text-slate-500 text-[10px] font-black uppercase tracking-widest mb-1 px-1">Dispatched/Done</p>
-                <p className="text-3xl font-black text-emerald-400">{prodLists.filter(l => l.status === "COMPLETED").length}</p>
+                <p className="text-3xl font-black text-emerald-400">{prodLists.filter((l: any) => l.status === "COMPLETED").length}</p>
               </div>
               <div className="bg-slate-800/40 border border-slate-700/50 rounded-2xl p-5 shadow-sm">
                 <p className="text-slate-500 text-[10px] font-black uppercase tracking-widest mb-1 px-1">Verification Wait</p>
-                <p className="text-3xl font-black text-violet-400">{prodLists.filter(l => l.status === "PRESSING").length}</p>
+                <p className="text-3xl font-black text-violet-400">{prodLists.filter((l: any) => l.status === "PRESSING").length}</p>
               </div>
             </>
           )}
@@ -179,7 +184,7 @@ export default function OwnerProduction() {
           </div>
         ) : (
           <div className="space-y-4">
-             {displayLists.map((list) => {
+             {displayLists.map((list: any) => {
                const config = statusConfig[list.status] || statusConfig.PLANNED;
                const StatusIcon = config.icon;
                const pc = priorityConfig[list.priority] || priorityConfig[3];

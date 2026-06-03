@@ -1,6 +1,7 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { useSession } from "next-auth/react";
 import {
   Plus,
@@ -41,6 +42,10 @@ interface UserManagementProps {
   description: string;
   showSection?: boolean;
   accentColor?: string;
+  users: UserData[];
+  sections?: { id: string; name: string; slug: string }[];
+  loading?: boolean;
+  onRefresh: () => void;
 }
 
 export default function UserManagement({
@@ -49,9 +54,11 @@ export default function UserManagement({
   description,
   showSection = false,
   accentColor = "blue",
+  users,
+  sections = [],
+  loading = false,
+  onRefresh,
 }: UserManagementProps) {
-  const [users, setUsers] = useState<UserData[]>([]);
-  const [loading, setLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
   const [editingUser, setEditingUser] = useState<UserData | null>(null);
   const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null);
@@ -59,7 +66,6 @@ export default function UserManagement({
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
   const [showPassword, setShowPassword] = useState(false);
-  const [sections, setSections] = useState<{id: string; name: string; slug: string}[]>([]);
 
   // Password reset state
   const [resetPasswordUserId, setResetPasswordUserId] = useState<string | null>(null);
@@ -77,38 +83,6 @@ export default function UserManagement({
     phone: "",
     section: "",
   });
-
-  const fetchUsers = async () => {
-    try {
-      setLoading(true);
-      const res = await fetch(`/api/users?role=${targetRole}`);
-      if (res.ok) {
-        const data = await res.json();
-        setUsers(data);
-      }
-    } catch (err) {
-      console.error("Error fetching users:", err);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const fetchSections = async () => {
-    try {
-      const res = await fetch("/api/sections");
-      if (res.ok) {
-        const data = await res.json();
-        if (Array.isArray(data)) setSections(data.filter((s: any) => s.isActive));
-      }
-    } catch (err) {
-      console.error("Error fetching sections:", err);
-    }
-  };
-
-  useEffect(() => {
-    fetchUsers();
-    if (showSection) fetchSections();
-  }, [targetRole]);
 
   const openCreateModal = () => {
     setEditingUser(null);
@@ -166,7 +140,7 @@ export default function UserManagement({
       }
 
       setShowModal(false);
-      fetchUsers();
+      onRefresh();
       setTimeout(() => setSuccess(""), 3000);
     } catch (err) {
       setError("An error occurred");
@@ -179,7 +153,7 @@ export default function UserManagement({
       if (res.ok) {
         setSuccess("User deleted successfully!");
         setDeleteConfirm(null);
-        fetchUsers();
+        onRefresh();
         setTimeout(() => setSuccess(""), 3000);
       } else {
         const data = await res.json();
@@ -198,7 +172,7 @@ export default function UserManagement({
         body: JSON.stringify({ isActive: !user.isActive }),
       });
       if (res.ok) {
-        fetchUsers();
+        onRefresh();
         setSuccess(`User ${user.isActive ? "deactivated" : "activated"} successfully!`);
         setTimeout(() => setSuccess(""), 3000);
       }

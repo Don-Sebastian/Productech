@@ -18,7 +18,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
 
         const user = await prisma.user.findUnique({
           where: { email: credentials.email as string },
-          include: { company: true, sections: true },
+          include: { company: true, sections: true, ownedCompanies: true },
         });
 
         if (!user) {
@@ -45,12 +45,13 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
           role: user.role,
           companyId: user.companyId,
           sections: user.sections.map((s: any) => s.slug),
+          ownedCompanies: user.ownedCompanies?.map((c: any) => ({ id: c.id, name: c.name })) || [],
         };
       },
     }),
   ],
   callbacks: {
-    async jwt({ token, user, trigger }) {
+    async jwt({ token, user, trigger, session }) {
       // Only query DB on sign-in or explicit update — never on every request
       if (user) {
         token.id = user.id as string;
@@ -58,19 +59,27 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         token.role = (user as any).role;
         token.companyId = (user as any).companyId;
         token.sections = (user as any).sections || [];
+        token.ownedCompanies = (user as any).ownedCompanies || [];
       }
       // Allow manual refresh via update() trigger (e.g. after role change)
-      if (trigger === "update") {
+      if (trigger === "update" && session) {
+        // If the update payload includes a new companyId, we just update it
+        if (session.companyId) {
+          token.companyId = session.companyId;
+          return token;
+        }
+
         try {
           const dbUser = await prisma.user.findUnique({
             where: { id: token.id as string },
-            select: { id: true, name: true, role: true, companyId: true, sections: { select: { slug: true } }, isActive: true },
+            select: { id: true, name: true, role: true, companyId: true, sections: { select: { slug: true } }, isActive: true, ownedCompanies: { select: { id: true, name: true } } },
           });
           if (dbUser && dbUser.isActive) {
             token.name = dbUser.name;
             token.role = dbUser.role;
             token.companyId = dbUser.companyId;
             token.sections = dbUser.sections.map((s: any) => s.slug);
+            token.ownedCompanies = dbUser.ownedCompanies || [];
           }
         } catch {
           // Keep existing token data on error
@@ -86,6 +95,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         (session.user as any).role = token.role;
         (session.user as any).companyId = token.companyId;
         (session.user as any).sections = token.sections || [];
+        (session.user as any).ownedCompanies = token.ownedCompanies || [];
       }
       return session;
     },

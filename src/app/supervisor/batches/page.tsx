@@ -3,6 +3,7 @@
 import { useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
+import { useQuery } from "@tanstack/react-query";
 import Sidebar from "@/components/Sidebar";
 import {
   Factory,
@@ -18,8 +19,6 @@ import {
 export default function SupervisorBatches() {
   const { data: session, status } = useSession();
   const router = useRouter();
-  const [batches, setBatches] = useState<any[]>([]);
-  const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState("ALL");
 
@@ -28,17 +27,17 @@ export default function SupervisorBatches() {
     if (status === "authenticated" && (session?.user as any)?.role !== "SUPERVISOR") router.push("/");
   }, [status, session, router]);
 
-  useEffect(() => {
-    if (status === "authenticated") {
-      fetch("/api/batches")
-        .then((res) => res.json())
-        .then((data) => {
-          if (Array.isArray(data)) setBatches(data);
-          setLoading(false);
-        })
-        .catch(() => setLoading(false));
-    }
-  }, [status]);
+  const { data: batchesData, isLoading: loading } = useQuery({
+    queryKey: ["supervisor-batches"],
+    queryFn: async () => {
+      const res = await fetch("/api/batches");
+      if (!res.ok) throw new Error("Failed to fetch batches");
+      return res.json();
+    },
+    enabled: status === "authenticated",
+  });
+
+  const batches = Array.isArray(batchesData) ? batchesData : [];
 
   if (status === "loading" || !session?.user) {
     return (

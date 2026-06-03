@@ -2,7 +2,8 @@
 
 import { useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useEffect } from "react";
+import { useQuery } from "@tanstack/react-query";
 import Sidebar from "@/components/Sidebar";
 import {
   Factory,
@@ -19,27 +20,20 @@ import {
 export default function ManagerDashboard() {
   const { data: session, status } = useSession();
   const router = useRouter();
-  const [stats, setStats] = useState<any>(null);
-  const [recentBatches, setRecentBatches] = useState<any[]>([]);
-  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     if (status === "unauthenticated") router.push("/login");
     if (status === "authenticated" && (session?.user as any)?.role !== "MANAGER") router.push("/");
   }, [status, session, router]);
 
-  useEffect(() => {
-    if (status === "authenticated") {
-      fetch("/api/dashboard/stats")
-        .then((res) => res.json())
-        .then((data) => {
-          setStats(data.stats);
-          setRecentBatches(data.recentBatches || []);
-          setLoading(false);
-        })
-        .catch(() => setLoading(false));
-    }
-  }, [status]);
+  const { data: dashboardData, isLoading: loading } = useQuery({
+    queryKey: ["manager-dashboard-stats"],
+    queryFn: () => fetch("/api/dashboard/stats").then(res => res.json()),
+    enabled: status === "authenticated",
+  });
+
+  const stats = dashboardData?.stats || null;
+  const recentBatches = dashboardData?.recentBatches || [];
 
   if (status === "loading" || !session?.user) {
     return (

@@ -1,13 +1,14 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import Sidebar from "@/components/Sidebar";
 import React from "react";
 import {
   CheckCircle2, XCircle, Clock, Package, Timer, Power, PowerOff,
-  Flame, RotateCcw, Droplets, Wrench, Pause, ChevronDown, ChevronUp,
+  Flame, RefreshCcw, Droplets, Wrench, Pause, ChevronDown, ChevronUp,
   User, Send, AlertTriangle
 } from "lucide-react";
 
@@ -85,29 +86,25 @@ function buildSummary(entries: PressEntry[]) {
 export default function SupervisorApprovalPage() {
   const { data: session, status } = useSession();
   const router = useRouter();
-  const [sessions, setSessions] = useState<HotPressSession[]>([]);
-  const [loading, setLoading] = useState(true);
   const [rejectingId, setRejectingId] = useState<string | null>(null);
   const [rejectNote, setRejectNote] = useState("");
-
-  const fetchData = useCallback(async () => {
-    try {
-      const res = await fetch("/api/hotpress?view=approval");
-      if (res.ok) {
-        const d = await res.json();
-        setSessions(d.pendingSessions || []);
-      }
-    } catch (err) {
-      console.error(err);
-    } finally { setLoading(false); }
-  }, []);
 
   useEffect(() => {
     if (status === "unauthenticated") router.push("/login");
     if (status === "authenticated" && (session?.user as any)?.role !== "SUPERVISOR") router.push("/");
   }, [status, session, router]);
 
-  useEffect(() => { if (status === "authenticated") fetchData(); }, [fetchData, status]);
+  const { data: apiData, isLoading: loading, refetch: fetchData } = useQuery({
+    queryKey: ["supervisor-approvals"],
+    queryFn: async () => {
+      const res = await fetch("/api/hotpress?view=approval");
+      if (!res.ok) throw new Error("Failed to fetch approvals");
+      return res.json();
+    },
+    enabled: status === "authenticated",
+  });
+
+  const sessions: HotPressSession[] = apiData?.pendingSessions || [];
 
   const approve = async (sessionId: string) => {
     // Direct approve without confirm dialog
@@ -185,7 +182,7 @@ export default function SupervisorApprovalPage() {
         </div>
       ) : (
         <div className="space-y-4">
-          {sessions.map(sess => (
+          {sessions.map((sess: any) => (
             <ApprovalCard key={sess.id} session={sess} onApprove={() => approve(sess.id)}
               isRejecting={rejectingId === sess.id}
               onStartReject={() => setRejectingId(sess.id)}

@@ -13,25 +13,15 @@ interface Batch {
   startDate: string;
 }
 
-export default function RecentBatches() {
-  const [batches, setBatches] = useState<Batch[]>([]);
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    const fetchBatches = async () => {
-      try {
-        const response = await fetch("/api/batches");
-        const data = await response.json();
-        setBatches(data.slice(0, 5));
-      } catch (error) {
-        console.error("Error fetching batches:", error);
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchBatches();
-  }, []);
+export default function RecentBatches({ 
+  batches = [], 
+  loading = false 
+}: { 
+  batches?: Batch[], 
+  loading?: boolean 
+}) {
+  if (loading) return <div>Loading batches...</div>;
+  const recentBatches = batches.slice(0, 5);
 
   const getStatusColor = (status: string) => {
     const colors: Record<string, string> = {
@@ -44,13 +34,12 @@ export default function RecentBatches() {
     return colors[status] || "bg-gray-100 text-gray-800";
   };
 
-  if (loading) return <div>Loading batches...</div>;
 
   return (
     <div className="bg-white rounded-lg shadow p-6">
       <h2 className="text-xl font-bold mb-6">Recent Production Batches</h2>
 
-      {batches.length === 0 ? (
+      {recentBatches.length === 0 ? (
         <p className="text-gray-600 text-center py-8">
           No batches yet. Create your first batch!
         </p>
@@ -77,7 +66,7 @@ export default function RecentBatches() {
               </tr>
             </thead>
             <tbody>
-              {batches.map((batch) => (
+              {recentBatches.map((batch) => (
                 <tr
                   key={batch.id}
                   className="border-b border-gray-100 hover:bg-gray-50"

@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import Sidebar from "@/components/Sidebar";
@@ -24,8 +25,7 @@ export default function PeelingDashboard() {
   const role = (session?.user as any)?.role;
   const { assigned, loading: assignmentLoading, error: assignmentError } = useMachineAssignment(role, status);
 
-  const [data, setData] = useState<any>(null);
-  const [loading, setLoading] = useState(true);
+  const queryClient = useQueryClient();
 
   // Add entry state
   const [showAdd, setShowAdd] = useState(false);
@@ -39,32 +39,67 @@ export default function PeelingDashboard() {
     if (status === "unauthenticated") router.push("/login");
   }, [status, router]);
 
-  const fetchData = useCallback(async () => {
-    try {
+  const { data, isLoading: loading } = useQuery({
+    queryKey: ["peelingData"],
+    queryFn: async () => {
       const res = await fetch("/api/peeling");
-      if (res.ok) setData(await res.json());
-    } catch (err) {
-      console.error("Fetch error:", err);
-    } finally {
-      setLoading(false);
-    }
-  }, []);
+      if (!res.ok) throw new Error("Failed to fetch data");
+      return res.json();
+    },
+    enabled: status === "authenticated" && !!assigned,
+  });
 
-  useEffect(() => { if (status === "authenticated" && assigned) fetchData(); }, [fetchData, status, assigned]);
-
-  const doAction = async (action: string, extra: Record<string, any> = {}) => {
-    try {
+  const mutation = useMutation({
+    mutationFn: async ({ action, extra }: { action: string; extra: any }) => {
       const res = await fetch("/api/peeling", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ action, ...extra }),
       });
-      if (res.ok) await fetchData();
-      else {
+      if (!res.ok) {
         const err = await res.json();
-        alert(err.error || "Action failed");
+        throw new Error(err.error || "Action failed");
       }
-    } catch { alert("Network error"); }
+      return res.json();
+    },
+    onMutate: async ({ action, extra }) => {
+      await queryClient.cancelQueries({ queryKey: ["peelingData"] });
+      const prev = queryClient.getQueryData<any>(["peelingData"]);
+      if (prev && prev.activeSession) {
+        const s = { ...prev.activeSession };
+        if (action === "pause") s.status = "PAUSED";
+        else if (action === "resume") s.status = "RUNNING";
+        else if (action === "maintenance") s.status = "MAINTENANCE";
+        else if (action === "stop") {
+          s.status = "STOPPED";
+          s.stopTime = new Date().toISOString();
+        } else if (action === "addEntry") {
+          const material = prev.materials?.find((m: any) => m.id === extra.peelingMaterialId);
+          s.entries = [...(s.entries || []), {
+            id: `temp-${Date.now()}`,
+            quantity: parseInt(extra.quantity) || 0,
+            logCount: parseInt(extra.logCount) || 0,
+            timestamp: new Date().toISOString(),
+            peelingMaterial: material
+          }];
+        } else if (action === "deleteEntry") {
+          s.entries = s.entries?.filter((e: any) => e.id !== extra.entryId);
+        }
+        queryClient.setQueryData(["peelingData"], { ...prev, activeSession: s });
+      }
+      return { prev };
+    },
+    onError: (err, variables, context) => {
+      alert(err.message);
+      queryClient.setQueryData(["peelingData"], context?.prev);
+    },
+    onSettled: () => {
+      queryClient.invalidateQueries({ queryKey: ["peelingData"] });
+    },
+  });
+
+  const doAction = async (action: string, extra: Record<string, any> = {}) => {
+    mutation.mutate({ action, extra });
   };
 
   if (status === "loading" || assignmentLoading) {

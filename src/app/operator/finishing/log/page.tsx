@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import Sidebar from "@/components/Sidebar";
@@ -22,8 +23,7 @@ export default function FinishingDashboard() {
   const role = (session?.user as any)?.role;
   const { assigned, loading: assignmentLoading, error: assignmentError } = useMachineAssignment(role, status);
 
-  const [data, setData] = useState<any>(null);
-  const [loading, setLoading] = useState(true);
+  const queryClient = useQueryClient();
 
   // Add entry
   const [showAdd, setShowAdd] = useState(false);
@@ -39,26 +39,64 @@ export default function FinishingDashboard() {
     if (status === "unauthenticated") router.push("/login");
   }, [status, router]);
 
-  const fetchData = useCallback(async () => {
-    try {
+  const { data, isLoading: loading } = useQuery({
+    queryKey: ["finishingData"],
+    queryFn: async () => {
       const res = await fetch("/api/finishing");
-      if (res.ok) setData(await res.json());
-    } catch (err) { console.error("Fetch error:", err); }
-    finally { setLoading(false); }
-  }, []);
+      if (!res.ok) throw new Error("Failed to fetch data");
+      return res.json();
+    },
+    enabled: status === "authenticated" && !!assigned,
+  });
 
-  useEffect(() => { if (status === "authenticated" && assigned) fetchData(); }, [fetchData, status, assigned]);
-
-  const doAction = async (action: string, extra: Record<string, any> = {}) => {
-    try {
+  const mutation = useMutation({
+    mutationFn: async ({ action, extra }: { action: string; extra: any }) => {
       const res = await fetch("/api/finishing", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ action, ...extra }),
       });
-      if (res.ok) await fetchData();
-      else { const err = await res.json(); alert(err.error || "Action failed"); }
-    } catch { alert("Network error"); }
+      if (!res.ok) {
+        const err = await res.json();
+        throw new Error(err.error || "Action failed");
+      }
+      return res.json();
+    },
+    onMutate: async ({ action, extra }) => {
+      await queryClient.cancelQueries({ queryKey: ["finishingData"] });
+      const prev = queryClient.getQueryData<any>(["finishingData"]);
+      if (prev && prev.todayLog) {
+        const todayLog = { ...prev.todayLog };
+        if (action === "addEntry") {
+          const category = prev.products?.find((p: any) => p.category.id === extra.categoryId)?.category;
+          const thickness = prev.products?.find((p: any) => p.thickness.id === extra.thicknessId)?.thickness;
+          const size = prev.products?.find((p: any) => p.size.id === extra.sizeId)?.size;
+          
+          todayLog.entries = [...(todayLog.entries || []), {
+            id: `temp-${Date.now()}`,
+            quantity: parseInt(extra.quantity) || 0,
+            notes: extra.notes || null,
+            timestamp: new Date().toISOString(),
+            category, thickness, size
+          }];
+        } else if (action === "deleteEntry") {
+          todayLog.entries = todayLog.entries?.filter((e: any) => e.id !== extra.entryId);
+        }
+        queryClient.setQueryData(["finishingData"], { ...prev, todayLog });
+      }
+      return { prev };
+    },
+    onError: (err, variables, context) => {
+      alert(err.message);
+      queryClient.setQueryData(["finishingData"], context?.prev);
+    },
+    onSettled: () => {
+      queryClient.invalidateQueries({ queryKey: ["finishingData"] });
+    },
+  });
+
+  const doAction = async (action: string, extra: Record<string, any> = {}) => {
+    mutation.mutate({ action, extra });
   };
 
   if (status === "loading" || assignmentLoading) {

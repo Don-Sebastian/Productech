@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useMemo } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { useSession } from "next-auth/react";
 import Sidebar from "@/components/Sidebar";
 import { 
@@ -47,23 +48,16 @@ interface AttendanceRegister {
 }
 
 export default function SalaryExpensesDashboard() {
-  const { data: session } = useSession();
-  const [registers, setRegisters] = useState<AttendanceRegister[]>([]);
-  const [prevRegisters, setPrevRegisters] = useState<AttendanceRegister[]>([]);
-  const [loading, setLoading] = useState(true);
+  const { data: session, status } = useSession();
   const [viewMode, setViewMode] = useState<"monthly" | "weekly">("monthly");
   const [month, setMonth] = useState(format(new Date(), "yyyy-MM"));
   const [weekStart, setWeekStart] = useState(format(startOfWeek(new Date(), { weekStartsOn: 1 }), "yyyy-MM-dd"));
   const [expandedSection, setExpandedSection] = useState<string | null>("employees");
   const [filterMachine, setFilterMachine] = useState("all");
 
-  useEffect(() => {
-    fetchExpenses();
-  }, [month, weekStart, viewMode]);
-
-  const fetchExpenses = async () => {
-    setLoading(true);
-    try {
+  const { data: apiData, isLoading: loading } = useQuery({
+    queryKey: ["owner-expenses", viewMode, month, weekStart],
+    queryFn: async () => {
       let startDate: string, endDate: string, prevStartDate: string, prevEndDate: string;
       
       if (viewMode === "monthly") {
@@ -87,14 +81,17 @@ export default function SalaryExpensesDashboard() {
         fetch(`/api/attendance?status=APPROVED&startDate=${prevStartDate}&endDate=${prevEndDate}`)
       ]);
 
-      if (currentRes.ok) setRegisters(await currentRes.json());
-      if (prevRes.ok) setPrevRegisters(await prevRes.json());
-    } catch (err) {
-      console.error(err);
-    } finally {
-      setLoading(false);
-    }
-  };
+      if (!currentRes.ok || !prevRes.ok) throw new Error("Failed to fetch");
+      return {
+        registers: await currentRes.json(),
+        prevRegisters: await prevRes.json(),
+      };
+    },
+    enabled: status === "authenticated",
+  });
+
+  const registers: AttendanceRegister[] = useMemo(() => Array.isArray(apiData?.registers) ? apiData.registers : [], [apiData]);
+  const prevRegisters: AttendanceRegister[] = useMemo(() => Array.isArray(apiData?.prevRegisters) ? apiData.prevRegisters : [], [apiData]);
 
   const calculateEntryCost = (entry: AttendanceEntry) => {
     let cost = 0;

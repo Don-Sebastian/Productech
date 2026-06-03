@@ -12,7 +12,15 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
     const order = await prisma.order.findUnique({
       where: { id },
       include: {
-        items: { include: { category: true, thickness: true, size: true } },
+        items: {
+          select: {
+            id: true, quantity: true, layers: true, brandSeal: true, varnish: true, notes: true,
+            categoryId: true, thicknessId: true, sizeId: true,
+            category: { select: { id: true, name: true } },
+            thickness: { select: { id: true, value: true } },
+            size: { select: { id: true, label: true, length: true, width: true } },
+          },
+        },
         createdBy: { select: { id: true, name: true } },
         customer: true,
         timelineEvents: {

@@ -2,8 +2,10 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { signOut } from "next-auth/react";
+import { signOut, useSession } from "next-auth/react";
 import { useState, useEffect } from "react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useMachineAssignment } from "@/hooks/useMachineAssignment";
 import {
   LayoutDashboard,
   Building2,
@@ -52,8 +54,10 @@ const roleConfigs: Record<string, { label: string; color: string; links: { href:
     color: "from-emerald-600 to-teal-600",
     links: [
       { href: "/owner", label: "Dashboard", icon: LayoutDashboard },
+      { href: "/owner/overall-stats", label: "Overall Stats", icon: Gauge },
       { href: "/owner/log-history", label: "Log History", icon: History },
       { href: "/owner/inventory", label: "Inventory", icon: Package },
+      { href: "/owner/inventory/transfer", label: "Stock Transfer", icon: Truck },
       { href: "/owner/orders", label: "Order", icon: ShoppingCart },
       { href: "/owner/production", label: "Production", icon: Factory },
       { href: "/owner/dispatch-history", label: "Dispatch", icon: Truck },
@@ -130,71 +134,34 @@ const sectionNavLinks: Record<string, { href: string; label: string; icon: any }
 };
 
 export default function Sidebar({ user }: SidebarProps) {
+  const { data: session, update } = useSession();
   const pathname = usePathname();
   const role = (user as any)?.role || "OPERATOR";
   const config = roleConfigs[role] || roleConfigs.OPERATOR;
-  const [unread, setUnread] = useState(0);
-  const [unreadNotifs, setUnreadNotifs] = useState<any[]>([]);
   const [mobileOpen, setMobileOpen] = useState(false);
-  const [operatorSection, setOperatorSection] = useState<string | null>(null);
+  const queryClient = useQueryClient();
 
-  // Fetch operator's machine section for dynamic nav
+  const { machine } = useMachineAssignment(role, "authenticated");
+  const operatorSection = machine?.section?.slug || null;
+
+  const { data: notifications = [] } = useQuery({
+    queryKey: ["notifications", role],
+    queryFn: async () => {
+      const res = await fetch("/api/notifications");
+      if (!res.ok) throw new Error("Failed to fetch");
+      return res.json();
+    },
+    enabled: !!role && role !== "ADMIN",
+  });
+
+  const unreadNotifs = Array.isArray(notifications) ? notifications.filter((n: any) => !n.isRead) : [];
+  const unread = unreadNotifs.length;
+
   useEffect(() => {
-    if (role !== "OPERATOR") return;
-    fetch("/api/operator/assignment")
-      .then((r) => r.ok ? r.json() : null)
-      .then((data) => {
-        if (data?.machine?.section?.slug) {
-          setOperatorSection(data.machine.section.slug);
-        }
-      })
-      .catch(() => {});
-  }, [role]);
-
-  // Fetch notification count — with visibility-based polling
-  useEffect(() => {
-    if (role === "ADMIN") return;
-
-    let interval: NodeJS.Timeout | null = null;
-    const controller = new AbortController();
-
-    const fetchNotifs = () => {
-      // Only poll when tab is visible
-      if (document.visibilityState !== "visible") return;
-      fetch("/api/notifications", { signal: controller.signal })
-        .then((r) => r.json())
-        .then((data) => {
-          if (Array.isArray(data)) {
-            const unreadArr = data.filter((n: any) => !n.isRead);
-            setUnread(unreadArr.length);
-            setUnreadNotifs(unreadArr);
-          }
-        })
-        .catch(() => {});
-    };
-
-    // Initial fetch
-    fetchNotifs();
-
-    // Poll every 60 seconds (was 30s — reduces DB load by 50%)
-    interval = setInterval(fetchNotifs, 60000);
-
-    // Re-fetch immediately when tab becomes visible
-    const handleVisibility = () => {
-      if (document.visibilityState === "visible") fetchNotifs();
-    };
-    document.addEventListener("visibilitychange", handleVisibility);
-
-    const handleReadEvent = () => fetchNotifs();
+    const handleReadEvent = () => queryClient.invalidateQueries({ queryKey: ["notifications", role] });
     window.addEventListener("notifications_read", handleReadEvent);
-
-    return () => {
-      controller.abort();
-      if (interval) clearInterval(interval);
-      document.removeEventListener("visibilitychange", handleVisibility);
-      window.removeEventListener("notifications_read", handleReadEvent);
-    };
-  }, [role]);
+    return () => window.removeEventListener("notifications_read", handleReadEvent);
+  }, [queryClient, role]);
 
   const navLinks = role === "OPERATOR" && operatorSection
     ? (sectionNavLinks[operatorSection] || config.links)
@@ -207,9 +174,9 @@ export default function Sidebar({ user }: SidebarProps) {
   const sidebarContent = (
     <>
       {/* Brand */}
-      <div className="p-5 border-b border-slate-800">
+      <div className="p-5 border-b border-slate-800 flex flex-col gap-3">
         <div className="flex items-center gap-3">
-          <div className={`w-10 h-10 rounded-xl bg-gradient-to-br ${config.color} flex items-center justify-center shadow-lg`}>
+          <div className={`w-10 h-10 rounded-xl bg-gradient-to-br ${config.color} flex items-center justify-center shadow-lg shrink-0`}>
             <span className="text-white font-bold text-lg">C</span>
           </div>
           <div>
@@ -217,6 +184,24 @@ export default function Sidebar({ user }: SidebarProps) {
             <p className="text-slate-500 text-xs">{config.label}</p>
           </div>
         </div>
+
+        {role === "OWNER" && session?.user && (session.user as any).ownedCompanies?.length > 0 && (
+          <div className="mt-1">
+            <label className="text-[10px] uppercase font-bold text-slate-500 tracking-wider mb-1 block">Active Company</label>
+            <select
+              value={(session.user as any).companyId || ""}
+              onChange={async (e) => {
+                await update({ companyId: e.target.value });
+                window.location.href = "/owner"; // Navigate and hard reload to clear cache
+              }}
+              className="w-full bg-slate-900 border border-slate-700 text-slate-300 text-xs rounded-lg px-2 py-2 focus:outline-none focus:ring-1 focus:ring-violet-500"
+            >
+              {(session.user as any).ownedCompanies.map((c: any) => (
+                <option key={c.id} value={c.id}>{c.name}</option>
+              ))}
+            </select>
+          </div>
+        )}
       </div>
 
       {/* Navigation */}
@@ -250,9 +235,9 @@ export default function Sidebar({ user }: SidebarProps) {
                     method: "PUT",
                     headers: { "Content-Type": "application/json" },
                     body: JSON.stringify({ notificationIds: ids }),
+                  }).then(() => {
+                    queryClient.invalidateQueries({ queryKey: ["notifications", role] });
                   });
-                  setUnreadNotifs((prev) => prev.filter((n) => !ids.includes(n.id)));
-                  setUnread((prev) => prev - ids.length);
                 }
               }}
               className={`flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all duration-200 group ${

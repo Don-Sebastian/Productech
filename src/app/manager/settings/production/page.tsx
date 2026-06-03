@@ -3,13 +3,13 @@
 import { useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { Clock, Thermometer, Wind, Factory, Save, CheckCircle } from "lucide-react";
 
 export default function ManagerProductionSettings() {
   const { data: session, status } = useSession();
   const router = useRouter();
   const [settings, setSettings] = useState({ workingHoursPerDay: 8, numHotPresses: 1, pressCapacityPerPress: 10 });
-  const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
   const [error, setError] = useState("");
@@ -19,16 +19,25 @@ export default function ManagerProductionSettings() {
     if (status === "authenticated" && (session?.user as any)?.role !== "MANAGER") router.push("/");
   }, [status, session, router]);
 
+  const { data: apiData, isLoading: loading } = useQuery({
+    queryKey: ["manager-production-settings"],
+    queryFn: async () => {
+      const res = await fetch("/api/company/settings");
+      if (!res.ok) throw new Error("Failed to fetch");
+      return res.json();
+    },
+    enabled: status === "authenticated",
+  });
+
   useEffect(() => {
-    if (status === "authenticated") {
-      fetch("/api/company/settings")
-        .then((r) => r.json())
-        .then((d) => {
-          if (d && !d.error) setSettings(d);
-          setLoading(false);
-        });
+    if (apiData && !apiData.error) {
+      setSettings({
+        workingHoursPerDay: apiData.workingHoursPerDay || 8,
+        numHotPresses: apiData.numHotPresses || 1,
+        pressCapacityPerPress: apiData.pressCapacityPerPress || 10,
+      });
     }
-  }, [status]);
+  }, [apiData]);
 
   const save = async () => {
     setSaving(true);

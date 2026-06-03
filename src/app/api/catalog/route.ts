@@ -12,7 +12,7 @@ export async function GET(request: NextRequest) {
     const companyId = (session.user as any).companyId;
     if (!companyId) return NextResponse.json({ error: "No company" }, { status: 400 });
 
-    const [categories, thicknesses, sizes] = await Promise.all([
+    const [categories, thicknesses, sizes, productTimings] = await Promise.all([
       prisma.plywoodCategory.findMany({
         where: { companyId, isActive: true },
         orderBy: { sortOrder: "desc" },
@@ -25,14 +25,8 @@ export async function GET(request: NextRequest) {
         where: { companyId, isActive: true },
         orderBy: [{ length: "desc" }, { width: "desc" }],
       }),
+      prisma.productTiming.findMany({ where: { companyId } }).catch(() => [] as any[]),
     ]);
-
-    let productTimings: any[] = [];
-    try {
-      productTimings = await prisma.productTiming.findMany({ where: { companyId } });
-    } catch (e) {
-      console.warn("[CATALOG] Could not fetch productTimings:", e);
-    }
 
     // Cache catalog for 5 minutes — it changes very rarely
     return cachedJson({ categories, thicknesses, sizes, productTimings }, 300);

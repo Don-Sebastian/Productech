@@ -3,6 +3,7 @@
 import { useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import { useEffect, useState, useMemo } from "react";
+import { useQuery } from "@tanstack/react-query";
 import Sidebar from "@/components/Sidebar";
 import MachineRequiredScreen from "@/components/MachineRequiredScreen";
 import { useMachineAssignment } from "@/hooks/useMachineAssignment";
@@ -15,13 +16,8 @@ export default function PressOperatorProduction() {
   const router = useRouter();
   const role = (session?.user as any)?.role;
   const { assigned, loading: assignmentLoading, error: assignmentError } = useMachineAssignment(role, status);
-  const [products, setProducts] = useState<any[]>([]);
-  const [allProdLists, setAllProdLists] = useState<any[]>([]);
-  const [pressSettings, setPressSettings] = useState<PressSettings>({ workingHoursPerDay: 8, numHotPresses: 1, pressCapacityPerPress: 10 });
-  const [productTimings, setProductTimings] = useState<any[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [viewMode, setViewMode] = useState<"ACTIVE" | "HISTORY">("ACTIVE");
 
+  const [viewMode, setViewMode] = useState<"ACTIVE" | "HISTORY">("ACTIVE");
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
 
@@ -30,31 +26,28 @@ export default function PressOperatorProduction() {
     if (status === "authenticated" && (session?.user as any)?.role !== "OPERATOR") router.push("/");
   }, [status, session, router]);
 
-  const fetchData = () => {
-    setLoading(true);
-    Promise.all([
-      fetch("/api/company-products").then((r) => r.json()),
-      fetch("/api/production-lists").then((r) => r.json()),
-    ]).then(([p, lists]) => {
-      if (Array.isArray(p)) setProducts(p.filter((x: any) => x.isActive));
-      if (lists && Array.isArray(lists.lists)) {
-        setAllProdLists(lists.lists);
-        if (lists.pressSettings) setPressSettings(lists.pressSettings);
-        if (lists.productTimings) setProductTimings(lists.productTimings);
-      } else if (Array.isArray(lists)) {
-        setAllProdLists(lists);
-      }
-      setLoading(false);
-    });
-  };
+  const { data, isLoading: loading } = useQuery({
+    queryKey: ["operator-hotpress-production"],
+    queryFn: async () => {
+      const [p, lists] = await Promise.all([
+        fetch("/api/company-products").then((r) => r.json()),
+        fetch("/api/production-lists").then((r) => r.json()),
+      ]);
+      return { p, lists };
+    },
+    enabled: status === "authenticated" && assigned,
+  });
 
-  useEffect(() => { if (status === "authenticated" && assigned) fetchData(); }, [status, assigned]);
+  const products = Array.isArray(data?.p) ? data.p.filter((x: any) => x.isActive) : [];
+  const allProdLists = data?.lists && Array.isArray(data.lists.lists) ? data.lists.lists : (Array.isArray(data?.lists) ? data.lists : []);
+  const pressSettings = data?.lists?.pressSettings || { workingHoursPerDay: 8, numHotPresses: 1, pressCapacityPerPress: 10 };
+  const productTimings = data?.lists?.productTimings || [];
 
   const displayLists = useMemo(() => {
-    return allProdLists.filter(l => {
+    return allProdLists.filter((l: any) => {
       const isFinal = l.status === "COMPLETED" && (l.order ? ["DISPATCHED", "COMPLETED", "CANCELLED"].includes(l.order.status) : true);
       return viewMode === "ACTIVE" ? !isFinal : isFinal;
-    }).sort((a, b) => {
+    }).sort((a: any, b: any) => {
        if (a.priority !== b.priority) return a.priority - b.priority;
        return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
     });
@@ -126,7 +119,7 @@ export default function PressOperatorProduction() {
                 <Package size={32} className="mx-auto text-slate-800 mb-2" />
                 <p className="text-slate-600 text-xs font-black uppercase tracking-widest">No {viewMode.toLowerCase()} lists</p>
               </div>
-            ) : displayLists.map((list) => {
+            ) : displayLists.map((list: any) => {
               const pc = priorityConfig[list.priority] || priorityConfig[3];
               const isComplete = list.status === "COMPLETED";
 

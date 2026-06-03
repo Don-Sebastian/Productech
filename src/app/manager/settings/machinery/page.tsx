@@ -2,7 +2,8 @@
 
 import { useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useMemo } from "react";
+import { useQuery } from "@tanstack/react-query";
 import {
   Cog, Plus, X, Trash2, UserPlus, ChevronDown, ChevronUp,
   CheckCircle, AlertTriangle, Users, Wrench, Shield
@@ -40,11 +41,6 @@ export default function MachinerySettings() {
   const { data: session, status } = useSession();
   const router = useRouter();
 
-  const [sections, setSections] = useState<SectionData[]>([]);
-  const [machines, setMachines] = useState<MachineData[]>([]);
-  const [operators, setOperators] = useState<any[]>([]);
-  const [supervisors, setSupervisors] = useState<any[]>([]);
-  const [loading, setLoading] = useState(true);
   const [expandedSection, setExpandedSection] = useState<string | null>(null);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
@@ -66,27 +62,28 @@ export default function MachinerySettings() {
     if (status === "authenticated" && !["MANAGER", "OWNER"].includes((session?.user as any)?.role)) router.push("/");
   }, [status, session, router]);
 
-  const fetchAll = async () => {
-    try {
+  const { data: pageData, isLoading: loading, refetch: fetchAll } = useQuery({
+    queryKey: ["manager-machinery"],
+    queryFn: async () => {
       const [sectRes, machRes, opRes, supRes] = await Promise.all([
         fetch("/api/sections").then(r => r.json()),
         fetch("/api/machines").then(r => r.json()),
         fetch("/api/users?role=OPERATOR").then(r => r.json()),
         fetch("/api/users?role=SUPERVISOR").then(r => r.json()),
       ]);
-      if (Array.isArray(sectRes)) setSections(sectRes.filter((s: any) => s.isActive));
-      if (Array.isArray(machRes)) setMachines(machRes);
-      if (Array.isArray(opRes)) setOperators(opRes);
-      if (Array.isArray(supRes)) setSupervisors(supRes);
-      setLoading(false);
-    } catch {
-      setLoading(false);
-    }
-  };
+      return { sectRes, machRes, opRes, supRes };
+    },
+    enabled: status === "authenticated",
+  });
 
-  useEffect(() => {
-    if (status === "authenticated") fetchAll();
-  }, [status]);
+  const { sections, machines, operators, supervisors } = useMemo(() => {
+    return {
+      sections: Array.isArray(pageData?.sectRes) ? pageData.sectRes.filter((s: any) => s.isActive) : [],
+      machines: Array.isArray(pageData?.machRes) ? pageData.machRes : [],
+      operators: Array.isArray(pageData?.opRes) ? pageData.opRes : [],
+      supervisors: Array.isArray(pageData?.supRes) ? pageData.supRes : [],
+    };
+  }, [pageData]);
 
   const addMachine = async () => {
     if (!newMachineName.trim() || !newMachineCode.trim() || !addingToSection || !newMachineOperator || !newMachineSupervisor) return;
@@ -253,7 +250,7 @@ export default function MachinerySettings() {
                       {/* Current Assignments */}
                       {machine.assignments.length > 0 ? (
                         <div className="space-y-2">
-                          {machine.assignments.map(a => (
+                          {machine.assignments.map((a: any) => (
                             <div key={a.id} className="flex items-center justify-between bg-slate-800/50 border border-slate-700/50 rounded-lg px-3 py-2">
                               <div className="flex items-center gap-2">
                                 <span className={`text-[10px] px-2 py-0.5 rounded-full font-black uppercase tracking-wider ${

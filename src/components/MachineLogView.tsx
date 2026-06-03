@@ -1,11 +1,12 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useMemo } from "react";
+import { useQuery } from "@tanstack/react-query";
 import {
   Clock, Power, PowerOff, Wrench, Pause, Flame,
   ChevronDown, ChevronUp, User, Calendar, Filter,
   FileText, Droplets, Layers, Scissors, Wind, Package,
-  TrendingUp, RotateCcw, TreePine, Thermometer, Download,
+  TrendingUp, RefreshCcw, TreePine, Thermometer, Download,
   CheckCircle2,
 } from "lucide-react";
 
@@ -98,7 +99,27 @@ export default function MachineLogView({ showOperatorFilter = true }: MachineLog
   const [totalCount, setTotalCount] = useState(0);
   const [totalPages, setTotalPages] = useState(1);
 
+  const { data: liveData, isLoading: liveLoading, error: liveError, refetch: refetchLive } = useQuery({
+    queryKey: ["live-production"],
+    queryFn: async () => {
+      const res = await fetch("/api/logs/machine/live");
+      if (!res.ok) throw new Error("Failed to fetch live data");
+      return res.json();
+    },
+    enabled: sectionFilter === "live",
+    refetchInterval: false,
+    staleTime: Infinity,
+  });
+
+  const liveSessions = useMemo(() => {
+    return liveData && Array.isArray(liveData.sessions) ? liveData.sessions : [];
+  }, [liveData]);
+
   const fetchData = useCallback(async () => {
+    if (sectionFilter === "live") {
+      setLoading(false);
+      return;
+    }
     setLoading(true);
     try {
       let url = `/api/logs/machine?section=${sectionFilter}&page=${currentPage}`;
@@ -254,7 +275,12 @@ export default function MachineLogView({ showOperatorFilter = true }: MachineLog
 
       {sectionFilter === "live" ? (
         <div className="pt-4">
-          <LiveProductionView />
+          <LiveProductionView 
+            sessions={liveSessions}
+            loading={liveLoading}
+            error={liveError ? (liveError as Error).message : null}
+            onRefresh={() => { refetchLive(); }}
+          />
         </div>
       ) : (
         <>

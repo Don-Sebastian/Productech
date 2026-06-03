@@ -3,6 +3,7 @@
 import { useSession } from "next-auth/react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useState, Suspense, useMemo } from "react";
+import { useQuery } from "@tanstack/react-query";
 import Sidebar from "@/components/Sidebar";
 import { ListChecks, Plus, X, Trash2, Check, AlertTriangle, Package, Star, CheckCircle, ChevronDown, ChevronUp, CalendarClock, Clock } from "lucide-react";
 import { calcListProductionMinutes, calcEstimatedDates, formatDate, formatDuration, formatDays, type PressSettings } from "@/lib/productionEstimate";
@@ -14,12 +15,7 @@ function ProductionListContent() {
   const searchParams = useSearchParams();
   const orderId = searchParams.get("orderId");
 
-  const [products, setProducts] = useState<any[]>([]);
-  const [prodLists, setProdLists] = useState<any[]>([]);
-  const [pressSettings, setPressSettings] = useState<PressSettings>({ workingHoursPerDay: 8, numHotPresses: 1, pressCapacityPerPress: 10 });
-  const [productTimings, setProductTimings] = useState<any[]>([]);
   const [order, setOrder] = useState<any>(null);
-  const [loading, setLoading] = useState(true);
   const [showCreate, setShowCreate] = useState(!!orderId);
   const [showItems, setShowItems] = useState(false);
   const [notes, setNotes] = useState("");
@@ -45,65 +41,73 @@ function ProductionListContent() {
     if (status === "authenticated" && (session?.user as any)?.role !== "SUPERVISOR") router.push("/");
   }, [status, session, router]);
 
-  useEffect(() => {
-    if (status !== "authenticated") return;
+  const { data: pageData, isLoading: loading, refetch: refetchLists } = useQuery({
+    queryKey: ["supervisor-production-lists", orderId],
+    queryFn: async () => {
+      const [listsRes, prodsRes] = await Promise.all([
+        fetch("/api/production-lists").then((r) => r.json()),
+        fetch("/api/company-products").then((r) => r.json()),
+      ]);
 
-    const fetchAllData = async () => {
-      try {
-        const [listsRes, prodsRes] = await Promise.all([
-          fetch("/api/production-lists").then((r) => r.json()),
-          fetch("/api/company-products").then((r) => r.json()),
-        ]);
-
-        if (Array.isArray(prodsRes)) setProducts(prodsRes.filter((x: any) => x.isActive));
-        // Handle new { lists, pressSettings, productTimings } shape
-        if (listsRes && Array.isArray(listsRes.lists)) {
-          setProdLists(listsRes.lists);
-          if (listsRes.pressSettings) setPressSettings(listsRes.pressSettings);
-          if (listsRes.productTimings) setProductTimings(listsRes.productTimings);
-        } else if (Array.isArray(listsRes)) {
-          setProdLists(listsRes);
-        }
-
-        if (orderId) {
-          const smartRes = await fetch(`/api/production-lists/smart-target?orderId=${orderId}`).then((r) => r.json());
-          if (smartRes.orderNumber) {
-            setOrder(smartRes);
-            const prefilled = smartRes.items.map((i: any) => ({
-              categoryId: i.categoryId,
-              categoryName: i.categoryName,
-              thicknessId: i.thicknessId,
-              thicknessValue: i.thicknessValue,
-              sizeId: i.sizeId,
-              sizeLabel: i.sizeLabel,
-              orderedQuantity: i.orderedQuantity,
-              stockAvailable: i.currentStock,
-              allocatedElsewhere: i.allocatedElsewhere,
-              bookedElsewhere: i.bookedElsewhere,
-              effectiveStock: i.effectiveStock,
-              alreadyPlanned: i.alreadyPlanned,
-              quantity: String(i.targetQuantity),
-              layers: i.layers,
-              brandSeal: i.brandSeal,
-              varnish: i.varnish,
-            }));
-            setItems(prefilled);
-          }
-        }
-        setLoading(false);
-      } catch {
-        setLoading(false);
+      let smartRes = null;
+      if (orderId) {
+        smartRes = await fetch(`/api/production-lists/smart-target?orderId=${orderId}`).then((r) => r.json());
       }
-    };
+      return { listsRes, prodsRes, smartRes };
+    },
+    enabled: status === "authenticated",
+  });
 
-    fetchAllData();
-  }, [status, orderId]);
+  const products = useMemo(() => {
+    return Array.isArray(pageData?.prodsRes) ? pageData.prodsRes.filter((x: any) => x.isActive) : [];
+  }, [pageData?.prodsRes]);
+
+  const { prodLists, pressSettings, productTimings } = useMemo(() => {
+    const listsRes = pageData?.listsRes;
+    let prodLists = [];
+    let pressSettings: PressSettings = { workingHoursPerDay: 8, numHotPresses: 1, pressCapacityPerPress: 10 };
+    let productTimings = [];
+
+    if (listsRes && Array.isArray(listsRes.lists)) {
+      prodLists = listsRes.lists;
+      if (listsRes.pressSettings) pressSettings = listsRes.pressSettings;
+      if (listsRes.productTimings) productTimings = listsRes.productTimings;
+    } else if (Array.isArray(listsRes)) {
+      prodLists = listsRes;
+    }
+    return { prodLists, pressSettings, productTimings };
+  }, [pageData?.listsRes]);
+
+  useEffect(() => {
+    if (pageData?.smartRes && pageData.smartRes.orderNumber && !order) {
+      setOrder(pageData.smartRes);
+      const prefilled = pageData.smartRes.items.map((i: any) => ({
+        categoryId: i.categoryId,
+        categoryName: i.categoryName,
+        thicknessId: i.thicknessId,
+        thicknessValue: i.thicknessValue,
+        sizeId: i.sizeId,
+        sizeLabel: i.sizeLabel,
+        orderedQuantity: i.orderedQuantity,
+        stockAvailable: i.currentStock,
+        allocatedElsewhere: i.allocatedElsewhere,
+        bookedElsewhere: i.bookedElsewhere,
+        effectiveStock: i.effectiveStock,
+        alreadyPlanned: i.alreadyPlanned,
+        quantity: String(i.targetQuantity),
+        layers: i.layers,
+        brandSeal: i.brandSeal,
+        varnish: i.varnish,
+      }));
+      setItems(prefilled);
+    }
+  }, [pageData?.smartRes, order]);
 
   const displayLists = useMemo(() => {
-    return prodLists.filter(l => {
+    return prodLists.filter((l: any) => {
       const isFinal = l.status === "COMPLETED" && (l.order ? ["DISPATCHED", "COMPLETED", "CANCELLED"].includes(l.order.status) : true);
       return viewMode === "ACTIVE" ? !isFinal : isFinal;
-    }).sort((a, b) => {
+    }).sort((a: any, b: any) => {
        if (a.priority !== b.priority) return a.priority - b.priority;
        return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
     });
@@ -175,8 +179,7 @@ function ProductionListContent() {
         setSuccess("Production list created and operators notified!");
         setShowCreate(false);
         setItems([]);
-        const p = await fetch("/api/production-lists").then((r) => r.json());
-        if (p && Array.isArray(p.lists)) { setProdLists(p.lists); if (p.pressSettings) setPressSettings(p.pressSettings); } else if (Array.isArray(p)) setProdLists(p);
+        refetchLists();
         setTimeout(() => setSuccess(""), 3000);
       } else {
         const d = await res.json();
@@ -191,8 +194,7 @@ function ProductionListContent() {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ priority: newPriority }),
     });
-    const p = await fetch("/api/production-lists").then((r) => r.json());
-    if (p && Array.isArray(p.lists)) { setProdLists(p.lists); if (p.pressSettings) setPressSettings(p.pressSettings); } else if (Array.isArray(p)) setProdLists(p);
+    refetchLists();
   };
 
 
@@ -467,7 +469,7 @@ function ProductionListContent() {
                 <p className="text-slate-600 text-sm mt-2 font-bold px-4">All {viewMode === "ACTIVE" ? "operational" : "completed"} lists will be shown here.</p>
               </div>
             ) : (
-              displayLists.map((list) => {
+              displayLists.map((list: any) => {
                 const pc = priorityConfig[list.priority] || priorityConfig[3];
                 const isComplete = list.status === "COMPLETED";
 

@@ -3,27 +3,28 @@
 import { useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
+import { useQuery } from "@tanstack/react-query";
 import Sidebar from "@/components/Sidebar";
 import { Bell, BellOff, Check, Package, ListChecks, AlertTriangle, Clock } from "lucide-react";
 
 export default function NotificationsPage() {
   const { data: session, status } = useSession();
   const router = useRouter();
-  const [notifications, setNotifications] = useState<any[]>([]);
-  const [loading, setLoading] = useState(true);
-
   useEffect(() => {
     if (status === "unauthenticated") router.push("/login");
   }, [status, router]);
 
-  const fetchNotifications = () => {
-    fetch("/api/notifications")
-      .then((r) => r.json())
-      .then((data) => { if (Array.isArray(data)) setNotifications(data); setLoading(false); })
-      .catch(() => setLoading(false));
-  };
+  const { data: apiData, isLoading: loading, refetch: fetchNotifications } = useQuery({
+    queryKey: ["manager-notifications"],
+    queryFn: async () => {
+      const res = await fetch("/api/notifications");
+      if (!res.ok) throw new Error("Failed to fetch");
+      return res.json();
+    },
+    enabled: status === "authenticated",
+  });
 
-  useEffect(() => { if (status === "authenticated") fetchNotifications(); }, [status]);
+  const notifications = Array.isArray(apiData) ? apiData : [];
 
   const markAllRead = async () => {
     await fetch("/api/notifications", {

@@ -2,7 +2,8 @@
 
 import { useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useMemo } from "react";
+import { useQuery } from "@tanstack/react-query";
 import Sidebar from "@/components/Sidebar";
 import { Truck, Package, Clock, CheckCircle } from "lucide-react";
 
@@ -10,25 +11,22 @@ export default function OwnerDispatchHistoryPage() {
   const { data: session, status } = useSession();
   const router = useRouter();
   
-  const [dispatchLoads, setDispatchLoads] = useState<any[]>([]);
-  const [loading, setLoading] = useState(true);
-
   useEffect(() => {
     if (status === "unauthenticated") router.push("/login");
     if (status === "authenticated" && (session?.user as any)?.role !== "OWNER") router.push("/");
   }, [status, session, router]);
 
-  useEffect(() => {
-    if (status === "authenticated") {
-      fetch("/api/dispatch")
-        .then((r) => r.json())
-        .then((d) => {
-          if (Array.isArray(d)) setDispatchLoads(d);
-          setLoading(false);
-        })
-        .catch(() => setLoading(false));
-    }
-  }, [status]);
+  const { data: apiData, isLoading: loading } = useQuery({
+    queryKey: ["owner-dispatch-history"],
+    queryFn: async () => {
+      const res = await fetch("/api/dispatch");
+      if (!res.ok) throw new Error("Failed to fetch");
+      return res.json();
+    },
+    enabled: status === "authenticated",
+  });
+
+  const dispatchLoads = useMemo(() => Array.isArray(apiData) ? apiData : [], [apiData]);
 
   if (status === "loading" || !session?.user) {
     return <div className="flex items-center justify-center h-screen bg-slate-950"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-emerald-400" /></div>;

@@ -3,67 +3,42 @@
 import { useEffect, useState } from "react";
 import { BarChart3, Package, TrendingUp, AlertCircle } from "lucide-react";
 
-interface Stats {
-  totalBatches: number;
-  completedBatches: number;
-  totalInventory: number;
-  defectRate: number;
-}
+export default function DashboardStats({ 
+  batches = [], 
+  inventory = [], 
+  loading = false 
+}: { 
+  batches?: any[], 
+  inventory?: any[], 
+  loading?: boolean 
+}) {
+  if (loading) return <div>Loading stats...</div>;
 
-export default function DashboardStats() {
-  const [stats, setStats] = useState<Stats>({
-    totalBatches: 0,
-    completedBatches: 0,
-    totalInventory: 0,
-    defectRate: 0,
-  });
-  const [loading, setLoading] = useState(true);
+  const completedBatches = batches.filter(
+    (b: any) => b.status === "COMPLETED",
+  ).length;
 
-  useEffect(() => {
-    const fetchStats = async () => {
-      try {
-        const [batchesRes, inventoryRes] = await Promise.all([
-          fetch("/api/batches"),
-          fetch("/api/inventory"),
-        ]);
+  const totalInventory = inventory.reduce(
+    (sum: number, item: any) => sum + item.quantity,
+    0,
+  );
 
-        const batches = await batchesRes.json();
-        const inventory = await inventoryRes.json();
+  const totalDefective = batches.reduce(
+    (sum: number, b: any) => sum + b.defectiveUnits,
+    0,
+  );
+  const totalProduced = batches.reduce(
+    (sum: number, b: any) => sum + b.quantity,
+    0,
+  );
 
-        const completedBatches = batches.filter(
-          (b: any) => b.status === "COMPLETED",
-        ).length;
-
-        const totalInventory = inventory.reduce(
-          (sum: number, item: any) => sum + item.quantity,
-          0,
-        );
-
-        const totalDefective = batches.reduce(
-          (sum: number, b: any) => sum + b.defectiveUnits,
-          0,
-        );
-        const totalProduced = batches.reduce(
-          (sum: number, b: any) => sum + b.quantity,
-          0,
-        );
-
-        setStats({
-          totalBatches: batches.length,
-          completedBatches,
-          totalInventory,
-          defectRate:
-            totalProduced > 0 ? (totalDefective / totalProduced) * 100 : 0,
-        });
-      } catch (error) {
-        console.error("Error fetching stats:", error);
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchStats();
-  }, []);
+  const stats = {
+    totalBatches: batches.length,
+    completedBatches,
+    totalInventory,
+    defectRate:
+      totalProduced > 0 ? (totalDefective / totalProduced) * 100 : 0,
+  };
 
   const statCards = [
     {
@@ -92,7 +67,6 @@ export default function DashboardStats() {
     },
   ];
 
-  if (loading) return <div>Loading stats...</div>;
 
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
