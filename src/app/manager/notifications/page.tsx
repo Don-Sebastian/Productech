@@ -21,7 +21,8 @@ export default function NotificationsPage() {
       if (!res.ok) throw new Error("Failed to fetch");
       return res.json();
     },
-    enabled: status === "authenticated",
+    enabled: false, // status === "authenticated", // PAUSED NOTIFICATIONS
+
     staleTime: Infinity,
     refetchOnWindowFocus: false,
     refetchInterval: false,

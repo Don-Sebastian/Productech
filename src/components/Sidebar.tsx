@@ -151,7 +151,8 @@ export default function Sidebar({ user }: SidebarProps) {
       if (!res.ok) throw new Error("Failed to fetch");
       return res.json();
     },
-    enabled: !!role && role !== "ADMIN",
+    enabled: false, // !!role && role !== "ADMIN", // PAUSED NOTIFICATIONS
+
     staleTime: Infinity,
     refetchOnWindowFocus: false,
     refetchInterval: false,
