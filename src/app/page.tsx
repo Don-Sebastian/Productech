@@ -4,10 +4,10 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useSession } from "next-auth/react";
 import Link from "next/link";
-import { 
-  Factory, Package, Layers, TreePine, 
-  TrendingUp, ShieldCheck, 
-  ChevronRight, Send, MapPin, Phone, Mail 
+import {
+  Factory, Package, Layers, TreePine,
+  TrendingUp, ShieldCheck,
+  ChevronRight, Send, MapPin, Phone, Mail
 } from "lucide-react";
 
 export default function Home() {
@@ -89,7 +89,7 @@ export default function Home() {
       <section className="pt-32 pb-20 md:pt-48 md:pb-32 relative overflow-hidden">
         {/* Abstract Background Shapes */}
         <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[1000px] h-[500px] bg-amber-500/10 blur-[120px] rounded-full pointer-events-none"></div>
-        
+
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10 text-center">
           <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-amber-500/10 border border-amber-500/20 text-amber-400 text-xs font-black uppercase tracking-widest mb-8">
             <span className="relative flex h-2 w-2">
@@ -98,16 +98,16 @@ export default function Home() {
             </span>
             Built for Kerala's Plywood Industry
           </div>
-          
+
           <h1 className="text-5xl md:text-7xl font-black text-white tracking-tight mb-6 leading-tight">
             Modernize Your <br className="hidden md:block" />
             <span className="text-transparent bg-clip-text bg-gradient-to-r from-amber-400 to-orange-500">Plywood Production</span>
           </h1>
-          
+
           <p className="mt-4 text-lg md:text-xl text-slate-400 max-w-2xl mx-auto font-medium mb-10">
             The ultimate production management system designed specifically for plywood factories. Track hot press, peeling, inventory, and dispatch in real-time.
           </p>
-          
+
           <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
             <Link href="/login" className="w-full sm:w-auto flex items-center justify-center gap-2 bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-400 hover:to-orange-400 text-slate-900 px-8 py-4 rounded-2xl font-black text-lg transition-transform hover:scale-105 shadow-lg shadow-amber-500/25">
               Access Dashboard <ChevronRight className="w-5 h-5" />
@@ -147,7 +147,7 @@ export default function Home() {
       <section id="features" className="py-24 relative">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center mb-16">
-            <h2 className="text-3xl md:text-5xl font-black text-white mb-4">Everything you need to <br/><span className="text-amber-500">run your factory</span></h2>
+            <h2 className="text-3xl md:text-5xl font-black text-white mb-4">Everything you need to <br /><span className="text-amber-500">run your factory</span></h2>
             <p className="text-slate-400 max-w-2xl mx-auto">Replace messy WhatsApp groups and paper registers with a centralized, intelligent system.</p>
           </div>
 
@@ -183,7 +183,7 @@ export default function Home() {
               <p className="text-slate-400 text-lg mb-8">
                 Get in touch with us to schedule a demo and see how Plytrack can transform your plywood production process.
               </p>
-              
+
               <div className="space-y-6">
                 <div className="flex items-center gap-4">
                   <div className="w-12 h-12 bg-slate-800 rounded-xl flex items-center justify-center border border-slate-700">

@@ -24,6 +24,9 @@ export default function NotificationsPage() {
       return res.json();
     },
     enabled: status === "authenticated",
+    staleTime: Infinity,
+    refetchOnWindowFocus: false,
+    refetchInterval: false,
   });
 
   const notifications = useMemo(() => Array.isArray(apiData) ? apiData : [], [apiData]);

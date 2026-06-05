@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import { Providers } from "@/app/providers";
+import { auth } from "@/lib/auth";
 import GlobalActionLoader from "@/components/GlobalActionLoader";
 
 const geistSans = Geist({
@@ -25,17 +26,19 @@ export const viewport: Viewport = {
   themeColor: "#020617",
 };
 
-export default function RootLayout({
+export default async function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  const session = await auth();
+
   return (
     <html lang="en">
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}
       >
-        <Providers>
+        <Providers session={session}>
           <GlobalActionLoader />
           {children}
         </Providers>

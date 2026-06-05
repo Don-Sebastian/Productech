@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
 import Sidebar from "@/components/Sidebar";
+import { useMachineAssignment } from "@/hooks/useMachineAssignment";
 import { 
   Plus, Trash2, Send, CheckCircle, Clock, AlertTriangle, 
   Package, ListChecks, Star, X, ChevronDown, ChevronUp, History, Check,
@@ -20,16 +21,18 @@ export default function HotPressOperatorDashboard() {
     if (status === "authenticated" && (session?.user as any)?.role !== "OPERATOR") router.push("/");
   }, [status, session, router]);
 
+  const role = (session?.user as any)?.role;
+  const { machine: machineInfo } = useMachineAssignment(role, status);
+
   const { data, isLoading: loading } = useQuery({
     queryKey: ["operator-hotpress-dashboard"],
     queryFn: async () => {
-      const [p, e, lists, assignment] = await Promise.all([
+      const [p, e, lists] = await Promise.all([
         fetch("/api/company-products").then((r) => r.json()),
         fetch("/api/production-entries").then((r) => r.json()),
         fetch("/api/production-lists").then((r) => r.json()),
-        fetch("/api/operator/assignment").then((r) => r.json()),
       ]);
-      return { p, e, lists, assignment };
+      return { p, e, lists };
     },
     enabled: status === "authenticated",
   });
@@ -38,7 +41,6 @@ export default function HotPressOperatorDashboard() {
   const entries = data?.e?.entries || [];
   const dailyLog = data?.e?.dailyLog || null;
   const allProdLists = data?.lists && Array.isArray(data.lists.lists) ? data.lists.lists : (Array.isArray(data?.lists) ? data.lists : []);
-  const machineInfo = data?.assignment?.machine || null;
 
   const totalToday = entries.reduce((sum: number, e: any) => sum + e.quantity, 0);
   const currentStatus = dailyLog?.status || "PENDING";

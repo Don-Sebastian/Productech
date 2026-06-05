@@ -152,6 +152,9 @@ export default function Sidebar({ user }: SidebarProps) {
       return res.json();
     },
     enabled: !!role && role !== "ADMIN",
+    staleTime: Infinity,
+    refetchOnWindowFocus: false,
+    refetchInterval: false,
   });
 
   const unreadNotifs = Array.isArray(notifications) ? notifications.filter((n: any) => !n.isRead) : [];

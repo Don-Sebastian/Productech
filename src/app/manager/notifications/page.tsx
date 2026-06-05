@@ -22,6 +22,9 @@ export default function NotificationsPage() {
       return res.json();
     },
     enabled: status === "authenticated",
+    staleTime: Infinity,
+    refetchOnWindowFocus: false,
+    refetchInterval: false,
   });
 
   const notifications = Array.isArray(apiData) ? apiData : [];
