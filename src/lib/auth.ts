@@ -60,12 +60,22 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         token.companyId = (user as any).companyId;
         token.sections = (user as any).sections || [];
         token.ownedCompanies = (user as any).ownedCompanies || [];
+        if (token.role === "TECHNICIAN") {
+          token.viewRole = "ADMIN"; // Default view for technician
+        }
       }
       // Allow manual refresh via update() trigger (e.g. after role change)
       if (trigger === "update" && session) {
         // If the update payload includes a new companyId, we just update it
         if (session.companyId) {
           token.companyId = session.companyId;
+        }
+        // If the update payload includes a new viewRole for technician
+        if (session.viewRole && token.role === "TECHNICIAN") {
+          token.viewRole = session.viewRole;
+        }
+        
+        if (session.companyId || session.viewRole) {
           return token;
         }
 
@@ -92,7 +102,8 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
       if (session.user) {
         session.user.id = token.id as string;
         session.user.name = token.name as string;
-        (session.user as any).role = token.role;
+        (session.user as any).role = token.viewRole || token.role;
+        (session.user as any).realRole = token.role;
         (session.user as any).companyId = token.companyId;
         (session.user as any).sections = token.sections || [];
         (session.user as any).ownedCompanies = token.ownedCompanies || [];
@@ -121,6 +132,8 @@ export function getDashboardPath(role: string): string {
       return "/supervisor";
     case "OPERATOR":
       return "/operator";
+    case "TECHNICIAN":
+      return "/admin";
     default:
       return "/login";
   }
@@ -129,9 +142,10 @@ export function getDashboardPath(role: string): string {
 // Helper: Check if a role can manage another role
 export function canManageRole(managerRole: string, targetRole: string): boolean {
   const hierarchy: Record<string, string[]> = {
-    ADMIN: ["OWNER"],
+    ADMIN: ["OWNER", "TECHNICIAN"],
     OWNER: ["MANAGER"],
     MANAGER: ["SUPERVISOR", "OPERATOR"],
+    TECHNICIAN: ["ADMIN", "OWNER", "MANAGER", "SUPERVISOR", "OPERATOR"], // Technician can manage all
   };
   return hierarchy[managerRole]?.includes(targetRole) ?? false;
 }

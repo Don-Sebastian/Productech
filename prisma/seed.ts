@@ -22,6 +22,8 @@ async function main() {
   await prisma.plywoodSize.deleteMany();
   await prisma.plywoodThickness.deleteMany();
   await prisma.plywoodCategory.deleteMany();
+  await prisma.machineAssignment.deleteMany();
+  await prisma.machine.deleteMany();
   await prisma.section.deleteMany();
   await prisma.machineLog.deleteMany();
   await prisma.inventoryLog.deleteMany();
@@ -84,7 +86,13 @@ async function main() {
       sections: { connect: [{ id: sectionHotpress.id }] }
     },
   });
-  console.log(`✓ 5 users`);
+  const technician = await prisma.user.create({
+    data: {
+      email: "technician@demo.com", password: demoPassword, name: "Tech Support", role: "TECHNICIAN",
+      companyId: company.id, createdById: admin.id
+    },
+  });
+  console.log(`✓ 6 users`);
 
   // ==================== PLYWOOD CATALOG ====================
   const catPacking = await prisma.plywoodCategory.create({ data: { name: "Packing", companyId: company.id, sortOrder: 1 } });
@@ -174,6 +182,7 @@ async function main() {
   console.log("Manager:    manager@demo.com / demo123");
   console.log("Supervisor: supervisor@demo.com / demo123");
   console.log("Press Op:   press@demo.com / demo123");
+  console.log("Technician: technician@demo.com / demo123");
   console.log("─".repeat(40));
 }
 

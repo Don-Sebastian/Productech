@@ -45,7 +45,7 @@ interface CompanyData {
 export default function AdminCompaniesPage() {
   const { data: session, status } = useSession();
   const router = useRouter();
-  const [activeTab, setActiveTab] = useState<"companies" | "owners">("companies");
+  const [activeTab, setActiveTab] = useState<"companies" | "owners" | "technicians">("companies");
   const [showModal, setShowModal] = useState(false);
   const [editingCompany, setEditingCompany] = useState<CompanyData | null>(null);
   const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null);
@@ -95,6 +95,21 @@ export default function AdminCompaniesPage() {
     queryFn: async () => {
       const res = await fetch("/api/users?role=OWNER");
       if (!res.ok) throw new Error("Failed to fetch owners");
+      return res.json();
+    },
+    enabled: status === "authenticated" && (session?.user as any)?.role === "ADMIN",
+  });
+
+  // Fetch Technicians
+  const {
+    data: technicians = [],
+    refetch: refetchTechnicians,
+    isLoading: loadingTechnicians,
+  } = useQuery<any[]>({
+    queryKey: ["technicians"],
+    queryFn: async () => {
+      const res = await fetch("/api/users?role=TECHNICIAN");
+      if (!res.ok) throw new Error("Failed to fetch technicians");
       return res.json();
     },
     enabled: status === "authenticated" && (session?.user as any)?.role === "ADMIN",
@@ -260,6 +275,19 @@ export default function AdminCompaniesPage() {
               <span className="absolute bottom-0 left-0 right-0 h-0.5 bg-violet-500 rounded-full" />
             )}
           </button>
+          <button
+            onClick={() => setActiveTab("technicians")}
+            className={`pb-4 text-sm font-medium transition-all relative ${
+              activeTab === "technicians"
+                ? "text-amber-400 font-semibold"
+                : "text-slate-400 hover:text-slate-200"
+            }`}
+          >
+            Technicians
+            {activeTab === "technicians" && (
+              <span className="absolute bottom-0 left-0 right-0 h-0.5 bg-amber-500 rounded-full" />
+            )}
+          </button>
         </div>
 
         {/* Content */}
@@ -390,7 +418,7 @@ export default function AdminCompaniesPage() {
               ))}
             </div>
           )
-        ) : (
+        ) : activeTab === "owners" ? (
           <UserManagement
             targetRole="OWNER"
             title="Company Owners"
@@ -399,6 +427,16 @@ export default function AdminCompaniesPage() {
             users={owners}
             loading={loadingOwners}
             onRefresh={refetchOwners}
+          />
+        ) : (
+          <UserManagement
+            targetRole="TECHNICIAN"
+            title="Technicians"
+            description="Manage platform technicians with super-user access across all modules."
+            accentColor="amber"
+            users={technicians}
+            loading={loadingTechnicians}
+            onRefresh={refetchTechnicians}
           />
         )}
       </main>

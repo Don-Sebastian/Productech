@@ -4,9 +4,10 @@ import { auth } from "@/lib/auth";
 import bcrypt from "bcryptjs";
 
 const MANAGEABLE_ROLES: Record<string, string[]> = {
-  ADMIN: ["OWNER"],
+  ADMIN: ["OWNER", "TECHNICIAN"],
   OWNER: ["MANAGER"],
   MANAGER: ["SUPERVISOR", "OPERATOR"],
+  TECHNICIAN: ["ADMIN", "OWNER", "MANAGER", "SUPERVISOR", "OPERATOR"],
 };
 
 // GET: Get a single user

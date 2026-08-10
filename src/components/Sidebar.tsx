@@ -206,6 +206,50 @@ export default function Sidebar({ user }: SidebarProps) {
             </select>
           </div>
         )}
+
+        {(user as any)?.realRole === "TECHNICIAN" && (
+          <div className="mt-2 pt-2 border-t border-slate-800">
+            <label className="text-[10px] uppercase font-bold text-amber-500 tracking-wider mb-1 flex items-center gap-1">
+              <Wrench size={12} /> Tech Mode
+            </label>
+            <select
+              value={role}
+              onChange={async (e) => {
+                await update({ viewRole: e.target.value });
+                const paths: Record<string, string> = { ADMIN: "/admin", OWNER: "/owner", MANAGER: "/manager", SUPERVISOR: "/supervisor", OPERATOR: "/operator" };
+                window.location.href = paths[e.target.value] || "/";
+              }}
+              className="w-full bg-slate-900 border border-amber-500/30 text-amber-400 text-xs rounded-lg px-2 py-2 focus:outline-none focus:ring-1 focus:ring-amber-500"
+            >
+              <option value="ADMIN">Platform Admin</option>
+              <option value="OWNER">Company Owner</option>
+              <option value="MANAGER">Manager</option>
+              <option value="SUPERVISOR">Supervisor</option>
+              <option value="OPERATOR">Operator</option>
+            </select>
+          </div>
+        )}
+
+        {(user as any)?.realRole === "TECHNICIAN" && (role === "OPERATOR" || role === "SUPERVISOR") && (
+          <div className="mt-2 pt-2 border-t border-slate-800">
+            <label className="text-[10px] uppercase font-bold text-amber-500 tracking-wider mb-1 flex items-center gap-1">
+              <Layers size={12} /> Tech Section
+            </label>
+            <select
+              value={operatorSection || "hotpress"}
+              onChange={async (e) => {
+                localStorage.setItem("tech_operator_section", e.target.value);
+                window.location.reload();
+              }}
+              className="w-full bg-slate-900 border border-amber-500/30 text-amber-400 text-xs rounded-lg px-2 py-2 focus:outline-none focus:ring-1 focus:ring-amber-500"
+            >
+              <option value="hotpress">Hot Press</option>
+              <option value="peeling">Peeling</option>
+              <option value="dryer">Dryer</option>
+              <option value="finishing">Finishing</option>
+            </select>
+          </div>
+        )}
       </div>
 
       {/* Navigation */}

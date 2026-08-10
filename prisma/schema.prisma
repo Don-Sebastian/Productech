@@ -739,6 +739,7 @@ enum Role {
   MANAGER
   SUPERVISOR
   OPERATOR
+  TECHNICIAN
 }
 
 enum ApprovalStatus {
