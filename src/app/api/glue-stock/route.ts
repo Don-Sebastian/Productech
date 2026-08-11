@@ -52,8 +52,8 @@ export async function POST(req: Request) {
     const companyId = (session.user as any).companyId;
     if (!companyId) return NextResponse.json({ error: "No company" }, { status: 400 });
 
-    if (role !== "MANAGER") {
-      return NextResponse.json({ error: "Only managers can manage glue stock" }, { status: 403 });
+    if (role !== "MANAGER" && role !== "OWNER") {
+      return NextResponse.json({ error: "Only owners and managers can manage glue stock" }, { status: 403 });
     }
 
     const body = await req.json();
@@ -71,7 +71,7 @@ export async function POST(req: Request) {
 
         if (existing) {
           // Batch update + log + refetch in single transaction (eliminates trailing refetch)
-          const [,,updated] = await prisma.$transaction([
+          const [, , updated] = await prisma.$transaction([
             (prisma as any).glueStock.update({
               where: { companyId },
               data: { openingKg: quantityKg, currentKg: quantityKg },
@@ -128,7 +128,7 @@ export async function POST(req: Request) {
 
         const newBalance = stock.currentKg + quantityKg;
         // Batch update + log + refetch in single transaction
-        const [,,updated] = await prisma.$transaction([
+        const [, , updated] = await prisma.$transaction([
           (prisma as any).glueStock.update({
             where: { companyId },
             data: { currentKg: newBalance },
@@ -165,7 +165,7 @@ export async function POST(req: Request) {
 
         const diff = newQuantityKg - stock.currentKg;
         // Batch update + log + refetch in single transaction
-        const [,,updated] = await prisma.$transaction([
+        const [, , updated] = await prisma.$transaction([
           (prisma as any).glueStock.update({
             where: { companyId },
             data: { currentKg: newQuantityKg },

@@ -78,8 +78,8 @@ export async function POST(request: NextRequest) {
     if (!session?.user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
     const role = (session.user as any).role;
-    if (role !== "OPERATOR") {
-      return NextResponse.json({ error: "Only operators can add production" }, { status: 403 });
+    if (role !== "OPERATOR" && role !== "OWNER") {
+      return NextResponse.json({ error: "Only operators and owners can add production" }, { status: 403 });
     }
 
     const userId = (session.user as any).id;

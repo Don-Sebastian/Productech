@@ -10,7 +10,7 @@ export async function GET() {
     }
 
     const role = (session.user as any).role;
-    if (!["OPERATOR", "SUPERVISOR"].includes(role)) {
+    if (!["OWNER", "OPERATOR", "SUPERVISOR"].includes(role)) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 

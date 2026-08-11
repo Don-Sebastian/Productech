@@ -60,8 +60,8 @@ export async function POST(request: NextRequest) {
     if (!session?.user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
     const role = (session.user as any).role;
-    if (role !== "SUPERVISOR" && role !== "MANAGER") {
-      return NextResponse.json({ error: "Only supervisors and managers can create dispatch loads" }, { status: 403 });
+    if (role !== "SUPERVISOR" && role !== "MANAGER" && role !== "OWNER") {
+      return NextResponse.json({ error: "Only owners, supervisors and managers can create dispatch loads" }, { status: 403 });
     }
 
     const companyId = (session.user as any).companyId;

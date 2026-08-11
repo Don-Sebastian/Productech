@@ -34,8 +34,8 @@ export async function GET(request: NextRequest) {
       where.status = { in: ["SUBMITTED", "SUPERVISOR_APPROVED", "MANAGER_APPROVED"] };
     }
 
-    // Managers see SUPERVISOR_APPROVED logs for their approval
-    if (role === "MANAGER" && !status) {
+    // Managers and Owners see SUPERVISOR_APPROVED logs for their approval
+    if ((role === "MANAGER" || role === "OWNER") && !status) {
       where.status = { in: ["SUPERVISOR_APPROVED", "MANAGER_APPROVED"] };
     }
 

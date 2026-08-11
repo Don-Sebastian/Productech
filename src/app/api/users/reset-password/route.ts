@@ -5,8 +5,8 @@ import bcrypt from "bcryptjs";
 
 // Role hierarchy: who can reset whose password
 const MANAGEABLE_ROLES: Record<string, string[]> = {
-  ADMIN: ["OWNER"],
-  OWNER: ["MANAGER"],
+  ADMIN: ["OWNER", "MANAGER", "SUPERVISOR", "OPERATOR"],
+  OWNER: ["MANAGER", "SUPERVISOR", "OPERATOR"],
   MANAGER: ["SUPERVISOR", "OPERATOR"],
 };
 
@@ -71,7 +71,7 @@ export async function PUT(request: NextRequest) {
 
     // Creator check: only the user who created this account can reset their password
     // Admin is exempt from this check (they manage all owners)
-    if (callerRole !== "ADMIN" && targetUser.createdById !== callerId) {
+    if (callerRole !== "ADMIN" && callerRole !== "OWNER" && targetUser.createdById !== callerId) {
       return NextResponse.json(
         { error: "You can only reset passwords for users you created" },
         { status: 403 }

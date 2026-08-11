@@ -5,8 +5,8 @@ import bcrypt from "bcryptjs";
 
 // Role hierarchy: who can manage whom
 const MANAGEABLE_ROLES: Record<string, string[]> = {
-  ADMIN: ["OWNER"],
-  OWNER: ["MANAGER"],
+  ADMIN: ["OWNER", "MANAGER", "SUPERVISOR", "OPERATOR"],
+  OWNER: ["MANAGER", "SUPERVISOR", "OPERATOR"],
   MANAGER: ["SUPERVISOR", "OPERATOR"],
 };
 

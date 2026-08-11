@@ -67,9 +67,9 @@ export async function POST(request: NextRequest) {
     }
 
     const role = (session.user as any).role;
-    if (role !== "OPERATOR" && role !== "SUPERVISOR") {
+    if (role !== "OPERATOR" && role !== "SUPERVISOR" && role !== "OWNER") {
       return NextResponse.json(
-        { error: "Only operators and supervisors can log machine actions" },
+        { error: "Only owners, operators and supervisors can log machine actions" },
         { status: 403 }
       );
     }
