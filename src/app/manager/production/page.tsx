@@ -115,14 +115,14 @@ export default function ManagerProduction() {
               <p className="text-slate-400 text-sm">Monitor all production lists and progress</p>
             </div>
             <div className="bg-slate-900 border border-slate-700/50 rounded-lg p-1 flex">
-              <button 
-                onClick={() => setViewMode("ACTIVE")} 
+              <button
+                onClick={() => setViewMode("ACTIVE")}
                 className={`px-4 py-1.5 text-sm font-bold rounded-md transition ${viewMode === "ACTIVE" ? "bg-slate-700 text-white shadow-sm" : "text-slate-400 hover:text-slate-300"}`}
               >
                 Active
               </button>
-              <button 
-                onClick={() => setViewMode("HISTORY")} 
+              <button
+                onClick={() => setViewMode("HISTORY")}
                 className={`px-4 py-1.5 text-sm font-bold rounded-md transition ${viewMode === "HISTORY" ? "bg-slate-700 text-white shadow-sm" : "text-slate-400 hover:text-slate-300"}`}
               >
                 History
@@ -165,12 +165,11 @@ export default function ManagerProduction() {
         {/* Filters */}
         <div className="flex gap-2 mb-6 overflow-x-auto pb-2 scrollbar-hide">
           {["ALL", "PLANNED", "PEELING", "DRYING", "PRESSING", "FINISHING", "COMPLETED"].map((s) => (
-            <button 
-              key={s} 
+            <button
+              key={s}
               onClick={() => setStatusFilter(s)}
-              className={`px-4 py-2 rounded-xl text-xs font-black whitespace-nowrap transition-all active:scale-[0.95] ${
-                statusFilter === s ? "bg-cyan-600 text-white shadow-lg shadow-cyan-900/20" : "bg-slate-800 text-slate-400 hover:bg-slate-700 border border-slate-700"
-              }`}
+              className={`px-4 py-2 rounded-xl text-xs font-black whitespace-nowrap transition-all active:scale-[0.95] ${statusFilter === s ? "bg-cyan-600 text-white shadow-lg shadow-cyan-900/20" : "bg-slate-800 text-slate-400 hover:bg-slate-700 border border-slate-700"
+                }`}
             >
               {s === "ALL" ? "All Status" : s.replace("_", " ")}
             </button>
@@ -215,10 +214,9 @@ export default function ManagerProduction() {
                 : null;
 
               return (
-                <div key={list.id} className={`bg-slate-800/40 border rounded-2xl overflow-hidden transition-all hover:bg-slate-800/60 ${
-                  isWaitingApproval ? "border-violet-500/50 ring-1 ring-violet-500/10" :
-                  isComplete ? "border-emerald-500/30" : "border-slate-700/50"
-                }`}>
+                <div key={list.id} className={`bg-slate-800/40 border rounded-2xl overflow-hidden transition-all hover:bg-slate-800/60 ${isWaitingApproval ? "border-violet-500/50 ring-1 ring-violet-500/10" :
+                    isComplete ? "border-emerald-500/30" : "border-slate-700/50"
+                  }`}>
                   <button onClick={() => setExpandedList(isExpanded ? null : list.id)}
                     className="w-full p-5 flex items-center justify-between text-left">
                     <div className="flex items-center gap-4 min-w-0 flex-1">

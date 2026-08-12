@@ -56,7 +56,7 @@ export async function GET(request: NextRequest) {
               customer: { select: { name: true } },
             },
           },
-          createdBy: { select: { id: true, name: true } },
+          createdBy: { select: { id: true, name: true, role: true } },
         },
         orderBy: [{ priority: "asc" } as any, { createdAt: "desc" } as any],
       }),

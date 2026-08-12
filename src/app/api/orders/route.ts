@@ -32,7 +32,7 @@ export async function GET(request: NextRequest) {
           estimatedDispatchDate: true,
           createdAt: true,
           customer: { select: { name: true, phone: true } },
-          createdBy: { select: { name: true } },
+          createdBy: { select: { name: true, role: true } },
           items: {
             select: {
               id: true,

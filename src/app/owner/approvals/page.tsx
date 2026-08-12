@@ -10,6 +10,7 @@ import {
   CheckCircle2, XCircle, Clock, Package, Timer, Power, PowerOff,
   Flame, RefreshCcw, Droplets, Wrench, Pause, ChevronDown, ChevronUp,
   User, AlertTriangle, TrendingUp, ShieldCheck
+  Crown,
 } from "lucide-react";
 
 interface PressEntry {
@@ -161,41 +162,41 @@ export default function OwnerApprovalPage() {
 
   return (
     <div className="min-h-screen bg-slate-950">
-    <Sidebar user={session.user} />
-    <main className="ml-0 md:ml-64 p-3 md:p-8">
-    <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold text-white flex items-center gap-3">
-          <ShieldCheck className="text-emerald-400" size={28} />
-          Approve Production
-        </h1>
-        <p className="text-slate-400 text-sm mt-1">
-          Review supervisor-approved logs. <strong className="text-amber-400">Approval updates current stock.</strong>
-        </p>
-      </div>
+      <Sidebar user={session.user} />
+      <main className="ml-0 md:ml-64 p-3 md:p-8">
+        <div className="space-y-6">
+          <div>
+            <h1 className="text-2xl font-bold text-white flex items-center gap-3">
+              <ShieldCheck className="text-emerald-400" size={28} />
+              Approve Production
+            </h1>
+            <p className="text-slate-400 text-sm mt-1">
+              Review supervisor-approved logs. <strong className="text-amber-400">Approval updates current stock.</strong>
+            </p>
+          </div>
 
-      {sessions.length === 0 ? (
-        <div className="bg-slate-800/50 border border-slate-700/50 rounded-2xl p-8 text-center">
-          <CheckCircle2 size={48} className="text-emerald-500 mx-auto mb-3 opacity-50" />
-          <p className="text-slate-400">No pending approvals</p>
-          <p className="text-slate-500 text-sm mt-1">All production logs are up to date</p>
+          {sessions.length === 0 ? (
+            <div className="bg-slate-800/50 border border-slate-700/50 rounded-2xl p-8 text-center">
+              <CheckCircle2 size={48} className="text-emerald-500 mx-auto mb-3 opacity-50" />
+              <p className="text-slate-400">No pending approvals</p>
+              <p className="text-slate-500 text-sm mt-1">All production logs are up to date</p>
+            </div>
+          ) : (
+            <div className="space-y-4">
+              {sessions.map((sess: any) => (
+                <OwnerApprovalCard key={sess.id} session={sess} onApprove={() => approve(sess.id)}
+                  isRejecting={rejectingId === sess.id}
+                  onStartReject={() => setRejectingId(sess.id)}
+                  onCancelReject={() => { setRejectingId(null); setRejectNote(""); }}
+                  rejectNote={rejectNote}
+                  onRejectNoteChange={setRejectNote}
+                  onConfirmReject={() => reject(sess.id)}
+                />
+              ))}
+            </div>
+          )}
         </div>
-      ) : (
-        <div className="space-y-4">
-          {sessions.map((sess: any) => (
-            <OwnerApprovalCard key={sess.id} session={sess} onApprove={() => approve(sess.id)}
-              isRejecting={rejectingId === sess.id}
-              onStartReject={() => setRejectingId(sess.id)}
-              onCancelReject={() => { setRejectingId(null); setRejectNote(""); }}
-              rejectNote={rejectNote}
-              onRejectNoteChange={setRejectNote}
-              onConfirmReject={() => reject(sess.id)}
-            />
-          ))}
-        </div>
-      )}
-    </div>
-    </main>
+      </main>
     </div>
   );
 }
@@ -237,7 +238,14 @@ function OwnerApprovalCard({
         <div className="flex items-center justify-between mb-2">
           <div className="flex items-center gap-2">
             <User size={16} className="text-emerald-400" />
-            <span className="text-white font-bold">{session.operator?.name || "Operator"}</span>
+            <span className="text-white font-bold flex items-center gap-1.5">
+              {session.operator?.name || "Operator"}
+              {(session.operator?.role === "OWNER" || session.operator?.role === "MANAGER") && (
+                <span className="text-[9px] px-1.5 py-0.5 rounded-full font-black uppercase tracking-wider bg-rose-500/20 text-rose-300 border border-rose-500/30 flex items-center gap-1">
+                  <Crown size={10} className="text-rose-400" /> {session.operator.role} ACTION
+                </span>
+              )}
+            </span>
             <span className="text-xs bg-emerald-500/20 text-emerald-400 px-2 py-0.5 rounded-full flex items-center gap-1">
               <ShieldCheck size={10} /> Supervisor ✓
             </span>

@@ -7,7 +7,7 @@ import {
   ChevronDown, ChevronUp, User, Calendar, Filter,
   FileText, Droplets, Layers, Scissors, Wind, Package,
   TrendingUp, RefreshCcw, TreePine, Thermometer, Download,
-  CheckCircle2,
+  CheckCircle2, Crown,
 } from "lucide-react";
 
 import LiveProductionView from "./LiveProductionView";
@@ -26,7 +26,7 @@ interface LogEntry {
   shiftDate: string;
   startTime: string;
   stopTime: string | null;
-  operator?: { id: string; name: string };
+  operator?: { id: string; name: string; role?: string };
   machine?: { id: string; name: string; code: string };
   // Hot Press specific
   entries?: any[];
@@ -229,11 +229,10 @@ export default function MachineLogView({ showOperatorFilter = true }: MachineLog
       <div className="flex flex-wrap gap-2">
         <button
           onClick={() => setSectionFilter("live")}
-          className={`px-4 py-2 rounded-xl text-sm font-semibold transition-all duration-200 flex items-center gap-2 ${
-            sectionFilter === "live"
+          className={`px-4 py-2 rounded-xl text-sm font-semibold transition-all duration-200 flex items-center gap-2 ${sectionFilter === "live"
               ? "bg-red-600/20 text-red-400 border border-red-500/30 shadow-lg shadow-red-900/20"
               : "bg-slate-800/50 text-slate-400 hover:text-red-400 hover:bg-slate-800 border border-transparent"
-          }`}
+            }`}
         >
           <div className="relative flex h-2 w-2 mr-1">
             <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
@@ -255,13 +254,12 @@ export default function MachineLogView({ showOperatorFilter = true }: MachineLog
             <button
               key={tab.key}
               onClick={() => setSectionFilter(tab.key)}
-              className={`px-4 py-2 rounded-xl text-sm font-semibold transition-all duration-200 flex items-center gap-2 ${
-                isActive
+              className={`px-4 py-2 rounded-xl text-sm font-semibold transition-all duration-200 flex items-center gap-2 ${isActive
                   ? tab.key === "all"
                     ? "bg-blue-600 text-white shadow-lg shadow-blue-900/30"
                     : `${sc!.bg} ${sc!.text} border ${sc!.border}`
                   : "bg-slate-800/50 text-slate-400 hover:text-white hover:bg-slate-800 border border-transparent"
-              }`}
+                }`}
             >
               {sc && (() => { const Icon = sc.icon; return <Icon size={14} />; })()}
               {tab.label}
@@ -275,7 +273,7 @@ export default function MachineLogView({ showOperatorFilter = true }: MachineLog
 
       {sectionFilter === "live" ? (
         <div className="pt-4">
-          <LiveProductionView 
+          <LiveProductionView
             sessions={liveSessions}
             loading={liveLoading}
             error={liveError ? (liveError as Error).message : null}
@@ -285,151 +283,151 @@ export default function MachineLogView({ showOperatorFilter = true }: MachineLog
       ) : (
         <>
           {/* Summary Stats */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-        <div className="bg-slate-800/50 border border-slate-700/50 rounded-xl p-4 text-center">
-          <p className="text-2xl font-bold text-white">{totalSessions}</p>
-          <p className="text-xs text-slate-500">Sessions</p>
-        </div>
-        <div className="bg-slate-800/50 border border-slate-700/50 rounded-xl p-4 text-center">
-          <p className="text-2xl font-bold text-emerald-400">{totalSheets.toLocaleString()}</p>
-          <p className="text-xs text-slate-500">Total Output</p>
-        </div>
-        <div className="bg-slate-800/50 border border-slate-700/50 rounded-xl p-4 text-center">
-          <p className="text-2xl font-bold text-blue-400">{totalSqFt.toLocaleString(undefined, { maximumFractionDigits: 1 })}</p>
-          <p className="text-xs text-slate-500">Sq.Ft (Press)</p>
-        </div>
-        <div className="bg-slate-800/50 border border-slate-700/50 rounded-xl p-4 text-center">
-          <p className="text-2xl font-bold text-amber-400">{totalCount}</p>
-          <p className="text-xs text-slate-500">Total Records</p>
-        </div>
-      </div>
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+            <div className="bg-slate-800/50 border border-slate-700/50 rounded-xl p-4 text-center">
+              <p className="text-2xl font-bold text-white">{totalSessions}</p>
+              <p className="text-xs text-slate-500">Sessions</p>
+            </div>
+            <div className="bg-slate-800/50 border border-slate-700/50 rounded-xl p-4 text-center">
+              <p className="text-2xl font-bold text-emerald-400">{totalSheets.toLocaleString()}</p>
+              <p className="text-xs text-slate-500">Total Output</p>
+            </div>
+            <div className="bg-slate-800/50 border border-slate-700/50 rounded-xl p-4 text-center">
+              <p className="text-2xl font-bold text-blue-400">{totalSqFt.toLocaleString(undefined, { maximumFractionDigits: 1 })}</p>
+              <p className="text-xs text-slate-500">Sq.Ft (Press)</p>
+            </div>
+            <div className="bg-slate-800/50 border border-slate-700/50 rounded-xl p-4 text-center">
+              <p className="text-2xl font-bold text-amber-400">{totalCount}</p>
+              <p className="text-xs text-slate-500">Total Records</p>
+            </div>
+          </div>
 
-      {/* Filter Bar */}
-      <div className="bg-slate-800/30 border border-slate-700/40 rounded-2xl overflow-hidden">
-        <button
-          onClick={() => setShowFilters(!showFilters)}
-          className="w-full px-4 py-3 flex items-center justify-between text-white font-medium text-sm"
-        >
-          <span className="flex items-center gap-2">
-            <Filter size={16} className="text-blue-400" />
-            Filters
-            {(fromDate || toDate || operatorFilter !== "ALL") && (
-              <span className="text-xs bg-blue-500/20 text-blue-400 px-2 py-0.5 rounded-full">Active</span>
+          {/* Filter Bar */}
+          <div className="bg-slate-800/30 border border-slate-700/40 rounded-2xl overflow-hidden">
+            <button
+              onClick={() => setShowFilters(!showFilters)}
+              className="w-full px-4 py-3 flex items-center justify-between text-white font-medium text-sm"
+            >
+              <span className="flex items-center gap-2">
+                <Filter size={16} className="text-blue-400" />
+                Filters
+                {(fromDate || toDate || operatorFilter !== "ALL") && (
+                  <span className="text-xs bg-blue-500/20 text-blue-400 px-2 py-0.5 rounded-full">Active</span>
+                )}
+              </span>
+              {showFilters ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
+            </button>
+
+            {showFilters && (
+              <div className="px-4 pb-4 space-y-4 border-t border-slate-700/30">
+                {/* Quick Date Presets */}
+                <div className="flex flex-wrap gap-2 pt-3">
+                  <button onClick={setToday}
+                    className="px-3 py-1.5 bg-slate-700/50 text-slate-300 rounded-lg text-xs hover:bg-slate-700 transition">Today</button>
+                  <button onClick={setThisWeek}
+                    className="px-3 py-1.5 bg-slate-700/50 text-slate-300 rounded-lg text-xs hover:bg-slate-700 transition">This Week</button>
+                  <button onClick={setThisMonth}
+                    className="px-3 py-1.5 bg-slate-700/50 text-slate-300 rounded-lg text-xs hover:bg-slate-700 transition">This Month</button>
+                  <button onClick={clearFilters}
+                    className="px-3 py-1.5 bg-red-900/30 text-red-400 rounded-lg text-xs hover:bg-red-900/50 transition">Clear All</button>
+                </div>
+
+                {/* Date Range + Operator */}
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                  <div>
+                    <label className="text-xs text-slate-500 mb-1 block">From Date</label>
+                    <div className="relative">
+                      <Calendar className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" size={14} />
+                      <input type="date" value={fromDate} onChange={e => setFromDate(e.target.value)}
+                        className="w-full pl-9 pr-3 py-2.5 bg-slate-900 border border-slate-700 rounded-xl text-white text-sm focus:ring-2 focus:ring-blue-500/50 outline-none" />
+                    </div>
+                  </div>
+                  <div>
+                    <label className="text-xs text-slate-500 mb-1 block">To Date</label>
+                    <div className="relative">
+                      <Calendar className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" size={14} />
+                      <input type="date" value={toDate} onChange={e => setToDate(e.target.value)}
+                        className="w-full pl-9 pr-3 py-2.5 bg-slate-900 border border-slate-700 rounded-xl text-white text-sm focus:ring-2 focus:ring-blue-500/50 outline-none" />
+                    </div>
+                  </div>
+                  {showOperatorFilter && (
+                    <div>
+                      <label className="text-xs text-slate-500 mb-1 block">Operator</label>
+                      <select value={operatorFilter} onChange={e => setOperatorFilter(e.target.value)}
+                        className="w-full px-3 py-2.5 bg-slate-900 border border-slate-700 rounded-xl text-white text-sm focus:ring-2 focus:ring-blue-500/50 outline-none">
+                        <option value="ALL">All Operators</option>
+                        {operators.map(op => (
+                          <option key={op.id} value={op.id}>{op.name}</option>
+                        ))}
+                      </select>
+                    </div>
+                  )}
+                </div>
+              </div>
             )}
-          </span>
-          {showFilters ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
-        </button>
+          </div>
 
-        {showFilters && (
-          <div className="px-4 pb-4 space-y-4 border-t border-slate-700/30">
-            {/* Quick Date Presets */}
-            <div className="flex flex-wrap gap-2 pt-3">
-              <button onClick={setToday}
-                className="px-3 py-1.5 bg-slate-700/50 text-slate-300 rounded-lg text-xs hover:bg-slate-700 transition">Today</button>
-              <button onClick={setThisWeek}
-                className="px-3 py-1.5 bg-slate-700/50 text-slate-300 rounded-lg text-xs hover:bg-slate-700 transition">This Week</button>
-              <button onClick={setThisMonth}
-                className="px-3 py-1.5 bg-slate-700/50 text-slate-300 rounded-lg text-xs hover:bg-slate-700 transition">This Month</button>
-              <button onClick={clearFilters}
-                className="px-3 py-1.5 bg-red-900/30 text-red-400 rounded-lg text-xs hover:bg-red-900/50 transition">Clear All</button>
+          {/* Results */}
+          {loading ? (
+            <div className="flex items-center justify-center min-h-[40vh]">
+              <div className="text-slate-400 flex flex-col items-center gap-3">
+                <Clock className="animate-pulse text-blue-500" size={40} />
+                <p>Loading machine logs...</p>
+              </div>
             </div>
-
-            {/* Date Range + Operator */}
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-              <div>
-                <label className="text-xs text-slate-500 mb-1 block">From Date</label>
-                <div className="relative">
-                  <Calendar className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" size={14} />
-                  <input type="date" value={fromDate} onChange={e => setFromDate(e.target.value)}
-                    className="w-full pl-9 pr-3 py-2.5 bg-slate-900 border border-slate-700 rounded-xl text-white text-sm focus:ring-2 focus:ring-blue-500/50 outline-none" />
-                </div>
-              </div>
-              <div>
-                <label className="text-xs text-slate-500 mb-1 block">To Date</label>
-                <div className="relative">
-                  <Calendar className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" size={14} />
-                  <input type="date" value={toDate} onChange={e => setToDate(e.target.value)}
-                    className="w-full pl-9 pr-3 py-2.5 bg-slate-900 border border-slate-700 rounded-xl text-white text-sm focus:ring-2 focus:ring-blue-500/50 outline-none" />
-                </div>
-              </div>
-              {showOperatorFilter && (
-                <div>
-                  <label className="text-xs text-slate-500 mb-1 block">Operator</label>
-                  <select value={operatorFilter} onChange={e => setOperatorFilter(e.target.value)}
-                    className="w-full px-3 py-2.5 bg-slate-900 border border-slate-700 rounded-xl text-white text-sm focus:ring-2 focus:ring-blue-500/50 outline-none">
-                    <option value="ALL">All Operators</option>
-                    {operators.map(op => (
-                      <option key={op.id} value={op.id}>{op.name}</option>
+          ) : logs.length === 0 ? (
+            <div className="bg-slate-800/50 border border-slate-700/50 rounded-2xl p-8 text-center">
+              <FileText size={48} className="text-slate-600 mx-auto mb-3" />
+              <p className="text-slate-400">No logs found</p>
+              <p className="text-slate-500 text-sm mt-1">Try adjusting your filters or date range</p>
+            </div>
+          ) : (
+            <div className="space-y-6">
+              {Object.entries(grouped).map(([dateLabel, dateLogs]) => (
+                <div key={dateLabel}>
+                  <div className="flex items-center gap-2 mb-3">
+                    <Calendar size={14} className="text-slate-500" />
+                    <h3 className="text-sm font-semibold text-slate-400">{dateLabel}</h3>
+                    <span className="text-xs text-slate-600">({dateLogs.length} session{dateLogs.length > 1 ? "s" : ""})</span>
+                  </div>
+                  <div className="space-y-3">
+                    {dateLogs.map(log => (
+                      <LogCard key={`${log.section}-${log.id}`} log={log} />
                     ))}
-                  </select>
+                  </div>
                 </div>
-              )}
+              ))}
             </div>
-          </div>
-        )}
-      </div>
+          )}
 
-      {/* Results */}
-      {loading ? (
-        <div className="flex items-center justify-center min-h-[40vh]">
-          <div className="text-slate-400 flex flex-col items-center gap-3">
-            <Clock className="animate-pulse text-blue-500" size={40} />
-            <p>Loading machine logs...</p>
-          </div>
-        </div>
-      ) : logs.length === 0 ? (
-        <div className="bg-slate-800/50 border border-slate-700/50 rounded-2xl p-8 text-center">
-          <FileText size={48} className="text-slate-600 mx-auto mb-3" />
-          <p className="text-slate-400">No logs found</p>
-          <p className="text-slate-500 text-sm mt-1">Try adjusting your filters or date range</p>
-        </div>
-      ) : (
-        <div className="space-y-6">
-          {Object.entries(grouped).map(([dateLabel, dateLogs]) => (
-            <div key={dateLabel}>
-              <div className="flex items-center gap-2 mb-3">
-                <Calendar size={14} className="text-slate-500" />
-                <h3 className="text-sm font-semibold text-slate-400">{dateLabel}</h3>
-                <span className="text-xs text-slate-600">({dateLogs.length} session{dateLogs.length > 1 ? "s" : ""})</span>
-              </div>
-              <div className="space-y-3">
-                {dateLogs.map(log => (
-                  <LogCard key={`${log.section}-${log.id}`} log={log} />
-                ))}
+          {/* Pagination */}
+          {!loading && totalPages > 1 && (
+            <div className="flex items-center justify-between bg-slate-800/30 border border-slate-700/40 rounded-xl px-4 py-3">
+              <p className="text-xs text-slate-400">
+                Page {currentPage} of {totalPages} ({totalCount} total)
+              </p>
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                  disabled={currentPage <= 1}
+                  className="px-3 py-1.5 bg-slate-700/50 text-slate-300 rounded-lg text-xs hover:bg-slate-700 transition disabled:opacity-30 disabled:cursor-not-allowed"
+                >
+                  ← Prev
+                </button>
+                <span className="text-sm text-white font-medium">
+                  {currentPage} / {totalPages}
+                </span>
+                <button
+                  onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+                  disabled={currentPage >= totalPages}
+                  className="px-3 py-1.5 bg-slate-700/50 text-slate-300 rounded-lg text-xs hover:bg-slate-700 transition disabled:opacity-30 disabled:cursor-not-allowed"
+                >
+                  Next →
+                </button>
               </div>
             </div>
-          ))}
-        </div>
-      )}
-
-      {/* Pagination */}
-      {!loading && totalPages > 1 && (
-        <div className="flex items-center justify-between bg-slate-800/30 border border-slate-700/40 rounded-xl px-4 py-3">
-          <p className="text-xs text-slate-400">
-            Page {currentPage} of {totalPages} ({totalCount} total)
-          </p>
-          <div className="flex items-center gap-2">
-            <button
-              onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
-              disabled={currentPage <= 1}
-              className="px-3 py-1.5 bg-slate-700/50 text-slate-300 rounded-lg text-xs hover:bg-slate-700 transition disabled:opacity-30 disabled:cursor-not-allowed"
-            >
-              ← Prev
-            </button>
-            <span className="text-sm text-white font-medium">
-              {currentPage} / {totalPages}
-            </span>
-            <button
-              onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
-              disabled={currentPage >= totalPages}
-              className="px-3 py-1.5 bg-slate-700/50 text-slate-300 rounded-lg text-xs hover:bg-slate-700 transition disabled:opacity-30 disabled:cursor-not-allowed"
-            >
-              Next →
-            </button>
-          </div>
-        </div>
-      )}
-      </>
+          )}
+        </>
       )}
     </div>
   );
@@ -449,7 +447,14 @@ function LogCard({ log }: { log: LogEntry }) {
         <div className="flex items-center justify-between mb-2">
           <div className="flex items-center gap-2 flex-wrap">
             <User size={14} className="text-blue-400" />
-            <span className="text-white font-bold text-sm">{log.operator?.name || "Operator"}</span>
+            <span className="text-white font-bold text-sm flex items-center gap-1.5">
+              {log.operator?.name || "Operator"}
+              {(log.operator?.role === "OWNER" || log.operator?.role === "MANAGER") && (
+                <span className="text-[9px] px-1.5 py-0.5 rounded-full font-black uppercase tracking-wider bg-rose-500/20 text-rose-300 border border-rose-500/30 flex items-center gap-1">
+                  <Crown size={10} className="text-rose-400" /> {log.operator.role} ACTION
+                </span>
+              )}
+            </span>
             <span className={`text-[10px] font-bold px-2 py-0.5 rounded-md flex items-center gap-1 ${sc.bg} ${sc.text} border ${sc.border}`}>
               <SectionIcon size={10} />
               {log.sectionLabel}

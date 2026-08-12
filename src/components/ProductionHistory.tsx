@@ -217,7 +217,7 @@ export default function ProductionHistory({ showOperatorFilter = false }: Produc
           </button>
         </div>
       </div>
-      
+
       {/* Print Only Header */}
       <div className="hidden print:block mb-6">
         <h1 className="text-2xl font-bold text-black border-b pb-2">Production Log History</h1>
@@ -442,7 +442,14 @@ function HistorySessionCard({ session, onRefresh }: { session: HotPressSession; 
         <div className="flex items-center justify-between mb-2">
           <div className="flex items-center gap-2">
             <User size={14} className="text-blue-400 print:text-gray-800" />
-            <span className="text-white print:text-black font-bold text-sm">{session.operator?.name || "Operator"}</span>
+            <span className="text-white print:text-black font-bold text-sm flex items-center gap-1.5">
+              {session.operator?.name || "Operator"}
+              {(session.operator?.role === "OWNER" || session.operator?.role === "MANAGER") && (
+                <span className="text-[9px] px-1.5 py-0.5 rounded-full font-black uppercase tracking-wider bg-rose-500/20 text-rose-300 border border-rose-500/30 flex items-center gap-1 print:border-gray-300 print:text-black">
+                  <Crown size={10} className="text-rose-400 print:text-gray-800" /> {session.operator.role} ACTION
+                </span>
+              )}
+            </span>
             <span className="text-[10px] bg-slate-800 text-slate-300 font-bold px-1.5 py-0.5 rounded-md border border-slate-700 print:border-gray-300 print:text-black print:bg-transparent ml-2 hidden sm:inline-block">
               {session.machine?.name || "Unknown Machine"}
             </span>

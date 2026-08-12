@@ -20,7 +20,7 @@ export async function GET(request: NextRequest) {
         inventoryLogs: {
           orderBy: { timestamp: "desc" },
           take: 5,
-          include: { loggedBy: { select: { name: true } } },
+          include: { loggedBy: { select: { id: true, name: true, role: true } } },
         },
       },
     });

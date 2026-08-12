@@ -64,16 +64,16 @@ export default function OwnerProduction() {
     return prodLists.filter((l: any) => {
       const isFinal = l.status === "COMPLETED" && (l.order ? ["DISPATCHED", "COMPLETED", "CANCELLED"].includes(l.order.status) : true);
       const matchesMode = viewMode === "ACTIVE" ? !isFinal : isFinal;
-      const matchesSearch = 
-        l.listNumber?.toLowerCase().includes(searchQuery.toLowerCase()) || 
+      const matchesSearch =
+        l.listNumber?.toLowerCase().includes(searchQuery.toLowerCase()) ||
         l.order?.orderNumber?.toLowerCase().includes(searchQuery.toLowerCase()) ||
         l.order?.customer?.name?.toLowerCase().includes(searchQuery.toLowerCase());
       const matchesStatus = statusFilter === "ALL" || l.status === statusFilter;
-      
+
       return matchesMode && matchesSearch && matchesStatus;
     }).sort((a: any, b: any) => {
-       if (a.priority !== b.priority) return a.priority - b.priority;
-       return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
+      if (a.priority !== b.priority) return a.priority - b.priority;
+      return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
     });
   }, [prodLists, viewMode, searchQuery, statusFilter]);
 
@@ -114,16 +114,16 @@ export default function OwnerProduction() {
               </h1>
               <p className="text-slate-400 text-sm mt-1">Full oversight of company production runs.</p>
             </div>
-            
+
             <div className="bg-slate-900 border border-slate-700/50 rounded-lg p-1 flex shadow-inner">
-              <button 
-                onClick={() => setViewMode("ACTIVE")} 
+              <button
+                onClick={() => setViewMode("ACTIVE")}
                 className={`px-4 py-1.5 text-xs font-black rounded-md transition-all ${viewMode === "ACTIVE" ? "bg-slate-700 text-white shadow-sm" : "text-slate-500 hover:text-slate-300"}`}
               >
                 ONGOING
               </button>
-              <button 
-                onClick={() => setViewMode("HISTORY")} 
+              <button
+                onClick={() => setViewMode("HISTORY")}
                 className={`px-4 py-1.5 text-xs font-black rounded-md transition-all ${viewMode === "HISTORY" ? "bg-slate-700 text-white shadow-sm" : "text-slate-500 hover:text-slate-300"}`}
               >
                 FINALIZED
@@ -133,8 +133,8 @@ export default function OwnerProduction() {
 
           <div className="relative w-full md:w-80">
             <Search size={18} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-500" />
-            <input 
-              type="text" 
+            <input
+              type="text"
               placeholder="Search by list, order, or customer..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
@@ -160,7 +160,7 @@ export default function OwnerProduction() {
               </div>
               <div className="bg-slate-800/40 border border-slate-700/50 rounded-2xl p-5 shadow-sm">
                 <p className="text-slate-500 text-[10px] font-black uppercase tracking-widest mb-1 px-1">Active</p>
-                <p className="text-3xl font-black text-amber-400">{prodLists.filter((l: any) => !["COMPLETED","REJECTED","CANCELLED"].includes(l.status)).length}</p>
+                <p className="text-3xl font-black text-amber-400">{prodLists.filter((l: any) => !["COMPLETED", "REJECTED", "CANCELLED"].includes(l.status)).length}</p>
               </div>
               <div className="bg-slate-800/40 border border-slate-700/50 rounded-2xl p-5 shadow-sm">
                 <p className="text-slate-500 text-[10px] font-black uppercase tracking-widest mb-1 px-1">Dispatched/Done</p>
@@ -178,163 +178,162 @@ export default function OwnerProduction() {
           <ListSkeleton count={4} />
         ) : displayLists.length === 0 ? (
           <div className="bg-slate-900 border border-slate-800 rounded-3xl p-24 text-center">
-             <Factory size={64} className="mx-auto text-slate-800 mb-4" />
-             <p className="text-slate-500 font-black uppercase tracking-widest text-xl">Audit Log Empty</p>
-             <p className="text-slate-600 text-sm mt-2 font-bold max-w-md mx-auto">No {viewMode.toLowerCase()} production lists match your current search or filter criteria.</p>
+            <Factory size={64} className="mx-auto text-slate-800 mb-4" />
+            <p className="text-slate-500 font-black uppercase tracking-widest text-xl">Audit Log Empty</p>
+            <p className="text-slate-600 text-sm mt-2 font-bold max-w-md mx-auto">No {viewMode.toLowerCase()} production lists match your current search or filter criteria.</p>
           </div>
         ) : (
           <div className="space-y-4">
-             {displayLists.map((list: any) => {
-               const config = statusConfig[list.status] || statusConfig.PLANNED;
-               const StatusIcon = config.icon;
-               const pc = priorityConfig[list.priority] || priorityConfig[3];
-               const isExpanded = expandedList === list.id;
-               const totalTarget = list.items?.reduce((s: number, i: any) => s + i.quantity, 0) || 0;
-               const totalProd = list.items?.reduce((s: number, i: any) => s + (i.producedQuantity || 0), 0) || 0;
-               const progress = totalTarget > 0 ? Math.round((totalProd / totalTarget) * 100) : 0;
+            {displayLists.map((list: any) => {
+              const config = statusConfig[list.status] || statusConfig.PLANNED;
+              const StatusIcon = config.icon;
+              const pc = priorityConfig[list.priority] || priorityConfig[3];
+              const isExpanded = expandedList === list.id;
+              const totalTarget = list.items?.reduce((s: number, i: any) => s + i.quantity, 0) || 0;
+              const totalProd = list.items?.reduce((s: number, i: any) => s + (i.producedQuantity || 0), 0) || 0;
+              const progress = totalTarget > 0 ? Math.round((totalProd / totalTarget) * 100) : 0;
 
-               // Production time estimation
-               const prodMinutes = calcListProductionMinutes(
-                 (list.items || []).map((i: any) => ({
-                   quantity: i.quantity,
-                   categoryId: i.categoryId,
-                   thicknessId: i.thicknessId,
-                 })),
-                 productTimings,
-                 pressSettings
-               );
-               const hasTimings = prodMinutes > 0;
-               const productionDays = prodMinutes / (pressSettings.workingHoursPerDay * 60);
-               const isComplete = list.status === "COMPLETED";
-               const estDates = hasTimings && list.order?.createdAt
-                 ? calcEstimatedDates(list.order.createdAt, prodMinutes, pressSettings)
-                 : null;
+              // Production time estimation
+              const prodMinutes = calcListProductionMinutes(
+                (list.items || []).map((i: any) => ({
+                  quantity: i.quantity,
+                  categoryId: i.categoryId,
+                  thicknessId: i.thicknessId,
+                })),
+                productTimings,
+                pressSettings
+              );
+              const hasTimings = prodMinutes > 0;
+              const productionDays = prodMinutes / (pressSettings.workingHoursPerDay * 60);
+              const isComplete = list.status === "COMPLETED";
+              const estDates = hasTimings && list.order?.createdAt
+                ? calcEstimatedDates(list.order.createdAt, prodMinutes, pressSettings)
+                : null;
 
-               return (
-                 <div key={list.id} className={`bg-slate-900/60 border rounded-3xl overflow-hidden transition-all hover:bg-slate-900 ${
-                   isExpanded ? "border-emerald-500/40 shadow-emerald-900/10" : "border-slate-800 shadow-xl"
-                 }`}>
-                   <button onClick={() => setExpandedList(isExpanded ? null : list.id)}
+              return (
+                <div key={list.id} className={`bg-slate-900/60 border rounded-3xl overflow-hidden transition-all hover:bg-slate-900 ${isExpanded ? "border-emerald-500/40 shadow-emerald-900/10" : "border-slate-800 shadow-xl"
+                  }`}>
+                  <button onClick={() => setExpandedList(isExpanded ? null : list.id)}
                     className="w-full p-6 flex flex-col sm:flex-row sm:items-center justify-between text-left gap-4">
-                      <div className="flex items-center gap-5 min-w-0 flex-1">
-                        <div className={`w-14 h-14 rounded-2xl ${config.bg} flex items-center justify-center flex-shrink-0 shadow-inner`}>
-                          <StatusIcon size={28} className={config.text} />
-                        </div>
-                        <div className="min-w-0 flex-1">
-                           <div className="flex items-center gap-3 mb-1">
-                            <h3 className="text-white font-black text-lg whitespace-nowrap">
+                    <div className="flex items-center gap-5 min-w-0 flex-1">
+                      <div className={`w-14 h-14 rounded-2xl ${config.bg} flex items-center justify-center flex-shrink-0 shadow-inner`}>
+                        <StatusIcon size={28} className={config.text} />
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <div className="flex items-center gap-3 mb-1">
+                          <h3 className="text-white font-black text-lg whitespace-nowrap">
                             <span className="text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded-md border border-emerald-500/20 mr-3 uppercase tracking-widest font-black text-lg">
-                               {list.order?.customer?.name || "COMPANY NAME"}
-                             </span>
+                              {list.order?.customer?.name || "COMPANY NAME"}
+                            </span>
                             {list.listNumber}
                           </h3>
-                             <span className={`text-[10px] px-2.5 py-1 rounded-md font-black uppercase tracking-widest ${pc.bg} ${pc.color}`}>{pc.label}</span>
-                             <span className={`text-[10px] px-2.5 py-1 rounded-md font-black uppercase tracking-widest ${config.bg} ${config.text}`}>{config.label}</span>
-                           </div>
-                           <p className="text-slate-500 text-xs font-bold leading-relaxed truncate">
-                              {list.order?.orderNumber && `${list.order.orderNumber} • `}
-                              {list.order?.customer?.name && `${list.order.customer.name} • `}
-                              {list.items?.length} items • Managed by {list.createdBy?.name}
-                           </p>
+                          <span className={`text-[10px] px-2.5 py-1 rounded-md font-black uppercase tracking-widest ${pc.bg} ${pc.color}`}>{pc.label}</span>
+                          <span className={`text-[10px] px-2.5 py-1 rounded-md font-black uppercase tracking-widest ${config.bg} ${config.text}`}>{config.label}</span>
                         </div>
+                        <p className="text-slate-500 text-xs font-bold leading-relaxed truncate">
+                          {list.order?.orderNumber && `${list.order.orderNumber} • `}
+                          {list.order?.customer?.name && `${list.order.customer.name} • `}
+                          {list.items?.length} items • Managed by {list.createdBy?.name}
+                        </p>
                       </div>
-                      
-                      <div className="flex items-center gap-8 pl-14 sm:pl-0">
-                         <div className="text-right">
-                           <p className={`text-2xl font-black ${progress >= 100 ? "text-emerald-400" : "text-amber-400"}`}>{progress}%</p>
-                           <p className="text-[10px] font-black text-slate-600 uppercase tracking-widest">Efficiency</p>
-                           {/* Production Time & Dispatch Estimates */}
-                           {(hasTimings || list.estimatedProductionMinutes) && (
-                             <div className="flex flex-wrap gap-1 mt-1 justify-end">
-                               <span className="text-[9px] px-1.5 py-0.5 rounded-full bg-orange-500/15 text-orange-300 font-bold flex items-center gap-1 border border-orange-500/20">
-                                 <Clock size={8} />
-                                 {formatDuration(list.estimatedProductionMinutes || prodMinutes)} (~{formatDays(productionDays)})
-                               </span>
-                               {estDates && !isComplete && (
-                                 <span className="text-[9px] px-1.5 py-0.5 rounded-full bg-violet-500/15 text-violet-300 font-bold flex items-center gap-1 border border-violet-500/20">
-                                   <CalendarClock size={8} />
-                                   {formatDate(estDates.dispatchDate)}
-                                 </span>
-                               )}
-                             </div>
-                           )}
-                         </div>
-                         {isExpanded ? <ChevronUp className="text-slate-500" size={24} /> : <ChevronDown className="text-slate-500" size={24} />}
-                      </div>
-                   </button>
+                    </div>
 
-                   {isExpanded && (
-                     <div className="px-6 pb-8 border-t border-slate-800/50 pt-8 animate-in fade-in duration-300">
-                        <div className="grid grid-cols-1 xl:grid-cols-3 gap-8">
-                           {/* Item Details */}
-                           <div className="xl:col-span-2 space-y-4">
-                              <h4 className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-4 px-2">Detailed Production Run</h4>
-                              {list.items?.filter((item: any) => item.quantity > 0).map((item: any, idx: number) => {
-                                const itemProg = item.quantity > 0 ? Math.min(100, Math.round((item.producedQuantity / item.quantity) * 100)) : 0;
-                                return (
-                                  <div key={idx} className="bg-slate-950/60 rounded-2xl p-5 border border-slate-800/80 shadow-inner group transition hover:border-slate-700">
-                                     <div className="flex items-center justify-between mb-4">
-                                        <div>
-                                          <p className="text-white font-black text-sm uppercase">{item.category?.name}</p>
-                                          <p className="text-slate-500 text-xs font-bold uppercase tracking-tight">{item.thickness?.value}mm • {item.size?.label}</p>
-                                        </div>
-                                        <div className="text-right">
-                                           <span className={`text-xl font-black ${itemProg >= 100 ? "text-emerald-400" : "text-amber-400"}`}>{item.producedQuantity}</span>
-                                           <span className="text-slate-700 text-sm font-black mx-1">/</span>
-                                           <span className="text-slate-500 text-sm font-black">{item.quantity}</span>
-                                        </div>
-                                     </div>
-                                     <div className="h-1.5 bg-slate-900 rounded-full overflow-hidden shadow-inner mb-4">
-                                        <div className={`h-full rounded-full transition-all duration-1000 ${itemProg >= 100 ? "bg-emerald-500" : "bg-emerald-500/40"}`}
-                                          style={{ width: `${itemProg}%` }} />
-                                     </div>
-                                     <div className="flex flex-wrap gap-2">
-                                        {item.layers && <span className="text-[10px] font-black px-2 py-0.5 bg-slate-800 text-slate-400 rounded-md uppercase tracking-tighter">{item.layers} Layers</span>}
-                                        {item.brandSeal && <span className="text-[10px] font-black px-2 py-0.5 bg-emerald-500/10 text-emerald-400 rounded-md uppercase tracking-tighter">Seal ✓</span>}
-                                        {item.varnish && <span className="text-[10px] font-black px-2 py-0.5 bg-amber-500/10 text-amber-400 rounded-md uppercase tracking-tighter">Varnish ✓</span>}
-                                     </div>
+                    <div className="flex items-center gap-8 pl-14 sm:pl-0">
+                      <div className="text-right">
+                        <p className={`text-2xl font-black ${progress >= 100 ? "text-emerald-400" : "text-amber-400"}`}>{progress}%</p>
+                        <p className="text-[10px] font-black text-slate-600 uppercase tracking-widest">Efficiency</p>
+                        {/* Production Time & Dispatch Estimates */}
+                        {(hasTimings || list.estimatedProductionMinutes) && (
+                          <div className="flex flex-wrap gap-1 mt-1 justify-end">
+                            <span className="text-[9px] px-1.5 py-0.5 rounded-full bg-orange-500/15 text-orange-300 font-bold flex items-center gap-1 border border-orange-500/20">
+                              <Clock size={8} />
+                              {formatDuration(list.estimatedProductionMinutes || prodMinutes)} (~{formatDays(productionDays)})
+                            </span>
+                            {estDates && !isComplete && (
+                              <span className="text-[9px] px-1.5 py-0.5 rounded-full bg-violet-500/15 text-violet-300 font-bold flex items-center gap-1 border border-violet-500/20">
+                                <CalendarClock size={8} />
+                                {formatDate(estDates.dispatchDate)}
+                              </span>
+                            )}
+                          </div>
+                        )}
+                      </div>
+                      {isExpanded ? <ChevronUp className="text-slate-500" size={24} /> : <ChevronDown className="text-slate-500" size={24} />}
+                    </div>
+                  </button>
+
+                  {isExpanded && (
+                    <div className="px-6 pb-8 border-t border-slate-800/50 pt-8 animate-in fade-in duration-300">
+                      <div className="grid grid-cols-1 xl:grid-cols-3 gap-8">
+                        {/* Item Details */}
+                        <div className="xl:col-span-2 space-y-4">
+                          <h4 className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-4 px-2">Detailed Production Run</h4>
+                          {list.items?.filter((item: any) => item.quantity > 0).map((item: any, idx: number) => {
+                            const itemProg = item.quantity > 0 ? Math.min(100, Math.round((item.producedQuantity / item.quantity) * 100)) : 0;
+                            return (
+                              <div key={idx} className="bg-slate-950/60 rounded-2xl p-5 border border-slate-800/80 shadow-inner group transition hover:border-slate-700">
+                                <div className="flex items-center justify-between mb-4">
+                                  <div>
+                                    <p className="text-white font-black text-sm uppercase">{item.category?.name}</p>
+                                    <p className="text-slate-500 text-xs font-bold uppercase tracking-tight">{item.thickness?.value}mm • {item.size?.label}</p>
                                   </div>
-                                );
-                              })}
-                           </div>
-
-                           {/* Metadata Card */}
-                           <div className="space-y-6">
-                              <h4 className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-4 px-2">Operational Context</h4>
-                              <div className="bg-slate-800/20 rounded-3xl p-6 border border-slate-800/80 space-y-6">
-                                 <div>
-                                    <p className="text-slate-600 text-[10px] font-black uppercase tracking-widest mb-1">Company Origin</p>
-                                    <p className="text-white font-black text-sm uppercase tracking-tight">{list.company?.name || session.user?.name}&apos;s Floor</p>
-                                 </div>
-                                 <div className="pt-6 border-t border-slate-800/50">
-                                    <p className="text-slate-600 text-[10px] font-black uppercase tracking-widest mb-1">Timeline</p>
-                                    <div className="space-y-2 mt-3">
-                                       <div className="flex items-center gap-3">
-                                          <div className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
-                                          <p className="text-slate-400 text-xs font-bold uppercase tracking-tight">Started: {new Date(list.createdAt).toLocaleString([], { dateStyle: 'medium', timeStyle: 'short' })}</p>
-                                       </div>
-                                       <div className="flex items-center gap-3 opacity-60">
-                                          <div className="w-1.5 h-1.5 rounded-full bg-slate-600" />
-                                          <p className="text-slate-500 text-xs font-bold uppercase tracking-tight">Status: {list.status.replace("_", " ")}</p>
-                                       </div>
-                                    </div>
-                                 </div>
-                                 {list.notes && (
-                                   <div className="pt-6 border-t border-slate-800/50">
-                                      <p className="text-slate-600 text-[10px] font-black uppercase tracking-widest mb-2 px-1 text-center">Auditor&apos;s Notes</p>
-                                      <div className="bg-slate-900/50 rounded-2xl p-4 border border-slate-800/50">
-                                         <p className="text-slate-400 text-xs italic leading-relaxed text-center">&quot;{list.notes}&quot;</p>
-                                      </div>
-                                   </div>
-                                 )}
+                                  <div className="text-right">
+                                    <span className={`text-xl font-black ${itemProg >= 100 ? "text-emerald-400" : "text-amber-400"}`}>{item.producedQuantity}</span>
+                                    <span className="text-slate-700 text-sm font-black mx-1">/</span>
+                                    <span className="text-slate-500 text-sm font-black">{item.quantity}</span>
+                                  </div>
+                                </div>
+                                <div className="h-1.5 bg-slate-900 rounded-full overflow-hidden shadow-inner mb-4">
+                                  <div className={`h-full rounded-full transition-all duration-1000 ${itemProg >= 100 ? "bg-emerald-500" : "bg-emerald-500/40"}`}
+                                    style={{ width: `${itemProg}%` }} />
+                                </div>
+                                <div className="flex flex-wrap gap-2">
+                                  {item.layers && <span className="text-[10px] font-black px-2 py-0.5 bg-slate-800 text-slate-400 rounded-md uppercase tracking-tighter">{item.layers} Layers</span>}
+                                  {item.brandSeal && <span className="text-[10px] font-black px-2 py-0.5 bg-emerald-500/10 text-emerald-400 rounded-md uppercase tracking-tighter">Seal ✓</span>}
+                                  {item.varnish && <span className="text-[10px] font-black px-2 py-0.5 bg-amber-500/10 text-amber-400 rounded-md uppercase tracking-tighter">Varnish ✓</span>}
+                                </div>
                               </div>
-                           </div>
+                            );
+                          })}
                         </div>
-                     </div>
-                   )}
-                 </div>
-               );
-             })}
+
+                        {/* Metadata Card */}
+                        <div className="space-y-6">
+                          <h4 className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-4 px-2">Operational Context</h4>
+                          <div className="bg-slate-800/20 rounded-3xl p-6 border border-slate-800/80 space-y-6">
+                            <div>
+                              <p className="text-slate-600 text-[10px] font-black uppercase tracking-widest mb-1">Company Origin</p>
+                              <p className="text-white font-black text-sm uppercase tracking-tight">{list.company?.name || session.user?.name}&apos;s Floor</p>
+                            </div>
+                            <div className="pt-6 border-t border-slate-800/50">
+                              <p className="text-slate-600 text-[10px] font-black uppercase tracking-widest mb-1">Timeline</p>
+                              <div className="space-y-2 mt-3">
+                                <div className="flex items-center gap-3">
+                                  <div className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
+                                  <p className="text-slate-400 text-xs font-bold uppercase tracking-tight">Started: {new Date(list.createdAt).toLocaleString([], { dateStyle: 'medium', timeStyle: 'short' })}</p>
+                                </div>
+                                <div className="flex items-center gap-3 opacity-60">
+                                  <div className="w-1.5 h-1.5 rounded-full bg-slate-600" />
+                                  <p className="text-slate-500 text-xs font-bold uppercase tracking-tight">Status: {list.status.replace("_", " ")}</p>
+                                </div>
+                              </div>
+                            </div>
+                            {list.notes && (
+                              <div className="pt-6 border-t border-slate-800/50">
+                                <p className="text-slate-600 text-[10px] font-black uppercase tracking-widest mb-2 px-1 text-center">Auditor&apos;s Notes</p>
+                                <div className="bg-slate-900/50 rounded-2xl p-4 border border-slate-800/50">
+                                  <p className="text-slate-400 text-xs italic leading-relaxed text-center">&quot;{list.notes}&quot;</p>
+                                </div>
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              );
+            })}
           </div>
         )}
       </main>

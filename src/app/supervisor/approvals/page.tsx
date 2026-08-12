@@ -9,7 +9,8 @@ import React from "react";
 import {
   CheckCircle2, XCircle, Clock, Package, Timer, Power, PowerOff,
   Flame, RefreshCcw, Droplets, Wrench, Pause, ChevronDown, ChevronUp,
-  User, Send, AlertTriangle
+  User, Send, AlertTriangle,
+  Crown,
 } from "lucide-react";
 
 interface PressEntry {
@@ -163,39 +164,39 @@ export default function SupervisorApprovalPage() {
 
   return (
     <div className="min-h-screen bg-slate-950">
-    <Sidebar user={session.user} />
-    <main className="ml-0 md:ml-64 p-3 md:p-8">
-    <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold text-white flex items-center gap-3">
-          <CheckCircle2 className="text-blue-400" size={28} />
-          Production Approvals
-        </h1>
-        <p className="text-slate-400 text-sm mt-1">Review and approve operator production logs</p>
-      </div>
+      <Sidebar user={session.user} />
+      <main className="ml-0 md:ml-64 p-3 md:p-8">
+        <div className="space-y-6">
+          <div>
+            <h1 className="text-2xl font-bold text-white flex items-center gap-3">
+              <CheckCircle2 className="text-blue-400" size={28} />
+              Production Approvals
+            </h1>
+            <p className="text-slate-400 text-sm mt-1">Review and approve operator production logs</p>
+          </div>
 
-      {sessions.length === 0 ? (
-        <div className="bg-slate-800/50 border border-slate-700/50 rounded-2xl p-8 text-center">
-          <CheckCircle2 size={48} className="text-emerald-500 mx-auto mb-3 opacity-50" />
-          <p className="text-slate-400">No pending approvals</p>
-          <p className="text-slate-500 text-sm mt-1">All production logs are up to date</p>
+          {sessions.length === 0 ? (
+            <div className="bg-slate-800/50 border border-slate-700/50 rounded-2xl p-8 text-center">
+              <CheckCircle2 size={48} className="text-emerald-500 mx-auto mb-3 opacity-50" />
+              <p className="text-slate-400">No pending approvals</p>
+              <p className="text-slate-500 text-sm mt-1">All production logs are up to date</p>
+            </div>
+          ) : (
+            <div className="space-y-4">
+              {sessions.map((sess: any) => (
+                <ApprovalCard key={sess.id} session={sess} onApprove={() => approve(sess.id)}
+                  isRejecting={rejectingId === sess.id}
+                  onStartReject={() => setRejectingId(sess.id)}
+                  onCancelReject={() => { setRejectingId(null); setRejectNote(""); }}
+                  rejectNote={rejectNote}
+                  onRejectNoteChange={setRejectNote}
+                  onConfirmReject={() => reject(sess.id)}
+                />
+              ))}
+            </div>
+          )}
         </div>
-      ) : (
-        <div className="space-y-4">
-          {sessions.map((sess: any) => (
-            <ApprovalCard key={sess.id} session={sess} onApprove={() => approve(sess.id)}
-              isRejecting={rejectingId === sess.id}
-              onStartReject={() => setRejectingId(sess.id)}
-              onCancelReject={() => { setRejectingId(null); setRejectNote(""); }}
-              rejectNote={rejectNote}
-              onRejectNoteChange={setRejectNote}
-              onConfirmReject={() => reject(sess.id)}
-            />
-          ))}
-        </div>
-      )}
-    </div>
-    </main>
+      </main>
     </div>
   );
 }
@@ -230,7 +231,14 @@ function ApprovalCard({
             <span className="text-[10px] px-2 py-0.5 rounded-full font-black uppercase tracking-wider bg-rose-500/20 text-rose-300 border border-rose-500/30">
               OPERATOR
             </span>
-            <span className="text-white font-bold">{session.operator?.name || "Operator"}</span>
+            <span className="text-white font-bold flex items-center gap-1.5">
+              {session.operator?.name || "Operator"}
+              {(session.operator?.role === "OWNER" || session.operator?.role === "MANAGER") && (
+                <span className="text-[9px] px-1.5 py-0.5 rounded-full font-black uppercase tracking-wider bg-rose-500/20 text-rose-300 border border-rose-500/30 flex items-center gap-1">
+                  <Crown size={10} className="text-rose-400" /> {session.operator.role} ACTION
+                </span>
+              )}
+            </span>
             {(session as any).machine && (
               <span className="text-[10px] px-2 py-0.5 rounded-md font-bold bg-orange-500/10 text-orange-300 border border-orange-500/20">
                 {(session as any).machine.code} • {(session as any).machine.name}

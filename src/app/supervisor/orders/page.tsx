@@ -95,14 +95,14 @@ function SupervisorOrders() {
               <ShoppingCart size={28} className="text-amber-400" /> Orders
             </h1>
             <div className="bg-slate-900 border border-slate-700/50 rounded-lg p-1 flex">
-              <button 
-                onClick={() => setViewMode("ACTIVE")} 
+              <button
+                onClick={() => setViewMode("ACTIVE")}
                 className={`px-4 py-1.5 text-sm font-bold rounded-md transition ${viewMode === "ACTIVE" ? "bg-slate-700 text-white shadow-sm" : "text-slate-400 hover:text-slate-300"}`}
               >
                 Active
               </button>
-              <button 
-                onClick={() => setViewMode("HISTORY")} 
+              <button
+                onClick={() => setViewMode("HISTORY")}
                 className={`px-4 py-1.5 text-sm font-bold rounded-md transition ${viewMode === "HISTORY" ? "bg-slate-700 text-white shadow-sm" : "text-slate-400 hover:text-slate-300"}`}
               >
                 History
@@ -122,7 +122,7 @@ function SupervisorOrders() {
                 <p className="text-slate-400 text-lg">No active orders</p>
               </div>
             )}
-            
+
             {viewMode === "HISTORY" && completedOrders.length === 0 && cancelledOrders.length === 0 && (
               <div className="text-center py-16 bg-slate-900/40 rounded-3xl border border-slate-800">
                 <Package size={48} className="mx-auto text-slate-600 mb-4" />
@@ -183,17 +183,16 @@ function SupervisorOrders() {
     const StatusIcon = sc.icon;
     const isExpanded = expandedOrder === order.id;
     const pc = priorityConfig[order.priority] || priorityConfig[3];
-    
+
     const orderTargetQty = order.items?.reduce((s: number, i: any) => s + i.quantity, 0) || 0;
     const orderProducedQty = order.productionLists?.reduce((s: number, pl: any) => s + pl.items?.reduce((ps: number, item: any) => ps + (item.producedQuantity || 0), 0), 0) || 0;
     const progressPercent = orderTargetQty > 0 ? Math.min(100, Math.round((orderProducedQty / orderTargetQty) * 100)) : 0;
-    
+
     const isProductionComplete = order.status === "PRODUCTION_COMPLETED" || (progressPercent >= 100 && !["DISPATCHED", "COMPLETED", "CANCELLED"].includes(order.status));
 
     return (
-      <div key={order.id} className={`bg-slate-800/40 border rounded-2xl overflow-hidden ${
-        isProductionComplete ? "border-emerald-500/50 ring-1 ring-emerald-500/30" : "border-slate-700/50"
-      }`}>
+      <div key={order.id} className={`bg-slate-800/40 border rounded-2xl overflow-hidden ${isProductionComplete ? "border-emerald-500/50 ring-1 ring-emerald-500/30" : "border-slate-700/50"
+        }`}>
         <button onClick={() => setExpandedOrder(isExpanded ? null : order.id)}
           className="w-full p-4 flex items-center justify-between text-left">
           <div className="flex items-center gap-3 min-w-0">
@@ -244,7 +243,7 @@ function SupervisorOrders() {
             {/* Timeline Events */}
             {order.timelineEvents && order.timelineEvents.length > 0 && (
               <div className="mt-4 border-t border-slate-700/50 pt-4 mb-2">
-                <button 
+                <button
                   onClick={() => setExpandedTimelineId(expandedTimelineId === order.id ? null : order.id)}
                   className="w-full flex items-center justify-between text-[10px] font-black text-slate-500 uppercase tracking-widest hover:text-slate-300 transition"
                 >
@@ -261,7 +260,16 @@ function SupervisorOrders() {
                         <p className="text-xs text-slate-400">{event.details}</p>
                         <div className="flex items-center gap-2 mt-1.5">
                           <p className="text-[10px] text-slate-500 uppercase tracking-wider">{new Date(event.createdAt).toLocaleString('en-IN')}</p>
-                          {event.user?.name && <span className="text-[10px] bg-slate-800 text-slate-300 px-1.5 py-0.5 rounded font-medium">{event.user.name}</span>}
+                          {event.user?.name && (
+                            <span className={`text-[10px] px-1.5 py-0.5 rounded font-medium ${event.user.role === "OWNER"
+                                ? "bg-purple-500/20 text-purple-300 border border-purple-500/40"
+                                : event.user.role === "MANAGER"
+                                  ? "bg-blue-500/20 text-blue-300 border border-blue-500/40"
+                                  : "bg-slate-800 text-slate-300"
+                              }`}>
+                              {event.user.name} {event.user.role === "OWNER" ? "👑 (Owner)" : event.user.role === "MANAGER" ? "(Manager)" : ""}
+                            </span>
+                          )}
                         </div>
                       </div>
                     ))}

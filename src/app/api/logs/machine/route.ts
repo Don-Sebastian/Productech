@@ -46,8 +46,8 @@ export async function GET(req: Request) {
     const results: any[] = [];
     let totalCount = 0;
 
-    const sections = section === "all" 
-      ? ["hotpress", "peeling", "dryer", "finishing"] 
+    const sections = section === "all"
+      ? ["hotpress", "peeling", "dryer", "finishing"]
       : [section];
 
     // For "all" sections, we fetch a limited set from each then merge & sort.
@@ -159,7 +159,7 @@ async function fetchHotPress(
         numDaylights: true,
         approvalStatus: true,
         rejectionNote: true,
-        operator: { select: { id: true, name: true } },
+        operator: { select: { id: true, name: true, role: true } },
         machine: { select: { id: true, name: true, code: true } },
         entries: {
           where: { unloadTime: { not: null } },
@@ -220,7 +220,7 @@ async function fetchPeeling(
         startTime: true,
         stopTime: true,
         shiftDate: true,
-        operator: { select: { id: true, name: true } },
+        operator: { select: { id: true, name: true, role: true } },
         entries: {
           select: {
             id: true,
@@ -271,7 +271,7 @@ async function fetchDryer(
         startTime: true,
         stopTime: true,
         shiftDate: true,
-        operator: { select: { id: true, name: true } },
+        operator: { select: { id: true, name: true, role: true } },
         batches: {
           select: {
             id: true,
@@ -330,7 +330,7 @@ async function fetchFinishing(
         id: true,
         shiftDate: true,
         createdAt: true,
-        operator: { select: { id: true, name: true } },
+        operator: { select: { id: true, name: true, role: true } },
         entries: {
           select: {
             id: true,

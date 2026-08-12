@@ -45,7 +45,7 @@ export async function GET(request: NextRequest) {
             size: { select: { label: true } },
           },
         },
-        operator: { select: { name: true } },
+        operator: { select: { id: true, name: true, role: true } },
         productionListItem: {
           include: {
             productionList: { select: { listNumber: true, priority: true } },

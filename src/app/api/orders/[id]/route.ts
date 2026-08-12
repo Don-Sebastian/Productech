@@ -21,11 +21,11 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
             size: { select: { id: true, label: true, length: true, width: true } },
           },
         },
-        createdBy: { select: { id: true, name: true } },
+        createdBy: { select: { id: true, name: true, role: true } },
         customer: true,
         timelineEvents: {
           orderBy: { createdAt: "asc" },
-          include: { user: { select: { name: true } } }
+          include: { user: { select: { name: true, role: true } } }
         }
       },
     });

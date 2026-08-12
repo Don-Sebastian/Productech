@@ -33,7 +33,7 @@ export async function GET(req: Request) {
     }
 
     // Common operator includes for all session types
-    const operatorSelect = { id: true, name: true };
+    const operatorSelect = { id: true, name: true, role: true };
     const machineSelect = { id: true, name: true, code: true, section: { select: { name: true, slug: true } } };
 
     // Fetch active + today sessions from all sections in parallel

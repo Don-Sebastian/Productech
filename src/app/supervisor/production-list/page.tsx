@@ -579,10 +579,16 @@ function ProductionListContent() {
                               <div>
                                 <p className="text-slate-500 text-[10px] font-black uppercase tracking-widest">Created By</p>
                                 <p className="text-slate-300 font-bold flex items-center gap-2">
-                                  <span className="text-[10px] px-2 py-0.5 rounded-full font-black uppercase tracking-wider bg-amber-500/20 text-amber-300 border border-amber-500/30">
-                                    SUPERVISOR
+                                  <span className={`text-[10px] px-2 py-0.5 rounded-full font-black uppercase tracking-wider ${
+                                    list.createdBy?.role === "OWNER"
+                                      ? "bg-purple-500/20 text-purple-300 border border-purple-500/40"
+                                      : list.createdBy?.role === "MANAGER"
+                                      ? "bg-blue-500/20 text-blue-300 border border-blue-500/40"
+                                      : "bg-amber-500/20 text-amber-300 border border-amber-500/30"
+                                  }`}>
+                                    {list.createdBy?.role || "SUPERVISOR"}
                                   </span>
-                                  {list.createdBy?.name}
+                                  {list.createdBy?.name} {list.createdBy?.role === "OWNER" ? "👑 (Owner Action)" : list.createdBy?.role === "MANAGER" ? "(Manager Action)" : ""}
                                 </p>
                               </div>
                               {list.notes && (

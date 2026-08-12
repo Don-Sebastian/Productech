@@ -47,8 +47,8 @@ export async function GET(request: NextRequest) {
       where,
       include: {
         shift: { select: { id: true, name: true, startTime: true, endTime: true, machineId: true, machine: { select: { id: true, name: true } } } },
-        supervisor: { select: { id: true, name: true } },
-        manager: { select: { id: true, name: true } },
+        supervisor: { select: { id: true, name: true, role: true } },
+        manager: { select: { id: true, name: true, role: true } },
         entries: {
           include: {
             employee: {

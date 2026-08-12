@@ -21,7 +21,7 @@ export function useMachineAssignment(role: string | undefined, status: string) {
       if (!res.ok) throw new Error("Failed to fetch assignment");
       return res.json();
     },
-    enabled: status === "authenticated" && needsAssignment && realRole !== "TECHNICIAN",
+    enabled: status === "authenticated" && needsAssignment && (!realRole || realRole === role),
     retry: false,
   });
 
@@ -29,17 +29,18 @@ export function useMachineAssignment(role: string | undefined, status: string) {
     return { assigned: false, loading: true, machine: null, error: "" };
   }
 
-  if (realRole === "TECHNICIAN") {
+  // If a user is impersonating an Operator or Supervisor (e.g. Technician, Owner, Manager)
+  if (realRole && realRole !== role) {
     const techSection = (typeof window !== "undefined" && localStorage.getItem("tech_operator_section")) || "hotpress";
     return {
       assigned: true,
       loading: false,
       machine: {
-        id: "tech-mock-machine",
-        name: "Tech Simulator",
-        code: "TECH-1",
+        id: "mock-impersonation-machine",
+        name: "Impersonation Simulator",
+        code: "IMP-1",
         section: {
-          id: "tech-mock-section",
+          id: "mock-impersonation-section",
           name: techSection.toUpperCase(),
           slug: techSection
         }

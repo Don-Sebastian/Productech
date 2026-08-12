@@ -252,14 +252,14 @@ export default function ManagerOrders() {
               <p className="text-slate-400 text-sm">{orders.length} total orders</p>
             </div>
             <div className="bg-slate-900 border border-slate-700/50 rounded-lg p-1 flex">
-              <button 
-                onClick={() => setViewMode("ACTIVE")} 
+              <button
+                onClick={() => setViewMode("ACTIVE")}
                 className={`px-4 py-1.5 text-sm font-bold rounded-md transition ${viewMode === "ACTIVE" ? "bg-slate-700 text-white shadow-sm" : "text-slate-400 hover:text-slate-300"}`}
               >
                 Active
               </button>
-              <button 
-                onClick={() => setViewMode("HISTORY")} 
+              <button
+                onClick={() => setViewMode("HISTORY")}
                 className={`px-4 py-1.5 text-sm font-bold rounded-md transition ${viewMode === "HISTORY" ? "bg-slate-700 text-white shadow-sm" : "text-slate-400 hover:text-slate-300"}`}
               >
                 History
@@ -305,9 +305,8 @@ export default function ManagerOrders() {
                         const pc = priorityConfig[p];
                         return (
                           <button key={p} onClick={() => setPriority(p)}
-                            className={`py-3 rounded-xl font-bold text-sm transition active:scale-[0.95] ${
-                              priority === p ? `${pc.bg} ${pc.color} ring-2 ring-current` : "bg-slate-700 text-slate-400"
-                            }`}>
+                            className={`py-3 rounded-xl font-bold text-sm transition active:scale-[0.95] ${priority === p ? `${pc.bg} ${pc.color} ring-2 ring-current` : "bg-slate-700 text-slate-400"
+                              }`}>
                             <Star size={14} className={`inline mr-1 ${priority === p ? "fill-current" : ""}`} />
                             {p}
                           </button>
@@ -413,9 +412,8 @@ export default function ManagerOrders() {
                           <div className="grid grid-cols-3 gap-2 mb-2">
                             {quantityPresets.map((q) => (
                               <button key={q} onClick={() => setSelQuantity(String(q))}
-                                className={`py-2.5 rounded-xl font-bold transition active:scale-[0.95] ${
-                                  selQuantity === String(q) ? "bg-blue-600 text-white" : "bg-slate-700 text-slate-300"
-                                }`}>{q}</button>
+                                className={`py-2.5 rounded-xl font-bold transition active:scale-[0.95] ${selQuantity === String(q) ? "bg-blue-600 text-white" : "bg-slate-700 text-slate-300"
+                                  }`}>{q}</button>
                             ))}
                           </div>
                           <input type="number" value={selQuantity} onChange={(e) => setSelQuantity(e.target.value)}
@@ -443,15 +441,13 @@ export default function ManagerOrders() {
                         {/* Brand Seal & Varnish toggles */}
                         <div className="grid grid-cols-2 gap-2">
                           <button onClick={() => setSelBrandSeal(!selBrandSeal)}
-                            className={`py-3.5 rounded-xl font-semibold transition active:scale-[0.95] text-sm ${
-                              selBrandSeal ? "bg-emerald-600 text-white" : "bg-slate-700 text-slate-400"
-                            }`}>
+                            className={`py-3.5 rounded-xl font-semibold transition active:scale-[0.95] text-sm ${selBrandSeal ? "bg-emerald-600 text-white" : "bg-slate-700 text-slate-400"
+                              }`}>
                             {selBrandSeal ? "✓ Brand Seal" : "Brand Seal"}
                           </button>
                           <button onClick={() => setSelVarnish(!selVarnish)}
-                            className={`py-3.5 rounded-xl font-semibold transition active:scale-[0.95] text-sm ${
-                              selVarnish ? "bg-emerald-600 text-white" : "bg-slate-700 text-slate-400"
-                            }`}>
+                            className={`py-3.5 rounded-xl font-semibold transition active:scale-[0.95] text-sm ${selVarnish ? "bg-emerald-600 text-white" : "bg-slate-700 text-slate-400"
+                              }`}>
                             {selVarnish ? "✓ Varnish" : "Varnish"}
                           </button>
                         </div>
@@ -465,12 +461,11 @@ export default function ManagerOrders() {
                                 const isSelected = selCustomizations.includes(c.id);
                                 return (
                                   <button key={c.id} onClick={() => {
-                                      if (isSelected) setSelCustomizations(selCustomizations.filter(id => id !== c.id));
-                                      else setSelCustomizations([...selCustomizations, c.id]);
-                                    }}
-                                    className={`py-2 px-3 rounded-lg text-xs font-semibold transition active:scale-[0.95] ${
-                                      isSelected ? "bg-cyan-600/30 text-cyan-300 ring-1 ring-cyan-500/50" : "bg-slate-700 text-slate-400"
-                                    }`}>
+                                    if (isSelected) setSelCustomizations(selCustomizations.filter(id => id !== c.id));
+                                    else setSelCustomizations([...selCustomizations, c.id]);
+                                  }}
+                                    className={`py-2 px-3 rounded-lg text-xs font-semibold transition active:scale-[0.95] ${isSelected ? "bg-cyan-600/30 text-cyan-300 ring-1 ring-cyan-500/50" : "bg-slate-700 text-slate-400"
+                                      }`}>
                                     {c.name}
                                   </button>
                                 );
@@ -528,11 +523,11 @@ export default function ManagerOrders() {
               const StatusIcon = sc.icon;
               const isExpanded = expandedOrder === order.id;
               const pc = priorityConfig[order.priority] || priorityConfig[3];
-              
+
               const orderTargetQty = order.items?.reduce((s: number, i: any) => s + i.quantity, 0) || 0;
               const orderProducedQty = order.productionLists?.reduce((s: number, pl: any) => s + pl.items?.reduce((ps: number, item: any) => ps + (item.producedQuantity || 0), 0), 0) || 0;
               const progressPercent = orderTargetQty > 0 ? Math.min(100, Math.round((orderProducedQty / orderTargetQty) * 100)) : 0;
-              
+
               const isProductionComplete = order.status === "PRODUCTION_COMPLETED" || (progressPercent >= 100 && !["DISPATCHED", "COMPLETED", "CANCELLED"].includes(order.status));
 
               // Estimation
@@ -551,9 +546,8 @@ export default function ManagerOrders() {
                 : { dispatchDate: null, productionDays: 0 };
 
               return (
-                <div key={order.id} className={`bg-slate-800/40 border rounded-2xl overflow-hidden transition-all ${
-                  isProductionComplete ? "border-emerald-500/50 ring-1 ring-emerald-500/30" : "border-slate-700/50"
-                }`}>
+                <div key={order.id} className={`bg-slate-800/40 border rounded-2xl overflow-hidden transition-all ${isProductionComplete ? "border-emerald-500/50 ring-1 ring-emerald-500/30" : "border-slate-700/50"
+                  }`}>
                   {/* Order Header */}
                   <button onClick={() => setExpandedOrder(isExpanded ? null : order.id)}
                     className="w-full p-4 flex items-center justify-between text-left">
@@ -564,8 +558,8 @@ export default function ManagerOrders() {
                       <div className="min-w-0">
                         <div className="flex items-center gap-2 flex-wrap">
                           <span className="text-blue-400 font-black uppercase tracking-widest bg-blue-500/10 px-2 py-0.5 rounded-md border border-blue-500/20 ">
-                              {order.customer?.name}
-                            </span>
+                            {order.customer?.name}
+                          </span>
                           <span className="text-slate-500 text-[10px] font-black tracking-widest uppercase bg-slate-800 px-2 py-0.5 rounded border border-slate-700">
                             {order.orderNumber}
                           </span>
@@ -580,17 +574,17 @@ export default function ManagerOrders() {
                               <Truck size={12} /> Marked for Dispatch
                             </span>
                           )}
-                          
+
                           {/* Persisted Dispatch Date from Database takes priority */}
-                          {order.estimatedDispatchDate && !["DISPATCHED","COMPLETED","CANCELLED"].includes(order.status) && (
+                          {order.estimatedDispatchDate && !["DISPATCHED", "COMPLETED", "CANCELLED"].includes(order.status) && (
                             <span className="text-xs px-2 py-1 rounded-full bg-violet-600 text-white font-black shadow-lg shadow-violet-900/40 flex items-center gap-1 border border-violet-400/30 animate-pulse">
                               <Truck size={12} className="fill-current" />
                               DISPATCH: {formatDate(new Date(order.estimatedDispatchDate))}
                             </span>
                           )}
-                          
+
                           {/* Fallback to frontend calculation if DB value missing */}
-                          {!order.estimatedDispatchDate && hasTimings && dispatchDate && !["DISPATCHED","COMPLETED","CANCELLED"].includes(order.status) && (
+                          {!order.estimatedDispatchDate && hasTimings && dispatchDate && !["DISPATCHED", "COMPLETED", "CANCELLED"].includes(order.status) && (
                             <span className="text-xs px-2 py-0.5 rounded-full bg-violet-500/15 text-violet-300 font-bold flex items-center gap-1">
                               <CalendarClock size={11} />
                               Est. {formatDate(dispatchDate)}
@@ -643,9 +637,8 @@ export default function ManagerOrders() {
                                 const pConf = priorityConfig[p];
                                 return (
                                   <button key={p} onClick={async () => { await updatePriority(order.id, p); setEditingPriorityId(null); }}
-                                    className={`flex-1 py-2 rounded-lg text-xs font-bold transition active:scale-[0.95] ${
-                                      order.priority === p ? `${pConf.bg} ${pConf.color} ring-1 ring-current` : "bg-slate-700/50 text-slate-500 hover:bg-slate-700"
-                                    }`}>
+                                    className={`flex-1 py-2 rounded-lg text-xs font-bold transition active:scale-[0.95] ${order.priority === p ? `${pConf.bg} ${pConf.color} ring-1 ring-current` : "bg-slate-700/50 text-slate-500 hover:bg-slate-700"
+                                      }`}>
                                     P{p}
                                   </button>
                                 );
@@ -680,14 +673,14 @@ export default function ManagerOrders() {
                       {/* Timeline Events */}
                       {order.timelineEvents && order.timelineEvents.length > 0 && (
                         <div className="mt-4 border-t border-slate-700/50 pt-4">
-                          <button 
-                            onClick={() => setExpandedTimelineId(expandedTimelineId === order.id ? null : order.id)} 
+                          <button
+                            onClick={() => setExpandedTimelineId(expandedTimelineId === order.id ? null : order.id)}
                             className="w-full flex items-center justify-between text-xs font-black text-slate-500 uppercase tracking-widest hover:text-slate-300 transition"
                           >
                             <span>Order Timeline</span>
                             {expandedTimelineId === order.id ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
                           </button>
-                          
+
                           {expandedTimelineId === order.id && (
                             <div className="relative pl-3 space-y-4 mt-4">
                               <div className="absolute left-[3px] top-2 bottom-0 w-0.5 bg-slate-700"></div>
@@ -698,7 +691,16 @@ export default function ManagerOrders() {
                                   <p className="text-xs text-slate-400">{event.details}</p>
                                   <div className="flex items-center gap-2 mt-1">
                                     <p className="text-[10px] text-slate-500 uppercase tracking-wider">{new Date(event.createdAt).toLocaleString('en-IN')}</p>
-                                    {event.user?.name && <span className="text-[10px] bg-slate-800 text-slate-300 px-1.5 py-0.5 rounded font-medium">{event.user.name}</span>}
+                                    {event.user?.name && (
+                                      <span className={`text-[10px] px-1.5 py-0.5 rounded font-medium ${event.user.role === "OWNER"
+                                          ? "bg-purple-500/20 text-purple-300 border border-purple-500/40"
+                                          : event.user.role === "MANAGER"
+                                            ? "bg-blue-500/20 text-blue-300 border border-blue-500/40"
+                                            : "bg-slate-800 text-slate-300"
+                                        }`}>
+                                        {event.user.name} {event.user.role === "OWNER" ? "👑 (Owner)" : event.user.role === "MANAGER" ? "(Manager)" : ""}
+                                      </span>
+                                    )}
                                   </div>
                                 </div>
                               ))}
@@ -715,7 +717,7 @@ export default function ManagerOrders() {
                             ✓ Confirm
                           </button>
                         )}
-                        
+
                         {!["DISPATCHED", "COMPLETED", "CANCELLED"].includes(order.status) && (
                           <div className={`col-span-2 ${order.status === "PENDING" ? "" : "col-span-2"}`}>
                             {order.status === "READY_FOR_DISPATCH" ? (
@@ -727,8 +729,8 @@ export default function ManagerOrders() {
                               <div className="bg-amber-500/10 border border-amber-500/30 p-4 rounded-xl">
                                 <p className="text-amber-400 text-sm font-bold mb-1">Confirm Mark For Dispatch?</p>
                                 <p className="text-amber-500/80 text-xs mb-4">
-                                  {progressPercent < 100 
-                                    ? `Production is only at ${progressPercent}%. Are you sure you want to mark this order ready for dispatch?` 
+                                  {progressPercent < 100
+                                    ? `Production is only at ${progressPercent}%. Are you sure you want to mark this order ready for dispatch?`
                                     : "Are you sure you want to mark this order as ready for dispatch?"}
                                 </p>
                                 <div className="flex gap-2">
@@ -737,11 +739,11 @@ export default function ManagerOrders() {
                                 </div>
                               </div>
                             ) : (
-                               <button onClick={() => setConfirmDispatchId(order.id)}
-                                 className="w-full py-2.5 bg-violet-600/20 border border-violet-500/30 text-violet-300 font-bold rounded-xl text-sm active:scale-[0.97] transition flex items-center justify-center gap-2 hover:bg-violet-600/30 group">
-                                 <Truck size={16} className="transition-transform group-hover:translate-x-1" />
-                                 Mark Ready for Dispatch
-                               </button>
+                              <button onClick={() => setConfirmDispatchId(order.id)}
+                                className="w-full py-2.5 bg-violet-600/20 border border-violet-500/30 text-violet-300 font-bold rounded-xl text-sm active:scale-[0.97] transition flex items-center justify-center gap-2 hover:bg-violet-600/30 group">
+                                <Truck size={16} className="transition-transform group-hover:translate-x-1" />
+                                Mark Ready for Dispatch
+                              </button>
                             )}
                           </div>
                         )}

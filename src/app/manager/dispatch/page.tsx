@@ -10,9 +10,9 @@ import { Truck, Check, Package, X, CheckSquare, Clock, AlertTriangle } from "luc
 function ManagerDispatchContent() {
   const { data: session, status } = useSession();
   const router = useRouter();
-  
+
   const [actionLoading, setActionLoading] = useState<string | null>(null);
-  
+
   const [editingLoadId, setEditingLoadId] = useState<string | null>(null);
   const [editData, setEditData] = useState<any>({});
 
@@ -89,7 +89,7 @@ function ManagerDispatchContent() {
         setEditingLoadId(null);
         fetchLoads();
       }
-    } catch {}
+    } catch { }
     setActionLoading(null);
   };
 
@@ -116,7 +116,7 @@ function ManagerDispatchContent() {
           <div className="flex items-center justify-center py-16"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-cyan-400" /></div>
         ) : (
           <div className="space-y-6">
-            
+
             {/* Needs Confirmation */}
             {pendingConfirmation.length > 0 && (
               <div>
@@ -154,10 +154,10 @@ function ManagerDispatchContent() {
             )}
 
             {dispatchLoads.length === 0 && (
-               <div className="text-center py-16">
-                 <Package size={48} className="mx-auto text-slate-600 mb-4" />
-                 <p className="text-slate-400">No dispatch loads found.</p>
-               </div>
+              <div className="text-center py-16">
+                <Package size={48} className="mx-auto text-slate-600 mb-4" />
+                <p className="text-slate-400">No dispatch loads found.</p>
+              </div>
             )}
           </div>
         )}
@@ -222,19 +222,18 @@ function ManagerDispatchContent() {
               <span className="text-slate-500 text-[10px] font-black tracking-widest uppercase bg-slate-900 border border-slate-700 px-2 py-0.5 rounded">
                 ID: {load.loadNumber}
               </span>
-              <span className={`text-xs px-2.5 py-1 rounded-full font-semibold ${
-                load.status === "SUPERVISOR_SUBMITTED" ? "bg-amber-500/20 text-amber-300" :
-                load.status === "MANAGER_CONFIRMED" ? "bg-blue-500/20 text-blue-300" :
-                "bg-emerald-500/20 text-emerald-300"
-              }`}>{load.status.replace("_", " ")}</span>
+              <span className={`text-xs px-2.5 py-1 rounded-full font-semibold ${load.status === "SUPERVISOR_SUBMITTED" ? "bg-amber-500/20 text-amber-300" :
+                  load.status === "MANAGER_CONFIRMED" ? "bg-blue-500/20 text-blue-300" :
+                    "bg-emerald-500/20 text-emerald-300"
+                }`}>{load.status.replace("_", " ")}</span>
             </div>
             <p className="text-slate-400 text-sm mb-2 mt-2">
-              <span className="text-slate-300 font-bold">Order: {load.order?.orderNumber}</span> 
+              <span className="text-slate-300 font-bold">Order: {load.order?.orderNumber}</span>
               <span className="mx-2 text-slate-600">•</span>
               <span className="text-teal-400 bg-teal-500/10 px-2 py-0.5 rounded-md border border-teal-500/20 uppercase tracking-widest font-black text-[10px]">
                 {load.order?.customer?.name}
               </span>
-              <br/>
+              <br />
               <span className="text-[10px] mt-1 block text-slate-500 font-bold tracking-tight">Created by: {load.createdBy?.name} on {new Date(load.createdAt).toLocaleString()}</span>
             </p>
 
@@ -249,32 +248,32 @@ function ManagerDispatchContent() {
                 </thead>
                 <tbody className="divide-y divide-slate-700/50">
                   {load.items?.map((item: any, idx: number) => {
-                    const matchOrder = load.order?.items?.find((oi: any) => 
-                      oi.category.name === item.category?.name && 
-                      oi.thickness.value === item.thickness?.value && 
+                    const matchOrder = load.order?.items?.find((oi: any) =>
+                      oi.category.name === item.category?.name &&
+                      oi.thickness.value === item.thickness?.value &&
                       oi.size.label === item.size?.label
                     );
                     const orderedQty = matchOrder ? matchOrder.quantity : 0;
-                    
+
                     return (
-                    <tr key={idx} className="bg-slate-900/40">
-                      <td className="p-2 pl-3 text-white font-medium text-xs sm:text-sm">{item.category?.name} • {item.thickness?.value}mm • {item.size?.label}</td>
-                      <td className="p-2 text-right font-bold text-slate-500">{orderedQty || "-"}</td>
-                      <td className="p-2 text-right pr-3">
-                        {editingLoadId === load.id ? (
-                          <input 
-                            type="number" 
-                            className="w-16 px-2 py-1 bg-slate-950 border border-slate-600 rounded text-emerald-400 font-bold outline-none focus:border-emerald-500 text-right" 
-                            value={editData[item.id] || item.quantity} 
-                            onChange={(e) => setEditData({...editData, [item.id]: e.target.value})} 
-                          />
-                        ) : (
-                          <span className={`font-bold ${item.quantity < orderedQty ? "text-amber-400" : "text-emerald-400"}`}>
-                            {item.quantity}
-                          </span>
-                        )}
-                      </td>
-                    </tr>
+                      <tr key={idx} className="bg-slate-900/40">
+                        <td className="p-2 pl-3 text-white font-medium text-xs sm:text-sm">{item.category?.name} • {item.thickness?.value}mm • {item.size?.label}</td>
+                        <td className="p-2 text-right font-bold text-slate-500">{orderedQty || "-"}</td>
+                        <td className="p-2 text-right pr-3">
+                          {editingLoadId === load.id ? (
+                            <input
+                              type="number"
+                              className="w-16 px-2 py-1 bg-slate-950 border border-slate-600 rounded text-emerald-400 font-bold outline-none focus:border-emerald-500 text-right"
+                              value={editData[item.id] || item.quantity}
+                              onChange={(e) => setEditData({ ...editData, [item.id]: e.target.value })}
+                            />
+                          ) : (
+                            <span className={`font-bold ${item.quantity < orderedQty ? "text-amber-400" : "text-emerald-400"}`}>
+                              {item.quantity}
+                            </span>
+                          )}
+                        </td>
+                      </tr>
                     );
                   })}
                 </tbody>
@@ -288,14 +287,14 @@ function ManagerDispatchContent() {
           <div className="flex flex-col gap-2 min-w-[150px]">
             {editingLoadId === load.id ? (
               <>
-                <button 
+                <button
                   onClick={() => saveEdit(load.id)}
                   disabled={isUpdating}
                   className="w-full py-2.5 bg-cyan-600 hover:bg-cyan-500 text-white font-bold rounded-xl shadow-lg disabled:opacity-50 transition"
                 >
                   {isUpdating ? "..." : "Save List"}
                 </button>
-                <button 
+                <button
                   onClick={() => setEditingLoadId(null)}
                   disabled={isUpdating}
                   className="w-full py-2 bg-slate-700 hover:bg-slate-600 text-white font-bold rounded-xl disabled:opacity-50 transition"
@@ -306,7 +305,7 @@ function ManagerDispatchContent() {
             ) : (
               <>
                 {load.status === "SUPERVISOR_SUBMITTED" && (
-                  <button 
+                  <button
                     onClick={() => updateStatus(load.id, "MANAGER_CONFIRMED")}
                     disabled={isUpdating}
                     className="w-full py-2.5 bg-blue-600 hover:bg-blue-500 text-white font-bold rounded-xl shadow-lg disabled:opacity-50 transition"
@@ -322,7 +321,7 @@ function ManagerDispatchContent() {
                         Final dispatch will permanently deduct quantities from active stock!
                       </p>
                     </div>
-                    <button 
+                    <button
                       onClick={() => updateStatus(load.id, "DISPATCHED")}
                       disabled={isUpdating}
                       className="w-full py-2.5 bg-emerald-600 hover:bg-emerald-500 text-white font-bold rounded-xl shadow-lg disabled:opacity-50 transition"
@@ -331,7 +330,7 @@ function ManagerDispatchContent() {
                     </button>
                   </div>
                 )}
-                
+
                 {(load.status === "SUPERVISOR_SUBMITTED" || load.status === "MANAGER_CONFIRMED") && (
                   <>
                     <button onClick={() => startEdit(load)} disabled={isUpdating} className="w-full py-2 border border-slate-600 text-slate-300 hover:text-white rounded-xl text-sm transition mt-1">

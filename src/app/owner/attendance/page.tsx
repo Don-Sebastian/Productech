@@ -4,13 +4,13 @@ import { useState, useEffect, useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useSession } from "next-auth/react";
 import Sidebar from "@/components/Sidebar";
-import { 
-  ClipboardCheck, 
-  Calendar, 
-  Clock, 
-  User as UserIcon, 
-  CheckCircle2, 
-  ChevronDown, 
+import {
+  ClipboardCheck,
+  Calendar,
+  Clock,
+  User as UserIcon,
+  CheckCircle2,
+  ChevronDown,
   ChevronUp,
   AlertCircle,
   Search,
@@ -113,14 +113,14 @@ export default function OwnerAttendanceView() {
           <div className="flex flex-wrap items-center gap-3 bg-slate-900 border border-slate-800 p-2 rounded-2xl shadow-xl">
             <div className="relative">
               <Calendar className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500" />
-              <input 
+              <input
                 type="date"
                 value={filterDate}
                 onChange={(e) => setFilterDate(e.target.value)}
                 className="pl-10 pr-4 py-2.5 bg-slate-800/50 border-none rounded-xl text-sm font-bold text-white focus:ring-2 focus:ring-emerald-500/50 outline-none"
               />
             </div>
-            <select 
+            <select
               value={filterStatus}
               onChange={(e) => setFilterStatus(e.target.value)}
               className="px-4 py-2.5 bg-slate-800/50 border-none rounded-xl text-sm font-bold text-white focus:ring-2 focus:ring-emerald-500/50 outline-none min-w-[140px]"
@@ -173,14 +173,13 @@ export default function OwnerAttendanceView() {
             {registers.map((reg) => {
               const statusInfo = getStatusDisplay(reg.status);
               return (
-                <div 
-                  key={reg.id} 
-                  className={`bg-slate-900 rounded-[32px] border transition-all overflow-hidden ${
-                    expandedId === reg.id ? 'border-emerald-500/50 shadow-2xl shadow-emerald-500/10' : 'border-slate-800 hover:border-slate-700'
-                  }`}
+                <div
+                  key={reg.id}
+                  className={`bg-slate-900 rounded-[32px] border transition-all overflow-hidden ${expandedId === reg.id ? 'border-emerald-500/50 shadow-2xl shadow-emerald-500/10' : 'border-slate-800 hover:border-slate-700'
+                    }`}
                 >
                   {/* Register Header */}
-                  <div 
+                  <div
                     className="p-6 flex flex-wrap items-center justify-between gap-4 cursor-pointer"
                     onClick={() => setExpandedId(expandedId === reg.id ? null : reg.id)}
                   >
@@ -255,8 +254,8 @@ export default function OwnerAttendanceView() {
                                 <td className="px-6 py-5">
                                   <div className="flex items-center gap-4">
                                     {entry.employee.photoData ? (
-                                      <img 
-                                        src={entry.employee.photoData} 
+                                      <img
+                                        src={entry.employee.photoData}
                                         className="w-12 h-12 rounded-xl object-cover ring-2 ring-slate-800 group-hover:ring-emerald-500/30 transition-all"
                                         alt={entry.employee.name}
                                       />

@@ -10,7 +10,7 @@ import { Truck, Package, Clock, CheckCircle } from "lucide-react";
 export default function OwnerDispatchHistoryPage() {
   const { data: session, status } = useSession();
   const router = useRouter();
-  
+
   useEffect(() => {
     if (status === "unauthenticated") router.push("/login");
     if (status === "authenticated" && (session?.user as any)?.role !== "OWNER") router.push("/");
@@ -51,7 +51,7 @@ export default function OwnerDispatchHistoryPage() {
           <div className="flex items-center justify-center py-16"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-emerald-400" /></div>
         ) : (
           <div className="space-y-8">
-            
+
             {activeLoads.length > 0 && (
               <section>
                 <h2 className="text-amber-300 font-bold text-sm mb-3 flex items-center gap-2">
@@ -94,13 +94,12 @@ export default function OwnerDispatchHistoryPage() {
           <div className="flex-1">
             <div className="flex flex-wrap items-center gap-3 mb-2">
               <h3 className="text-white font-black text-xl tracking-tight">{load.loadNumber}</h3>
-              <span className={`text-xs px-3 py-1 rounded-full font-bold uppercase tracking-wider ${
-                load.status === "SUPERVISOR_SUBMITTED" ? "bg-amber-500/10 text-amber-400 ring-1 ring-amber-500/30" :
-                load.status === "MANAGER_CONFIRMED" ? "bg-blue-500/10 text-blue-400 ring-1 ring-blue-500/30" :
-                "bg-emerald-500/10 text-emerald-400 ring-1 ring-emerald-500/30"
-              }`}>{load.status.replace("_", " ")}</span>
+              <span className={`text-xs px-3 py-1 rounded-full font-bold uppercase tracking-wider ${load.status === "SUPERVISOR_SUBMITTED" ? "bg-amber-500/10 text-amber-400 ring-1 ring-amber-500/30" :
+                  load.status === "MANAGER_CONFIRMED" ? "bg-blue-500/10 text-blue-400 ring-1 ring-blue-500/30" :
+                    "bg-emerald-500/10 text-emerald-400 ring-1 ring-emerald-500/30"
+                }`}>{load.status.replace("_", " ")}</span>
             </div>
-            
+
             <div className="bg-slate-900/40 rounded-xl p-3 inline-block mb-4 border border-slate-800">
               <p className="text-slate-300 text-sm">
                 <span className="text-slate-500 uppercase text-xs font-bold mr-2">Link To Order:</span>
@@ -120,7 +119,7 @@ export default function OwnerDispatchHistoryPage() {
               {load.manager && (
                 <div className="flex items-center gap-2 text-sm text-emerald-400/80">
                   <span className="w-2 h-2 rounded-full bg-emerald-500/50"></span>
-                  <span>Approved by: <span className="text-emerald-300 font-bold">{load.manager.name}</span></span>
+                  <span>Approved by: <span className="text-emerald-300 font-bold">{load.manager.name} {load.manager.role === "OWNER" ? "👑 (Owner Action)" : ""}</span></span>
                 </div>
               )}
               {load.updatedAt && load.status === "DISPATCHED" && (

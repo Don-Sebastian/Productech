@@ -5,7 +5,6 @@ import { usePathname } from "next/navigation";
 import { signOut, useSession } from "next-auth/react";
 import { useState, useEffect } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { useMachineAssignment } from "@/hooks/useMachineAssignment";
 import {
   LayoutDashboard,
   Building2,
@@ -54,17 +53,17 @@ const roleConfigs: Record<string, { label: string; color: string; links: { href:
     color: "from-emerald-600 to-teal-600",
     links: [
       { href: "/owner", label: "Dashboard", icon: LayoutDashboard },
-      { href: "/owner/overall-stats", label: "Overall Stats", icon: Gauge },
+      // { href: "/owner/overall-stats", label: "Overall Stats", icon: Gauge },
       { href: "/owner/log-history", label: "Log History", icon: History },
       { href: "/owner/inventory", label: "Inventory", icon: Package },
-      { href: "/owner/inventory/transfer", label: "Stock Transfer", icon: Truck },
+      // { href: "/owner/inventory/transfer", label: "Stock Transfer", icon: Truck },
       { href: "/owner/orders", label: "Order", icon: ShoppingCart },
       { href: "/owner/production", label: "Production", icon: Factory },
       { href: "/owner/dispatch-history", label: "Dispatch", icon: Truck },
       { href: "/owner/managers", label: "Managers", icon: Users },
-      { href: "/owner/employees", label: "Employees", icon: Users },
-      { href: "/owner/attendance", label: "Attendance View", icon: UserCheck },
-      { href: "/owner/expenses", label: "Salary Expenses", icon: Banknote },
+      // { href: "/owner/employees", label: "Employees", icon: Users },
+      // { href: "/owner/attendance", label: "Attendance View", icon: UserCheck },
+      // { href: "/owner/expenses", label: "Salary Expenses", icon: Banknote },
       { href: "/owner/account", label: "My Account", icon: KeyRound },
     ],
   },
@@ -79,8 +78,8 @@ const roleConfigs: Record<string, { label: string; color: string; links: { href:
       { href: "/manager/dispatch", label: "Dispatch", icon: Truck },
       { href: "/manager/inventory", label: "Inventory", icon: Package },
       { href: "/manager/log-history", label: "Log History", icon: History },
-      { href: "/manager/attendance", label: "Attendance Approvals", icon: UserCheck },
-      { href: "/manager/employees", label: "Employee Log", icon: Users },
+      // { href: "/manager/attendance", label: "Attendance Approvals", icon: UserCheck },
+      // { href: "/manager/employees", label: "Employee Log", icon: Users },
       { href: "/manager/settings", label: "Settings", icon: Settings },
       { href: "/manager/account", label: "My Account", icon: KeyRound },
     ],
@@ -95,8 +94,8 @@ const roleConfigs: Record<string, { label: string; color: string; links: { href:
       { href: "/supervisor/production-list", label: "Production List", icon: ListChecks },
       { href: "/supervisor/log-history", label: "Log History", icon: History },
       { href: "/supervisor/dispatch", label: "Dispatch", icon: Truck },
-      { href: "/supervisor/attendance", label: "Mark Attendance", icon: UserCheck },
-      { href: "/supervisor/employees", label: "My Workers", icon: Users },
+      // { href: "/supervisor/attendance", label: "Mark Attendance", icon: UserCheck },
+      // { href: "/supervisor/employees", label: "My Workers", icon: Users },
       { href: "/supervisor/account", label: "My Account", icon: KeyRound },
     ],
   },
@@ -137,12 +136,19 @@ export default function Sidebar({ user }: SidebarProps) {
   const { data: session, update } = useSession();
   const pathname = usePathname();
   const role = (user as any)?.role || "OPERATOR";
+  const realRole = (user as any)?.realRole || role;
   const config = roleConfigs[role] || roleConfigs.OPERATOR;
   const [mobileOpen, setMobileOpen] = useState(false);
+  const [impersonationEnabled, setImpersonationEnabled] = useState(false);
   const queryClient = useQueryClient();
 
-  const { machine } = useMachineAssignment(role, "authenticated");
-  const operatorSection = machine?.section?.slug || null;
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      setImpersonationEnabled(localStorage.getItem("impersonationEnabled") === "true");
+    }
+  }, []);
+
+  const operatorSection = (user as any)?.section || null;
 
   const { data: notifications = [] } = useQuery({
     queryKey: ["notifications", role],
@@ -181,10 +187,10 @@ export default function Sidebar({ user }: SidebarProps) {
       <div className="p-5 border-b border-slate-800 flex flex-col gap-3">
         <div className="flex items-center gap-3">
           <div className={`w-10 h-10 rounded-xl bg-gradient-to-br ${config.color} flex items-center justify-center shadow-lg shrink-0`}>
-            <span className="text-white font-bold text-lg">C</span>
+            <span className="text-white font-bold text-lg">P</span>
           </div>
           <div>
-            <h1 className="text-white font-bold text-lg tracking-tight">CRPLY</h1>
+            <h1 className="text-white font-bold text-lg tracking-tight" suppressHydrationWarning>PLYTRACK</h1>
             <p className="text-slate-500 text-xs">{config.label}</p>
           </div>
         </div>
@@ -207,41 +213,47 @@ export default function Sidebar({ user }: SidebarProps) {
           </div>
         )}
 
-        {(user as any)?.realRole === "TECHNICIAN" && (
+        {(realRole === "TECHNICIAN" || (impersonationEnabled && ["OWNER", "MANAGER", "SUPERVISOR"].includes(realRole))) && (
           <div className="mt-2 pt-2 border-t border-slate-800">
-            <label className="text-[10px] uppercase font-bold text-amber-500 tracking-wider mb-1 flex items-center gap-1">
-              <Wrench size={12} /> Tech Mode
+            <label className="text-[10px] uppercase font-bold text-purple-400 tracking-wider mb-1 flex items-center gap-1">
+              <Wrench size={12} /> View Mode
             </label>
             <select
               value={role}
               onChange={async (e) => {
-                await update({ viewRole: e.target.value });
+                const newRole = e.target.value;
+                const defaultSections: Record<string, string> = {
+                  SUPERVISOR: "hotpress",
+                  OPERATOR: "hotpress"
+                };
+                const viewSection = defaultSections[newRole] || null;
+                await update({ viewRole: newRole, viewSection });
                 const paths: Record<string, string> = { ADMIN: "/admin", OWNER: "/owner", MANAGER: "/manager", SUPERVISOR: "/supervisor", OPERATOR: "/operator" };
-                window.location.href = paths[e.target.value] || "/";
+                window.location.href = paths[newRole] || "/";
               }}
-              className="w-full bg-slate-900 border border-amber-500/30 text-amber-400 text-xs rounded-lg px-2 py-2 focus:outline-none focus:ring-1 focus:ring-amber-500"
+              className="w-full bg-slate-900 border border-purple-500/30 text-purple-400 text-xs rounded-lg px-2 py-2 focus:outline-none focus:ring-1 focus:ring-purple-500"
             >
-              <option value="ADMIN">Platform Admin</option>
-              <option value="OWNER">Company Owner</option>
-              <option value="MANAGER">Manager</option>
-              <option value="SUPERVISOR">Supervisor</option>
+              {(realRole === "TECHNICIAN") && <option value="ADMIN">Platform Admin</option>}
+              {(realRole === "TECHNICIAN" || realRole === "OWNER") && <option value="OWNER">Company Owner</option>}
+              {(realRole === "TECHNICIAN" || realRole === "OWNER" || realRole === "MANAGER") && <option value="MANAGER">Manager</option>}
+              {(realRole === "TECHNICIAN" || realRole === "OWNER" || realRole === "MANAGER" || realRole === "SUPERVISOR") && <option value="SUPERVISOR">Supervisor</option>}
               <option value="OPERATOR">Operator</option>
             </select>
           </div>
         )}
 
-        {(user as any)?.realRole === "TECHNICIAN" && (role === "OPERATOR" || role === "SUPERVISOR") && (
+        {((realRole === "TECHNICIAN" || impersonationEnabled) && (role === "OPERATOR" || role === "SUPERVISOR")) && (
           <div className="mt-2 pt-2 border-t border-slate-800">
-            <label className="text-[10px] uppercase font-bold text-amber-500 tracking-wider mb-1 flex items-center gap-1">
-              <Layers size={12} /> Tech Section
+            <label className="text-[10px] uppercase font-bold text-purple-400 tracking-wider mb-1 flex items-center gap-1">
+              <Layers size={12} /> Active Section
             </label>
             <select
               value={operatorSection || "hotpress"}
               onChange={async (e) => {
-                localStorage.setItem("tech_operator_section", e.target.value);
+                await update({ viewSection: e.target.value });
                 window.location.reload();
               }}
-              className="w-full bg-slate-900 border border-amber-500/30 text-amber-400 text-xs rounded-lg px-2 py-2 focus:outline-none focus:ring-1 focus:ring-amber-500"
+              className="w-full bg-slate-900 border border-purple-500/30 text-purple-400 text-xs rounded-lg px-2 py-2 focus:outline-none focus:ring-1 focus:ring-purple-500"
             >
               <option value="hotpress">Hot Press</option>
               <option value="peeling">Peeling</option>
@@ -288,11 +300,10 @@ export default function Sidebar({ user }: SidebarProps) {
                   });
                 }
               }}
-              className={`flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all duration-200 group ${
-                isActive
-                  ? `bg-gradient-to-r ${config.color} text-white shadow-lg`
-                  : "text-slate-400 hover:text-white hover:bg-slate-800/50"
-              }`}
+              className={`flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all duration-200 group ${isActive
+                ? `bg-gradient-to-r ${config.color} text-white shadow-lg`
+                : "text-slate-400 hover:text-white hover:bg-slate-800/50"
+                }`}
             >
               <Icon size={18} className={isActive ? "text-white" : "text-slate-500 group-hover:text-slate-300"} />
               <span className="flex-1">{link.label}</span>
@@ -311,15 +322,14 @@ export default function Sidebar({ user }: SidebarProps) {
         })}
 
         {/* Notifications link (all roles except admin) */}
-        {role !== "ADMIN" && (
+        {/* {role !== "ADMIN" && (
           <Link
             href={notifPath}
             onClick={() => setMobileOpen(false)}
-            className={`flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all duration-200 group ${
-              pathname === notifPath
+            className={`flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all duration-200 group ${pathname === notifPath
                 ? `bg-gradient-to-r ${config.color} text-white shadow-lg`
                 : "text-slate-400 hover:text-white hover:bg-slate-800/50"
-            }`}
+              }`}
           >
             <Bell size={18} className={pathname === notifPath ? "text-white" : "text-slate-500 group-hover:text-slate-300"} />
             <span className="flex-1">Notifications</span>
@@ -329,7 +339,7 @@ export default function Sidebar({ user }: SidebarProps) {
               </span>
             )}
           </Link>
-        )}
+        )} */}
       </nav>
 
       {/* User Info */}
@@ -363,9 +373,8 @@ export default function Sidebar({ user }: SidebarProps) {
       )}
 
       {/* Sidebar */}
-      <aside className={`fixed left-0 top-0 h-screen w-64 bg-slate-900 border-r border-slate-800 flex flex-col z-50 transition-transform duration-300 ${
-        mobileOpen ? "translate-x-0" : "-translate-x-full md:translate-x-0"
-      }`}>
+      <aside className={`fixed left-0 top-0 h-screen w-64 bg-slate-900 border-r border-slate-800 flex flex-col z-50 transition-transform duration-300 ${mobileOpen ? "translate-x-0" : "-translate-x-full md:translate-x-0"
+        }`}>
         {sidebarContent}
       </aside>
     </>

@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
 import Sidebar from "@/components/Sidebar";
+import ProductionChart from "@/components/ProductionChart";
 import {
   Factory,
   Package,
@@ -74,6 +75,11 @@ export default function ManagerDashboard() {
               </div>
             );
           })}
+        </div>
+
+        {/* Live Production Chart */}
+        <div className="mb-8">
+          <ProductionChart />
         </div>
 
         {/* Recent Batches & Quick Actions */}

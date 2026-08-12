@@ -19,10 +19,10 @@ export async function GET(request: NextRequest) {
     const loads = await prisma.dispatchLoad.findMany({
       where: whereClause,
       include: {
-        order: { 
-          select: { 
-            id: true, 
-            orderNumber: true, 
+        order: {
+          select: {
+            id: true,
+            orderNumber: true,
             customer: { select: { name: true } },
             items: {
               include: {
@@ -30,11 +30,11 @@ export async function GET(request: NextRequest) {
                 thickness: { select: { value: true } },
                 size: { select: { label: true } }
               }
-            } 
-          } 
+            }
+          }
         },
-        createdBy: { select: { name: true } },
-        manager: { select: { name: true } },
+        createdBy: { select: { id: true, name: true, role: true } },
+        manager: { select: { id: true, name: true, role: true } },
         items: {
           include: {
             category: { select: { id: true, name: true } },
@@ -111,7 +111,7 @@ export async function POST(request: NextRequest) {
         priority: 3,
       }
     });
-    
+
     // Update order status if not already READY_FOR_DISPATCH
     await prisma.order.update({
       where: { id: orderId },

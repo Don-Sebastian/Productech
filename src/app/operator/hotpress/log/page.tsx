@@ -953,7 +953,7 @@ function SessionCard({
               <span className="text-white font-bold">{fmt(session.startTime)} → {fmt(session.stopTime)}</span>
             </div>
             {session.operator?.name && (
-              <span className="text-[10px] text-slate-400 font-medium">Op: <span className="text-slate-300">{session.operator.name}</span></span>
+              <span className="text-[10px] text-slate-400 font-medium">Op: <span className="text-slate-300 font-bold">{session.operator.name} {(session.operator as any)?.role === "OWNER" ? "👑 (Owner Action)" : (session.operator as any)?.role === "MANAGER" ? "(Manager Action)" : ""}</span></span>
             )}
           </div>
           <span className={`text-xs px-2 py-1 rounded-full ${statusBadge.color}`}>{statusBadge.text}</span>

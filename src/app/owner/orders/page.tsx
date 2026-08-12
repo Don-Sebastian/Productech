@@ -5,8 +5,8 @@ import { useRouter } from "next/navigation";
 import { useEffect, useState, useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
 import Sidebar from "@/components/Sidebar";
-import { 
-  Plus, X, Package, Clock, CheckCircle, Truck, Ban, 
+import {
+  Plus, X, Package, Clock, CheckCircle, Truck, Ban,
   ChevronDown, ChevronUp, History, ClipboardList, Search,
   ShoppingCart, Star
 } from "lucide-react";
@@ -14,7 +14,7 @@ import {
 export default function OwnerOrdersPage() {
   const { data: session, status } = useSession();
   const router = useRouter();
-  
+
   const [expandedOrder, setExpandedOrder] = useState<string | null>(null);
   const [expandedTimelineId, setExpandedTimelineId] = useState<string | null>(null);
   const [viewMode, setViewMode] = useState<"ACTIVE" | "HISTORY">("ACTIVE");
@@ -61,7 +61,7 @@ export default function OwnerOrdersPage() {
 
   const displayOrders = useMemo(() => {
     let list = [...orders];
-    
+
     // Sort: priority then date
     list.sort((a, b) => {
       if (a.priority !== b.priority) return a.priority - b.priority;
@@ -71,13 +71,13 @@ export default function OwnerOrdersPage() {
     // Separation
     const active = list.filter(o => !["DISPATCHED", "COMPLETED", "CANCELLED"].includes(o.status));
     const history = list.filter(o => ["DISPATCHED", "COMPLETED", "CANCELLED"].includes(o.status));
-    
+
     let filtered = viewMode === "ACTIVE" ? active : history;
 
     if (searchQuery) {
       const q = searchQuery.toLowerCase();
-      filtered = filtered.filter(o => 
-        o.orderNumber?.toLowerCase().includes(q) || 
+      filtered = filtered.filter(o =>
+        o.orderNumber?.toLowerCase().includes(q) ||
         o.customer?.name?.toLowerCase().includes(q)
       );
     }
@@ -93,7 +93,7 @@ export default function OwnerOrdersPage() {
     <div className="min-h-screen bg-slate-950">
       <Sidebar user={session.user} />
       <main className="ml-0 md:ml-64 p-4 md:p-8">
-        
+
         <div className="flex flex-col md:flex-row md:items-center justify-between mb-8 gap-6">
           <div className="flex items-center gap-4">
             <div>
@@ -102,16 +102,16 @@ export default function OwnerOrdersPage() {
               </h1>
               <p className="text-slate-400 text-sm mt-1">Audit trail for all customer orders.</p>
             </div>
-            
+
             <div className="bg-slate-900 border border-slate-700/50 rounded-lg p-1 flex">
-              <button 
-                onClick={() => setViewMode("ACTIVE")} 
+              <button
+                onClick={() => setViewMode("ACTIVE")}
                 className={`px-4 py-1.5 text-sm font-bold rounded-md transition ${viewMode === "ACTIVE" ? "bg-slate-700 text-white shadow-sm" : "text-slate-400 hover:text-slate-300"}`}
               >
                 Active
               </button>
-              <button 
-                onClick={() => setViewMode("HISTORY")} 
+              <button
+                onClick={() => setViewMode("HISTORY")}
                 className={`px-4 py-1.5 text-sm font-bold rounded-md transition ${viewMode === "HISTORY" ? "bg-slate-700 text-white shadow-sm" : "text-slate-400 hover:text-slate-300"}`}
               >
                 History
@@ -121,8 +121,8 @@ export default function OwnerOrdersPage() {
 
           <div className="relative w-full md:w-72">
             <Search size={18} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" />
-            <input 
-              type="text" 
+            <input
+              type="text"
               placeholder="Search order or customer..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
@@ -146,16 +146,16 @@ export default function OwnerOrdersPage() {
               const StatusIcon = sc.icon;
               const isExpanded = expandedOrder === order.id;
               const pc = priorityConfig[order.priority] || priorityConfig[3];
-              
+
               const orderTargetQty = order.items?.reduce((s: number, i: any) => s + i.quantity, 0) || 0;
               const orderProducedQty = order.productionLists?.reduce((s: number, pl: any) => s + pl.items?.reduce((ps: number, item: any) => ps + (item.producedQuantity || 0), 0), 0) || 0;
               const progressPercent = orderTargetQty > 0 ? Math.min(100, Math.round((orderProducedQty / orderTargetQty) * 100)) : 0;
-              
+
               const isProductionComplete = order.status === "PRODUCTION_COMPLETED" || (progressPercent >= 100 && !["DISPATCHED", "COMPLETED", "CANCELLED"].includes(order.status));
 
               return (
                 <div key={order.id} className={`bg-slate-800/40 border rounded-2xl overflow-hidden transition-all hover:bg-slate-800/60 ${isExpanded ? "border-emerald-500/30" : "border-slate-700/50"}`}>
-                  <button 
+                  <button
                     onClick={() => setExpandedOrder(isExpanded ? null : order.id)}
                     className="w-full p-5 flex items-center justify-between text-left"
                   >
@@ -221,7 +221,7 @@ export default function OwnerOrdersPage() {
                               ))}
                             </div>
                           </div>
-                          
+
                           {order.notes && (
                             <div className="bg-amber-500/5 border border-amber-500/20 rounded-xl p-4">
                               <h4 className="text-xs font-black text-amber-400/50 uppercase tracking-widest mb-1">Manager Notes</h4>
@@ -237,16 +237,16 @@ export default function OwnerOrdersPage() {
                             <p className="text-white font-bold">{order.customer?.name}</p>
                             <p className="text-slate-400 text-sm mt-1">{order.customer?.phone || "No phone provided"}</p>
                           </div>
-                          
+
                           <div className="pt-4 border-t border-slate-800">
-                            <button 
+                            <button
                               onClick={() => setExpandedTimelineId(expandedTimelineId === order.id ? null : order.id)}
                               className="w-full flex items-center justify-between text-[10px] font-black text-slate-500 uppercase tracking-widest hover:text-slate-300 transition"
                             >
                               <span>Timeline</span>
                               {expandedTimelineId === order.id ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
                             </button>
-                            
+
                             {expandedTimelineId === order.id && (
                               <div className="space-y-4 mt-4">
                                 {order.timelineEvents && order.timelineEvents.length > 0 ? (
@@ -257,7 +257,16 @@ export default function OwnerOrdersPage() {
                                         <p className="text-white text-sm font-bold">{event.action}</p>
                                         <p className="text-slate-400 text-xs mt-0.5">{event.details}</p>
                                         <p className="text-slate-500 text-[10px] mt-1">{new Date(event.createdAt).toLocaleString('en-IN')}</p>
-                                        {event.user?.name && <span className="text-[9px] bg-slate-800 text-slate-300 px-1 py-0.5 rounded font-medium mt-1 inline-block">{event.user.name}</span>}
+                                        {event.user?.name && (
+                                          <span className={`text-[9px] px-1.5 py-0.5 rounded font-medium mt-1 inline-block ${event.user.role === "OWNER"
+                                              ? "bg-purple-500/20 text-purple-300 border border-purple-500/40"
+                                              : event.user.role === "MANAGER"
+                                                ? "bg-blue-500/20 text-blue-300 border border-blue-500/40"
+                                                : "bg-slate-800 text-slate-300"
+                                            }`}>
+                                            {event.user.name} {event.user.role === "OWNER" ? "👑 (Owner)" : event.user.role === "MANAGER" ? "(Manager)" : ""}
+                                          </span>
+                                        )}
                                       </div>
                                     </div>
                                   ))
@@ -266,7 +275,7 @@ export default function OwnerOrdersPage() {
                                     <div className="w-2 h-2 rounded-full bg-slate-600 mt-1.5 flex-shrink-0" />
                                     <div>
                                       <p className="text-slate-400 text-sm">Created</p>
-                                      <p className="text-slate-600 text-[10px]">{new Date(order.createdAt).toLocaleString('en-IN')} by {order.createdBy?.name}</p>
+                                      <p className="text-slate-600 text-[10px]">{new Date(order.createdAt).toLocaleString('en-IN')} by {order.createdBy?.name} {order.createdBy?.role === "OWNER" ? "👑 (Owner)" : ""}</p>
                                     </div>
                                   </div>
                                 )}

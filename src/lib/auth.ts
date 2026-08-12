@@ -70,12 +70,25 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         if (session.companyId) {
           token.companyId = session.companyId;
         }
-        // If the update payload includes a new viewRole for technician
-        if (session.viewRole && token.role === "TECHNICIAN") {
-          token.viewRole = session.viewRole;
+        // If the update payload includes a new viewRole
+        if (session.viewRole) {
+          const roleHierarchy: Record<string, string[]> = {
+            TECHNICIAN: ["ADMIN", "OWNER", "MANAGER", "SUPERVISOR", "OPERATOR"],
+            OWNER: ["OWNER", "MANAGER", "SUPERVISOR", "OPERATOR"],
+            MANAGER: ["MANAGER", "SUPERVISOR", "OPERATOR"],
+            SUPERVISOR: ["SUPERVISOR", "OPERATOR"]
+          };
+          const allowedRoles = roleHierarchy[token.role as string] || [];
+          if (allowedRoles.includes(session.viewRole)) {
+            token.viewRole = session.viewRole;
+          }
+        }
+        // If the update payload includes a new viewSection
+        if (session.viewSection !== undefined) {
+          token.viewSection = session.viewSection;
         }
         
-        if (session.companyId || session.viewRole) {
+        if (session.companyId || session.viewRole || session.viewSection !== undefined) {
           return token;
         }
 
@@ -102,11 +115,12 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
       if (session.user) {
         session.user.id = token.id as string;
         session.user.name = token.name as string;
-        (session.user as any).role = token.viewRole || token.role;
+        (session.user as any).role = (token as any).viewRole || token.role;
         (session.user as any).realRole = token.role;
         (session.user as any).companyId = token.companyId;
-        (session.user as any).sections = token.sections || [];
-        (session.user as any).ownedCompanies = token.ownedCompanies || [];
+        (session.user as any).sections = (token as any).sections || [];
+        (session.user as any).ownedCompanies = (token as any).ownedCompanies || [];
+        (session.user as any).section = (token as any).viewSection || ((token as any).sections && (token as any).sections[0]) || null;
       }
       return session;
     },

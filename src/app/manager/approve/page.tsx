@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { useEffect, useState, useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
 import Sidebar from "@/components/Sidebar";
-import { ClipboardCheck, Check, X, Clock, CheckCircle, ChevronDown, ChevronUp, Package } from "lucide-react";
+import { ClipboardCheck, Check, X, Clock, CheckCircle, ChevronDown, ChevronUp, Package, Crown } from "lucide-react";
 
 export default function ManagerApproval() {
   const { data: session, status } = useSession();
@@ -128,7 +128,14 @@ export default function ManagerApproval() {
               {canApprove ? <Clock size={18} className="text-blue-300" /> : <CheckCircle size={18} className="text-emerald-300" />}
             </div>
             <div>
-              <p className="text-white font-bold text-sm">{log.operator?.name}</p>
+              <p className="text-white font-bold text-sm flex items-center gap-1.5">
+                {log.operator?.name}
+                {(log.operator?.role === "OWNER" || log.operator?.role === "MANAGER") && (
+                  <span className="text-[9px] px-1.5 py-0.5 rounded-full font-black uppercase tracking-wider bg-rose-500/20 text-rose-300 border border-rose-500/30 flex items-center gap-1">
+                    <Crown size={10} className="text-rose-400" /> {log.operator.role} ACTION
+                  </span>
+                )}
+              </p>
               <p className="text-slate-400 text-xs">
                 {new Date(log.date).toLocaleDateString("en-IN")} • {log.entries?.length} entries • {totalQty} sheets
               </p>

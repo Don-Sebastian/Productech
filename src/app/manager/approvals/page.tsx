@@ -9,7 +9,8 @@ import React from "react";
 import {
   CheckCircle2, XCircle, Clock, Package, Timer, Power, PowerOff,
   Flame, RefreshCcw, Droplets, Wrench, Pause, ChevronDown, ChevronUp,
-  User, AlertTriangle, TrendingUp, ShieldCheck, Plus, Trash2
+  User, AlertTriangle, TrendingUp, ShieldCheck, Plus, Trash2,
+  Crown,
 } from "lucide-react";
 
 interface PressEntry {
@@ -173,52 +174,52 @@ export default function ManagerApprovalPage() {
 
   return (
     <div className="min-h-screen bg-slate-950">
-    <Sidebar user={session.user} />
-    <main className="ml-0 md:ml-64 p-3 md:p-8">
-    <div className="space-y-6">
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-        <div>
-          <h1 className="text-2xl font-bold text-white flex items-center gap-3">
-            <ShieldCheck className="text-blue-400" size={28} />
-            Approve Production
-          </h1>
-          <p className="text-slate-400 text-sm mt-1">
-            Review supervisor-approved logs. <strong className="text-amber-400">Approval updates current stock.</strong>
-          </p>
-        </div>
-        <button onClick={() => setShowManualModal(true)} className="bg-emerald-600 hover:bg-emerald-500 text-white px-5 py-2.5 rounded-xl font-bold text-sm shadow-lg shadow-emerald-900/20 flex items-center gap-2 transition active:scale-95">
-          <Plus size={18} /> New Manual Summary
-        </button>
-      </div>
+      <Sidebar user={session.user} />
+      <main className="ml-0 md:ml-64 p-3 md:p-8">
+        <div className="space-y-6">
+          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+            <div>
+              <h1 className="text-2xl font-bold text-white flex items-center gap-3">
+                <ShieldCheck className="text-blue-400" size={28} />
+                Approve Production
+              </h1>
+              <p className="text-slate-400 text-sm mt-1">
+                Review supervisor-approved logs. <strong className="text-amber-400">Approval updates current stock.</strong>
+              </p>
+            </div>
+            <button onClick={() => setShowManualModal(true)} className="bg-emerald-600 hover:bg-emerald-500 text-white px-5 py-2.5 rounded-xl font-bold text-sm shadow-lg shadow-emerald-900/20 flex items-center gap-2 transition active:scale-95">
+              <Plus size={18} /> New Manual Summary
+            </button>
+          </div>
 
-      {sessions.length === 0 ? (
-        <div className="bg-slate-800/50 border border-slate-700/50 rounded-2xl p-8 text-center">
-          <CheckCircle2 size={48} className="text-emerald-500 mx-auto mb-3 opacity-50" />
-          <p className="text-slate-400">No pending approvals</p>
-          <p className="text-slate-500 text-sm mt-1">All production logs are up to date</p>
+          {sessions.length === 0 ? (
+            <div className="bg-slate-800/50 border border-slate-700/50 rounded-2xl p-8 text-center">
+              <CheckCircle2 size={48} className="text-emerald-500 mx-auto mb-3 opacity-50" />
+              <p className="text-slate-400">No pending approvals</p>
+              <p className="text-slate-500 text-sm mt-1">All production logs are up to date</p>
+            </div>
+          ) : (
+            <div className="space-y-4">
+              {sessions.map((sess: any) => (
+                <ManagerApprovalCard key={sess.id} session={sess} onApprove={() => approve(sess.id)}
+                  isRejecting={rejectingId === sess.id}
+                  onStartReject={() => setRejectingId(sess.id)}
+                  onCancelReject={() => { setRejectingId(null); setRejectNote(""); }}
+                  rejectNote={rejectNote}
+                  onRejectNoteChange={setRejectNote}
+                  onConfirmReject={() => reject(sess.id)}
+                />
+              ))}
+            </div>
+          )}
         </div>
-      ) : (
-        <div className="space-y-4">
-          {sessions.map((sess: any) => (
-            <ManagerApprovalCard key={sess.id} session={sess} onApprove={() => approve(sess.id)}
-              isRejecting={rejectingId === sess.id}
-              onStartReject={() => setRejectingId(sess.id)}
-              onCancelReject={() => { setRejectingId(null); setRejectNote(""); }}
-              rejectNote={rejectNote}
-              onRejectNoteChange={setRejectNote}
-              onConfirmReject={() => reject(sess.id)}
-            />
-          ))}
-        </div>
+      </main>
+      {showManualModal && (
+        <ManualSummaryModal
+          onClose={() => setShowManualModal(false)}
+          onSuccess={() => { setShowManualModal(false); fetchData(); }}
+        />
       )}
-    </div>
-    </main>
-    {showManualModal && (
-      <ManualSummaryModal 
-        onClose={() => setShowManualModal(false)} 
-        onSuccess={() => { setShowManualModal(false); fetchData(); }} 
-      />
-    )}
     </div>
   );
 }
@@ -263,7 +264,14 @@ function ManagerApprovalCard({
         <div className="flex items-center justify-between mb-2">
           <div className="flex items-center gap-2">
             <User size={16} className="text-blue-400" />
-            <span className="text-white font-bold">{session.operator?.name || "Operator"}</span>
+            <span className="text-white font-bold flex items-center gap-1.5">
+              {session.operator?.name || "Operator"}
+              {(session.operator?.role === "OWNER" || session.operator?.role === "MANAGER") && (
+                <span className="text-[9px] px-1.5 py-0.5 rounded-full font-black uppercase tracking-wider bg-rose-500/20 text-rose-300 border border-rose-500/30 flex items-center gap-1">
+                  <Crown size={10} className="text-rose-400" /> {session.operator.role} ACTION
+                </span>
+              )}
+            </span>
             <span className="text-xs bg-slate-800 text-slate-300 font-bold px-2 py-0.5 rounded-lg border border-slate-700 ml-2">
               Machine: {session.machine?.name || "Unknown"}
             </span>
@@ -474,7 +482,7 @@ function ManualSummaryModal({ onClose, onSuccess }: { onClose: () => void, onSuc
   const [operators, setOperators] = useState<any[]>([]);
   const [machines, setMachines] = useState<any[]>([]);
   const [products, setProducts] = useState<any[]>([]);
-  
+
   const [shiftDate, setShiftDate] = useState(() => new Date().toISOString().split('T')[0]);
   const [operatorId, setOperatorId] = useState("");
   const [machineId, setMachineId] = useState("");
@@ -517,7 +525,7 @@ function ManualSummaryModal({ onClose, onSuccess }: { onClose: () => void, onSuc
     const cat = categories.find(c => c.id === selCat);
     const thick = getThicknesses(selCat).find(t => t.id === selThick);
     const size = getSizes(selCat, selThick).find(s => s.id === selSize);
-    
+
     setItems([...items, {
       categoryId: selCat,
       categoryName: cat?.name,
@@ -583,14 +591,14 @@ function ManualSummaryModal({ onClose, onSuccess }: { onClose: () => void, onSuc
             <h2 className="text-xl font-bold text-white">New Manual Summary</h2>
             <p className="text-sm text-slate-400">Directly adds stock to inventory</p>
           </div>
-          <button onClick={onClose} className="p-2 text-slate-400 hover:text-white rounded-lg hover:bg-slate-800 transition"><XCircle size={20}/></button>
+          <button onClick={onClose} className="p-2 text-slate-400 hover:text-white rounded-lg hover:bg-slate-800 transition"><XCircle size={20} /></button>
         </div>
 
         {error && <div className="mb-4 p-3 bg-red-900/30 border border-red-700/50 rounded-lg text-red-400 text-sm">{error}</div>}
-        
+
         {duplicateWarning && (
           <div className="mb-4 p-4 bg-orange-900/30 border border-orange-700/50 rounded-xl">
-            <p className="text-orange-400 text-sm font-bold flex items-center gap-2 mb-3"><AlertTriangle size={16}/> Warning: Duplicate Summary Detected</p>
+            <p className="text-orange-400 text-sm font-bold flex items-center gap-2 mb-3"><AlertTriangle size={16} /> Warning: Duplicate Summary Detected</p>
             <p className="text-slate-300 text-sm mb-3">{duplicateWarning}</p>
             <label className="flex items-center gap-2 text-sm text-white font-bold cursor-pointer bg-slate-800/50 p-3 rounded-lg border border-slate-700">
               <input type="checkbox" checked={confirmMultiple} onChange={e => setConfirmMultiple(e.target.checked)} className="w-5 h-5 rounded border-slate-600 bg-slate-900" />
@@ -636,7 +644,7 @@ function ManualSummaryModal({ onClose, onSuccess }: { onClose: () => void, onSuc
               {selThick && getSizes(selCat, selThick).map(s => <option key={s.id} value={s.id}>{s.label}</option>)}
             </select>
             <input type="number" placeholder="Qty" value={selQty} onChange={e => setSelQty(e.target.value)} className="w-20 bg-slate-950 border border-slate-700 rounded-lg p-2 text-white text-sm outline-none" />
-            <button onClick={handleAddItem} disabled={!selCat || !selThick || !selSize || !selQty} className="bg-blue-600 hover:bg-blue-500 text-white p-2 rounded-lg disabled:opacity-50 transition"><Plus size={18}/></button>
+            <button onClick={handleAddItem} disabled={!selCat || !selThick || !selSize || !selQty} className="bg-blue-600 hover:bg-blue-500 text-white p-2 rounded-lg disabled:opacity-50 transition"><Plus size={18} /></button>
           </div>
 
           <div className="space-y-2 max-h-32 overflow-y-auto pr-1">
@@ -645,7 +653,7 @@ function ManualSummaryModal({ onClose, onSuccess }: { onClose: () => void, onSuc
                 <span className="text-slate-300">{item.categoryName} • {item.thicknessValue}mm • {item.sizeLabel}</span>
                 <div className="flex items-center gap-3">
                   <span className="text-emerald-400 font-bold">+{item.quantity} sheets</span>
-                  <button onClick={() => setItems(items.filter((_, i) => i !== idx))} className="text-slate-500 hover:text-red-400 transition"><Trash2 size={16}/></button>
+                  <button onClick={() => setItems(items.filter((_, i) => i !== idx))} className="text-slate-500 hover:text-red-400 transition"><Trash2 size={16} /></button>
                 </div>
               </div>
             ))}

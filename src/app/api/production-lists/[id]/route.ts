@@ -18,7 +18,7 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
             thickness: true,
             size: true,
             productionEntries: {
-              include: { operator: { select: { name: true } } },
+              include: { operator: { select: { id: true, name: true, role: true } } },
               orderBy: { createdAt: "desc" },
             },
           },
@@ -35,7 +35,7 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
             },
           },
         },
-        createdBy: { select: { id: true, name: true } },
+        createdBy: { select: { id: true, name: true, role: true } },
       },
     });
 
@@ -84,25 +84,25 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
         where: { id },
         include: { items: true },
       });
-      
+
       const allMet = listWithItems?.items.every(
         (item: any) => item.producedQuantity >= item.quantity
       );
-      
+
       if (!allMet) {
         return NextResponse.json({ error: "Not all items have met their target quantity" }, { status: 400 });
       }
 
       updateData.status = "COMPLETED";
-      
+
       // Update associated order if all its production lists are complete
       if (list.orderId) {
         const allLists = await prisma.productionList.findMany({
           where: { orderId: list.orderId, id: { not: id } },
         });
-        
+
         const allOthersComplete = allLists.every((l) => l.status === "COMPLETED");
-        
+
         if (allOthersComplete) {
           await prisma.order.update({
             where: { id: list.orderId },
