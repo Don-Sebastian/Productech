@@ -16,7 +16,6 @@ import {
   Wrench,
   ClipboardList,
   ShoppingCart,
-  Bell,
   Layers,
   Menu,
   X,
@@ -320,26 +319,6 @@ export default function Sidebar({ user }: SidebarProps) {
             </Link>
           );
         })}
-
-        {/* Notifications link (all roles except admin) */}
-        {/* {role !== "ADMIN" && (
-          <Link
-            href={notifPath}
-            onClick={() => setMobileOpen(false)}
-            className={`flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all duration-200 group ${pathname === notifPath
-                ? `bg-gradient-to-r ${config.color} text-white shadow-lg`
-                : "text-slate-400 hover:text-white hover:bg-slate-800/50"
-              }`}
-          >
-            <Bell size={18} className={pathname === notifPath ? "text-white" : "text-slate-500 group-hover:text-slate-300"} />
-            <span className="flex-1">Notifications</span>
-            {unread > 0 && (
-              <span className="bg-red-500 text-white text-xs font-bold px-2 py-0.5 rounded-full min-w-[22px] text-center animate-pulse">
-                {unread}
-              </span>
-            )}
-          </Link>
-        )} */}
       </nav>
 
       {/* User Info */}
