@@ -1,8 +1,6 @@
 "use client";
 
-import { useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
-import { useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
 import Sidebar from "@/components/Sidebar";
 import {
@@ -17,35 +15,21 @@ import {
     BarChart3,
 } from "lucide-react";
 
-export default function ManagerDashboard() {
-    const { data: session, status } = useSession();
+export default function ManagerDashboard({ user }: { user: any }) {
     const router = useRouter();
-
-    useEffect(() => {
-        if (status === "unauthenticated") router.push("/login");
-        if (status === "authenticated" && (session?.user as any)?.role !== "MANAGER") router.push("/");
-    }, [status, session, router]);
 
     const { data: dashboardData, isLoading: loading } = useQuery({
         queryKey: ["manager-dashboard-stats"],
         queryFn: () => fetch("/api/dashboard/stats").then(res => res.json()),
-        enabled: status === "authenticated",
+        enabled: !!user,
     });
 
     const stats = dashboardData?.stats || null;
     const recentBatches = dashboardData?.recentBatches || [];
 
-    if (status === "loading" || !session?.user) {
-        return (
-            <div className="flex items-center justify-center h-screen bg-slate-950">
-                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-cyan-400"></div>
-            </div>
-        );
-    }
-
     return (
         <div className="min-h-screen bg-slate-950">
-            <Sidebar user={session.user} />
+            <Sidebar user={user} />
 
             <main className="ml-0 md:ml-64 p-4 md:p-8 pb-24">
                 <div className="mb-8">

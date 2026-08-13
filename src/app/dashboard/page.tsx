@@ -1,21 +1,52 @@
-"use client";
+import { redirect } from "next/navigation";
+import { auth } from "@/lib/auth";
+import dynamic from "next/dynamic";
 
-import PathSelectionWrapper from "@/components/PathSelectionWrapper";
-import AdminDashboard from "./components/AdminDashboard";
-import OwnerDashboard from "./components/OwnerDashboard";
-import ManagerDashboard from "./components/ManagerDashboard";
-import SupervisorDashboard from "./components/SupervisorDashboard";
-import OperatorDashboard from "./components/OperatorDashboard";
+const AdminDashboard = dynamic(() => import("./components/AdminDashboard"), {
+  loading: () => <DashboardLoader color="border-violet-400" />
+});
+const OwnerDashboard = dynamic(() => import("./components/OwnerDashboard"), {
+  loading: () => <DashboardLoader color="border-emerald-400" />
+});
+const ManagerDashboard = dynamic(() => import("./components/ManagerDashboard"), {
+  loading: () => <DashboardLoader color="border-blue-400" />
+});
+const SupervisorDashboard = dynamic(() => import("./components/SupervisorDashboard"), {
+  loading: () => <DashboardLoader color="border-amber-400" />
+});
+const OperatorDashboard = dynamic(() => import("./components/OperatorDashboard"), {
+  loading: () => <DashboardLoader color="border-amber-500" />
+});
 
-export default function Dashboard() {
-  console.log('reached dashboard');
+function DashboardLoader({ color }: { color: string }) {
   return (
-    <PathSelectionWrapper
-      adminComponent={<AdminDashboard />}
-      ownerComponent={<OwnerDashboard />}
-      managerComponent={<ManagerDashboard />}
-      supervisorComponent={<SupervisorDashboard />}
-      operatorComponent={<OperatorDashboard />}
-    />
+    <div className="flex items-center justify-center h-screen bg-slate-950">
+      <div className={`animate-spin rounded-full h-8 w-8 border-b-2 ${color}`}></div>
+    </div>
   );
+}
+
+export default async function Dashboard() {
+  const session = await auth();
+  if (!session?.user) {
+    redirect("/login");
+  }
+
+  const role = (session.user as any).role;
+  const user = session.user;
+
+  switch (role) {
+    case "ADMIN":
+      return <AdminDashboard user={user} />;
+    case "OWNER":
+      return <OwnerDashboard user={user} />;
+    case "MANAGER":
+      return <ManagerDashboard user={user} />;
+    case "SUPERVISOR":
+      return <SupervisorDashboard user={user} />;
+    case "OPERATOR":
+      return <OperatorDashboard user={user} />;
+    default:
+      redirect("/login");
+  }
 }

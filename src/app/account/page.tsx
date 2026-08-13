@@ -1,16 +1,12 @@
-"use client";
-
-import PathSelectionWrapper from "@/components/PathSelectionWrapper";
+import { redirect } from "next/navigation";
+import { auth } from "@/lib/auth";
 import AccountPage from "@/components/AccountPage";
 
-export default function AccountRouterPage() {
-  return (
-    <PathSelectionWrapper
-      adminComponent={<AccountPage allowedRole="ADMIN" />}
-      ownerComponent={<AccountPage allowedRole="OWNER" />}
-      managerComponent={<AccountPage allowedRole="MANAGER" />}
-      supervisorComponent={<AccountPage allowedRole="SUPERVISOR" />}
-      operatorComponent={<AccountPage allowedRole="OPERATOR" />}
-    />
-  );
+export default async function AccountRouterPage() {
+  const session = await auth();
+  if (!session?.user) {
+    redirect("/login");
+  }
+
+  return <AccountPage user={session.user} />;
 }

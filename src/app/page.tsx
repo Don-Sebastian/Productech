@@ -1,55 +1,29 @@
-"use client";
-
-import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
-import { useSession } from "next-auth/react";
+import { redirect } from "next/navigation";
 import Link from "next/link";
 import {
   Factory, Package, Layers, TreePine,
   TrendingUp, ShieldCheck,
-  ChevronRight, Send, MapPin, Phone, Mail
+  ChevronRight, MapPin, Phone, Mail
 } from "lucide-react";
+import { prisma } from "@/lib/prisma";
+import { auth } from "@/lib/auth";
+import EnquiryForm from "@/components/EnquiryForm";
 
-export default function Home() {
-  const router = useRouter();
-  const { data: session, status } = useSession();
-  const [checking, setChecking] = useState(true);
-
-  useEffect(() => {
-    async function checkSetup() {
-      try {
-        const res = await fetch("/api/setup/check");
-        const data = await res.json();
-
-        if (!data.isSetUp) {
-          router.replace("/signup");
-          return;
-        }
-
-        if (status === "loading") return;
-
-        if (session?.user) {
-          router.replace("/dashboard");
-        } else {
-          setChecking(false);
-        }
-      } catch {
-        setChecking(false);
-      }
+export default async function Home() {
+  // Server-side check if setup is needed
+  try {
+    const userCount = await prisma.user.count({ take: 1 });
+    if (userCount === 0) {
+      redirect("/signup");
     }
+  } catch (error) {
+    console.error("Setup check error on home page:", error);
+  }
 
-    checkSetup();
-  }, [session, status, router]);
-
-  if (checking || status === "loading") {
-    return (
-      <div className="flex min-h-screen items-center justify-center bg-slate-950">
-        <div className="text-center">
-          <Factory className="animate-pulse text-amber-500 w-16 h-16 mx-auto mb-4" />
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-amber-500 mx-auto"></div>
-        </div>
-      </div>
-    );
+  // Server-side check if session already exists
+  const session = await auth();
+  if (session?.user) {
+    redirect("/dashboard");
   }
 
   return (
@@ -207,37 +181,7 @@ export default function Home() {
               </div>
             </div>
 
-            <div className="bg-slate-950 p-8 rounded-3xl border border-slate-800 shadow-2xl relative overflow-hidden">
-              <div className="absolute top-0 right-0 w-32 h-32 bg-amber-500/10 blur-[50px] rounded-full"></div>
-              <h3 className="text-2xl font-bold text-white mb-6">Send an Enquiry</h3>
-              <form className="space-y-4" onSubmit={(e) => { e.preventDefault(); alert("Enquiry submitted! We will contact you soon."); }}>
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <label className="text-xs font-bold text-slate-500 uppercase tracking-widest block mb-2">First Name</label>
-                    <input type="text" className="w-full bg-slate-900 border border-slate-700 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-amber-500 focus:ring-1 focus:ring-amber-500 transition-colors" placeholder="John" required />
-                  </div>
-                  <div>
-                    <label className="text-xs font-bold text-slate-500 uppercase tracking-widest block mb-2">Last Name</label>
-                    <input type="text" className="w-full bg-slate-900 border border-slate-700 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-amber-500 focus:ring-1 focus:ring-amber-500 transition-colors" placeholder="Doe" />
-                  </div>
-                </div>
-                <div>
-                  <label className="text-xs font-bold text-slate-500 uppercase tracking-widest block mb-2">Company Name</label>
-                  <input type="text" className="w-full bg-slate-900 border border-slate-700 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-amber-500 focus:ring-1 focus:ring-amber-500 transition-colors" placeholder="Your Plywood Co." required />
-                </div>
-                <div>
-                  <label className="text-xs font-bold text-slate-500 uppercase tracking-widest block mb-2">Phone Number</label>
-                  <input type="tel" className="w-full bg-slate-900 border border-slate-700 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-amber-500 focus:ring-1 focus:ring-amber-500 transition-colors" placeholder="+91" required />
-                </div>
-                <div>
-                  <label className="text-xs font-bold text-slate-500 uppercase tracking-widest block mb-2">Message</label>
-                  <textarea rows={4} className="w-full bg-slate-900 border border-slate-700 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-amber-500 focus:ring-1 focus:ring-amber-500 transition-colors" placeholder="Tell us about your factory..." required></textarea>
-                </div>
-                <button type="submit" className="w-full flex items-center justify-center gap-2 bg-amber-500 hover:bg-amber-400 text-slate-900 font-black py-4 rounded-xl transition-colors">
-                  <Send className="w-5 h-5" /> Send Message
-                </button>
-              </form>
-            </div>
+            <EnquiryForm />
           </div>
         </div>
       </section>

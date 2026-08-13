@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { useSession, signOut } from "next-auth/react";
+import { signOut } from "next-auth/react";
 import Sidebar from "@/components/Sidebar";
 import {
   KeyRound,
@@ -17,12 +17,10 @@ import {
 } from "lucide-react";
 
 interface AccountPageProps {
-  allowedRole: string;
+  user: any;
 }
 
-export default function AccountPage({ allowedRole }: AccountPageProps) {
-  const { data: session, status } = useSession();
-
+export default function AccountPage({ user }: AccountPageProps) {
   const [currentPassword, setCurrentPassword] = useState("");
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
@@ -76,15 +74,6 @@ export default function AccountPage({ allowedRole }: AccountPageProps) {
     setLoading(false);
   };
 
-  if (status === "loading" || !session?.user) {
-    return (
-      <div className="flex items-center justify-center h-screen bg-slate-950">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-cyan-400" />
-      </div>
-    );
-  }
-
-  const user = session.user;
   const role = (user as any)?.role || "";
 
   return (

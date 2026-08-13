@@ -1,6 +1,5 @@
 "use client";
 
-import { useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import { useQuery } from "@tanstack/react-query";
 import Sidebar from "@/components/Sidebar";
@@ -15,20 +14,19 @@ import {
     Droplets,
 } from "lucide-react";
 
-export default function OwnerDashboard() {
-    const { data: session, status } = useSession();
+export default function OwnerDashboard({ user }: { user: any }) {
     const router = useRouter();
 
     const { data: dashboardData, isLoading: statsLoading } = useQuery({
         queryKey: ["owner-dashboard-stats"],
         queryFn: () => fetch("/api/dashboard/stats").then(res => res.json()),
-        enabled: status === "authenticated",
+        enabled: !!user,
     });
 
     const { data: glueData, isLoading: glueLoading } = useQuery({
         queryKey: ["owner-glue-stock"],
         queryFn: () => fetch("/api/glue-stock").then(res => res.json()),
-        enabled: status === "authenticated",
+        enabled: !!user,
     });
 
     const stats = dashboardData?.stats || null;
@@ -36,14 +34,6 @@ export default function OwnerDashboard() {
     const glueStock = glueData?.stock || null;
     const glueThreshold = glueData?.thresholdKg || 1000;
     const loading = statsLoading || glueLoading;
-
-    if (status === "loading" || !session?.user) {
-        return (
-            <div className="flex items-center justify-center h-screen bg-slate-950">
-                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-emerald-400"></div>
-            </div>
-        );
-    }
 
     const statCards = [
         { label: "Total Batches", value: stats?.totalBatches || 0, icon: Factory, color: "emerald", change: "+12%" },
@@ -68,11 +58,11 @@ export default function OwnerDashboard() {
 
     return (
         <div className="min-h-screen bg-slate-950">
-            <Sidebar user={session.user} />
+            <Sidebar user={user} />
 
             <main className="ml-0 md:ml-64 p-4 md:p-8 pb-24">
                 <div className="mb-8">
-                    <h1 className="text-3xl font-bold text-white mb-1">Welcome, {session.user.name}</h1>
+                    <h1 className="text-3xl font-bold text-white mb-1">Welcome, {user.name}</h1>
                     <p className="text-slate-400">Company production overview and statistics</p>
                 </div>
 

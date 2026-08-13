@@ -1,8 +1,6 @@
 "use client";
 
-import { useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
-import { useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
 import Sidebar from "@/components/Sidebar";
 import MachineRequiredScreen from "@/components/MachineRequiredScreen";
@@ -16,19 +14,18 @@ import {
     BarChart3,
 } from "lucide-react";
 
-export default function SupervisorDashboard() {
-    const { data: session, status } = useSession();
+export default function SupervisorDashboard({ user }: { user: any }) {
     const router = useRouter();
-    const role = (session?.user as any)?.role;
-    const { assigned, loading: assignmentLoading, error: assignmentError } = useMachineAssignment(role, status);
+    const role = user?.role;
+    const { assigned, loading: assignmentLoading, error: assignmentError } = useMachineAssignment(role, "authenticated");
 
     const { data: stats, isLoading: loading } = useQuery({
         queryKey: ["supervisor-dashboard-stats"],
         queryFn: () => fetch("/api/dashboard/stats").then((res) => res.json()),
-        enabled: status === "authenticated" && assigned,
+        enabled: assigned,
     });
 
-    if (status === "loading" || !session?.user || assignmentLoading) {
+    if (assignmentLoading) {
         return (
             <div className="flex items-center justify-center h-screen bg-slate-950">
                 <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-amber-400"></div>
@@ -40,11 +37,11 @@ export default function SupervisorDashboard() {
         return <MachineRequiredScreen error={assignmentError} />;
     }
 
-    const section = stats?.section || (session.user as any)?.section;
+    const section = stats?.section || (user as any)?.section;
 
     return (
         <div className="min-h-screen bg-slate-950">
-            <Sidebar user={session.user} />
+            <Sidebar user={user} />
 
             <main className="ml-0 md:ml-64 p-4 md:p-8 pb-24">
                 <div className="mb-8">

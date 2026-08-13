@@ -1,17 +1,14 @@
 "use client";
 
-import { useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import Sidebar from "@/components/Sidebar";
 import { Building2, Users, Shield, TrendingUp } from "lucide-react";
 
-export default function AdminDashboard() {
-    const { data: session, status } = useSession();
+export default function AdminDashboard({ user }: { user: any }) {
     const router = useRouter();
     const [stats, setStats] = useState<any>(null);
     const [loading, setLoading] = useState(true);
-
 
     useEffect(() => {
         fetch("/api/dashboard/stats")
@@ -21,20 +18,11 @@ export default function AdminDashboard() {
                 setLoading(false);
             })
             .catch(() => setLoading(false));
-
-    }, [status]);
-
-    if (status === "loading" || !session?.user) {
-        return (
-            <div className="flex items-center justify-center h-screen bg-slate-950">
-                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-violet-400"></div>
-            </div>
-        );
-    }
+    }, []);
 
     return (
         <div className="min-h-screen bg-slate-950">
-            <Sidebar user={session.user} />
+            <Sidebar user={user} />
 
             <main className="ml-0 md:ml-64 p-4 md:p-8 pb-24">
                 {/* Header */}
