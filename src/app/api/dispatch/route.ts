@@ -94,6 +94,7 @@ export async function POST(request: NextRequest) {
             sizeId: i.sizeId,
             quantity: parseInt(i.quantity, 10),
             notes: i.notes,
+            salePricePerSqft: i.salePricePerSqft ? parseFloat(i.salePricePerSqft) : null,
           })),
         }
       },

@@ -59,6 +59,11 @@ model Company {
   glueStock           GlueStock?
   outboundTransfers   InventoryTransfer[] @relation("TransferSource")
   inboundTransfers    InventoryTransfer[] @relation("TransferTarget")
+  
+  // Financial Tracking
+  rawMaterialPurchases RawMaterialPurchase[]
+  expenses            Expense[]
+  expensePayments     ExpensePayment[]
 }
 
 model Section {
@@ -118,6 +123,10 @@ model User {
   wageAdjustments        WageAdjustmentLog[]
   subDepartmentAssignments SubDepartmentAssignment[]
   inventoryTransfers     InventoryTransfer[]  @relation("TransferredBy")
+  
+  // Financials
+  createdPurchases       RawMaterialPurchase[]
+  createdExpensePayments ExpensePayment[]
 
   @@index([companyId])
   @@index([createdById])
@@ -482,6 +491,7 @@ model DispatchLoadItem {
   id             String           @id @default(cuid())
   quantity       Int
   notes          String?
+  salePricePerSqft Float?
   createdAt      DateTime         @default(now())
   updatedAt      DateTime         @updatedAt
   dispatchLoadId String
@@ -586,15 +596,16 @@ model ProductType {
 }
 
 model RawMaterial {
-  id             String          @id @default(cuid())
+  id             String                @id @default(cuid())
   name           String
   unit           String
   description    String?
-  createdAt      DateTime        @default(now())
-  updatedAt      DateTime        @updatedAt
+  createdAt      DateTime              @default(now())
+  updatedAt      DateTime              @updatedAt
   companyId      String
   batchMaterials BatchMaterial[]
-  company        Company         @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  purchases      RawMaterialPurchase[]
+  company        Company               @relation(fields: [companyId], references: [id], onDelete: Cascade)
 
   @@index([companyId])
 }
@@ -1205,4 +1216,57 @@ model InventoryTransfer {
   @@index([targetCompanyId])
   @@index([transferredById])
   @@index([productTypeId])
+}
+
+// ==================== FINANCIAL TRACKING ====================
+
+model RawMaterialPurchase {
+  id           String      @id @default(cuid())
+  materialId   String
+  quantity     Float
+  unitPrice    Float
+  totalCost    Float
+  purchaseDate DateTime    @default(now())
+  notes        String?
+  companyId    String
+  createdById  String
+  
+  material     RawMaterial @relation(fields: [materialId], references: [id], onDelete: Cascade)
+  company      Company     @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  createdBy    User        @relation(fields: [createdById], references: [id])
+  
+  @@index([companyId])
+  @@index([materialId])
+  @@index([createdById])
+}
+
+model Expense {
+  id           String           @id @default(cuid())
+  name         String
+  description  String?
+  companyId    String
+  createdAt    DateTime         @default(now())
+  updatedAt    DateTime         @updatedAt
+  company      Company          @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  payments     ExpensePayment[]
+  
+  @@index([companyId])
+}
+
+model ExpensePayment {
+  id           String      @id @default(cuid())
+  expenseId    String
+  amount       Float
+  paymentDate  DateTime    @default(now())
+  notes        String?
+  companyId    String
+  createdById  String
+  
+  expense      Expense     @relation(fields: [expenseId], references: [id], onDelete: Cascade)
+  company      Company     @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  createdBy    User        @relation(fields: [createdById], references: [id])
+  
+  @@index([companyId])
+  @@index([expenseId])
+  @@index([createdById])
 }

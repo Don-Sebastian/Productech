@@ -9,7 +9,7 @@ import {
   ChevronDown, ChevronUp, User, Search,
   Calendar, Filter, CheckCircle2, XCircle,
   ShieldCheck, Send, AlertTriangle, FileText,
-  TrendingUp, Download, Printer
+  TrendingUp, Download, Printer, Crown
 } from "lucide-react";
 import DownloadModal from "./DownloadModal";
 
@@ -41,7 +41,7 @@ interface HotPressSession {
   entries: PressEntry[];
   glueEntries: GlueEntry[];
   pauseEvents: PauseEvent[];
-  operator?: { id: string; name: string; email: string };
+  operator?: { id: string; name: string; email: string; role?: string };
   machine?: { id: string; name: string; code: string; assignments?: { user: { name: string } }[] };
   rejectionNote?: string | null;
 }

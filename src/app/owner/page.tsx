@@ -6,6 +6,7 @@ import { useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
 import Sidebar from "@/components/Sidebar";
 import ProductionChart from "@/components/ProductionChart";
+import FinancialDashboard from "@/components/FinancialDashboard";
 import {
   Factory,
   Package,
@@ -114,6 +115,11 @@ export default function OwnerDashboard() {
         {/* Live Production Chart */}
         <div className="mb-8">
           <ProductionChart />
+        </div>
+
+        {/* Financial Tracking (Profit & Loss) */}
+        <div className="mb-8">
+          <FinancialDashboard />
         </div>
 
         {/* Glue Stock Card */}

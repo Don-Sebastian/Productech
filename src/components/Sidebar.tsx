@@ -75,6 +75,7 @@ const roleConfigs: Record<string, { label: string; color: string; links: { href:
       { href: "/manager/production", label: "Production Lists", icon: ListChecks },
       { href: "/manager/approvals", label: "Approve Production", icon: ClipboardCheck },
       { href: "/manager/dispatch", label: "Dispatch", icon: Truck },
+      { href: "/manager/financials", label: "Financials", icon: Banknote },
       { href: "/manager/inventory", label: "Inventory", icon: Package },
       { href: "/manager/log-history", label: "Log History", icon: History },
       // { href: "/manager/attendance", label: "Attendance Approvals", icon: UserCheck },

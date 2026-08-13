@@ -9,7 +9,7 @@ import React from "react";
 import {
   CheckCircle2, XCircle, Clock, Package, Timer, Power, PowerOff,
   Flame, RefreshCcw, Droplets, Wrench, Pause, ChevronDown, ChevronUp,
-  User, AlertTriangle, TrendingUp, ShieldCheck
+  User, AlertTriangle, TrendingUp, ShieldCheck,
   Crown,
 } from "lucide-react";
 
@@ -39,7 +39,7 @@ interface HotPressSession {
   entries: PressEntry[];
   glueEntries: GlueEntry[];
   pauseEvents: PauseEvent[];
-  operator?: { id: string; name: string; email: string };
+  operator?: { id: string; name: string; email: string; role?: string };
 }
 
 function fmt(d: string | null | undefined) {

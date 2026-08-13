@@ -39,7 +39,7 @@ interface HotPressSession {
   entries: PressEntry[];
   glueEntries: GlueEntry[];
   pauseEvents: PauseEvent[];
-  operator?: { id: string; name: string; email: string };
+  operator?: { id: string; name: string; email: string; role?: string };
   machine?: { id: string; name: string; code: string; assignments?: { user: { name: string } }[] };
 }
 

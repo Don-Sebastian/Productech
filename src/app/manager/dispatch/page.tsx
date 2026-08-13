@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { useEffect, useState, Suspense, useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
 import Sidebar from "@/components/Sidebar";
-import { Truck, Check, Package, X, CheckSquare, Clock, AlertTriangle } from "lucide-react";
+import { Truck, Check, Package, X, Clock, AlertTriangle, IndianRupee, DollarSign, Layers } from "lucide-react";
 
 function ManagerDispatchContent() {
   const { data: session, status } = useSession();
@@ -15,6 +15,10 @@ function ManagerDispatchContent() {
 
   const [editingLoadId, setEditingLoadId] = useState<string | null>(null);
   const [editData, setEditData] = useState<any>({});
+
+  // Confirmation & Pricing Modal State
+  const [confirmingLoad, setConfirmingLoad] = useState<any | null>(null);
+  const [thicknessPrices, setThicknessPrices] = useState<{ [thicknessVal: string]: string }>({});
 
   useEffect(() => {
     if (status === "unauthenticated") router.push("/login");
@@ -35,28 +39,6 @@ function ManagerDispatchContent() {
 
   const [stockShortages, setStockShortages] = useState<any[] | null>(null);
 
-  const updateStatus = async (id: string, newStatus: string) => {
-    setActionLoading(id);
-    try {
-      const res = await fetch(`/api/dispatch/${id}`, {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ status: newStatus }),
-      });
-      if (res.ok) {
-        fetchLoads();
-      } else if (res.status === 409) {
-        const data = await res.json();
-        if (data.error === "INSUFFICIENT_STOCK" && data.shortages) {
-          setStockShortages(data.shortages);
-        }
-      }
-    } catch (error) {
-      console.error("Failed to update status", error);
-    }
-    setActionLoading(null);
-  };
-
   const deleteLoad = async (id: string) => {
     if (!window.confirm("Are you sure you want to completely delete this dispatch load? Any affected inventory will be restored.")) return;
     setActionLoading(id);
@@ -72,14 +54,18 @@ function ManagerDispatchContent() {
   const startEdit = (load: any) => {
     setEditingLoadId(load.id);
     const data: any = {};
-    load.items?.forEach((i: any) => data[i.id] = String(i.quantity));
+    load.items?.forEach((i: any) => data[i.id] = { quantity: String(i.quantity), salePricePerSqft: i.salePricePerSqft ? String(i.salePricePerSqft) : "" });
     setEditData(data);
   };
 
   const saveEdit = async (loadId: string) => {
     setActionLoading(loadId);
     try {
-      const itemsPayload = Object.keys(editData).map((id) => ({ id, quantity: editData[id] }));
+      const itemsPayload = Object.keys(editData).map((id) => ({ 
+        id, 
+        quantity: editData[id].quantity,
+        salePricePerSqft: editData[id].salePricePerSqft 
+      }));
       const res = await fetch(`/api/dispatch/${loadId}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
@@ -93,12 +79,64 @@ function ManagerDispatchContent() {
     setActionLoading(null);
   };
 
+  // Open Confirm & Pricing Modal
+  const openConfirmModal = (load: any) => {
+    const initialPrices: { [thicknessVal: string]: string } = {};
+    load.items?.forEach((item: any) => {
+      const val = String(item.thickness?.value || "");
+      if (val && item.salePricePerSqft && !initialPrices[val]) {
+        initialPrices[val] = String(item.salePricePerSqft);
+      }
+    });
+    setThicknessPrices(initialPrices);
+    setConfirmingLoad(load);
+  };
+
+  // Submit Final Dispatch with Prices
+  const handleFinalDispatch = async () => {
+    if (!confirmingLoad) return;
+    setActionLoading(confirmingLoad.id);
+    try {
+      const itemsPayload = confirmingLoad.items.map((item: any) => {
+        const thicknessVal = String(item.thickness?.value || "");
+        const priceStr = thicknessPrices[thicknessVal];
+        return {
+          id: item.id,
+          quantity: item.quantity,
+          salePricePerSqft: priceStr ? parseFloat(priceStr) : null
+        };
+      });
+
+      const res = await fetch(`/api/dispatch/${confirmingLoad.id}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          status: "DISPATCHED",
+          items: itemsPayload
+        }),
+      });
+
+      if (res.ok) {
+        setConfirmingLoad(null);
+        fetchLoads();
+      } else if (res.status === 409) {
+        const data = await res.json();
+        if (data.error === "INSUFFICIENT_STOCK" && data.shortages) {
+          setConfirmingLoad(null);
+          setStockShortages(data.shortages);
+        }
+      }
+    } catch (error) {
+      console.error("Failed to dispatch load", error);
+    }
+    setActionLoading(null);
+  };
+
   if (status === "loading" || !session?.user) {
     return <div className="flex items-center justify-center h-screen bg-slate-950"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-cyan-400" /></div>;
   }
 
-  const pendingConfirmation = dispatchLoads.filter(l => l.status === "SUPERVISOR_SUBMITTED");
-  const confirmed = dispatchLoads.filter(l => l.status === "MANAGER_CONFIRMED");
+  const pendingConfirmation = dispatchLoads.filter(l => l.status === "SUPERVISOR_SUBMITTED" || l.status === "MANAGER_CONFIRMED");
   const completed = dispatchLoads.filter(l => l.status === "DISPATCHED");
 
   return (
@@ -109,7 +147,7 @@ function ManagerDispatchContent() {
           <h1 className="text-2xl md:text-3xl font-bold text-white flex items-center gap-3">
             <Truck size={28} className="text-teal-400" /> Dispatch Approvals
           </h1>
-          <p className="text-slate-400 text-sm mt-1">Review supervisor-submitted dispatch loads and deduct inventory</p>
+          <p className="text-slate-400 text-sm mt-1">Review supervisor-submitted dispatch loads, set sale prices, and deduct inventory directly.</p>
         </div>
 
         {loading ? (
@@ -117,11 +155,11 @@ function ManagerDispatchContent() {
         ) : (
           <div className="space-y-6">
 
-            {/* Needs Confirmation */}
+            {/* Waiting Confirmation / Dispatch */}
             {pendingConfirmation.length > 0 && (
               <div>
                 <h2 className="text-amber-300 font-bold text-sm mb-3 flex items-center gap-2">
-                  <Clock size={16} /> WAITING YOUR CONFIRMATION ({pendingConfirmation.length})
+                  <Clock size={16} /> WAITING YOUR APPROVAL & DISPATCH ({pendingConfirmation.length})
                 </h2>
                 <div className="space-y-3">
                   {pendingConfirmation.map(load => renderLoad(load, true))}
@@ -129,25 +167,13 @@ function ManagerDispatchContent() {
               </div>
             )}
 
-            {/* Confirmed - Waiting dispatch */}
-            {confirmed.length > 0 && (
-              <div>
-                <h2 className="text-blue-300 font-bold text-sm mb-3 flex items-center gap-2">
-                  <CheckSquare size={16} /> CONFIRMED - AWAITING FINAL DISPATCH ({confirmed.length})
-                </h2>
-                <div className="space-y-3">
-                  {confirmed.map(load => renderLoad(load, false))}
-                </div>
-              </div>
-            )}
-
-            {/* Dispatched */}
+            {/* Completed Dispatches */}
             {completed.length > 0 && (
               <div>
                 <h2 className="text-slate-400 font-bold text-sm mb-3 flex items-center gap-2">
                   <Check size={16} /> DISPATCHED & INVENTORY DEDUCTED ({completed.length})
                 </h2>
-                <div className="space-y-3 opacity-70">
+                <div className="space-y-3 opacity-80">
                   {completed.map(load => renderLoad(load, false))}
                 </div>
               </div>
@@ -162,6 +188,150 @@ function ManagerDispatchContent() {
           </div>
         )}
       </main>
+
+      {/* Confirmation & Sale Price Modal */}
+      {confirmingLoad && (
+        <div className="fixed inset-0 z-[99999] flex items-center justify-center bg-black/75 backdrop-blur-md p-4 overflow-y-auto">
+          <div className="bg-slate-900 border border-slate-700 rounded-3xl shadow-2xl max-w-2xl w-full p-6 my-8">
+            <div className="flex items-center justify-between border-b border-slate-800 pb-4 mb-5">
+              <div className="flex items-center gap-3">
+                <div className="w-12 h-12 rounded-2xl bg-teal-500/20 flex items-center justify-center text-teal-400 border border-teal-500/30">
+                  <Truck size={24} />
+                </div>
+                <div>
+                  <h2 className="text-white font-black text-xl">Confirm & Dispatch Order</h2>
+                  <p className="text-slate-400 text-xs">Enter the sale price per sqft for each thickness to calculate revenue and deduct inventory.</p>
+                </div>
+              </div>
+              <button
+                onClick={() => setConfirmingLoad(null)}
+                className="p-2 text-slate-400 hover:text-white rounded-xl hover:bg-slate-800 transition"
+              >
+                <X size={20} />
+              </button>
+            </div>
+
+            {/* Order Details Header */}
+            <div className="bg-slate-950 border border-slate-800 rounded-2xl p-4 mb-5 flex flex-wrap items-center justify-between gap-4">
+              <div>
+                <p className="text-[10px] text-slate-500 font-bold uppercase tracking-wider">Customer</p>
+                <p className="text-white font-bold text-sm">{confirmingLoad.order?.customer?.name || "Private Dispatch"}</p>
+              </div>
+              <div>
+                <p className="text-[10px] text-slate-500 font-bold uppercase tracking-wider">Order Number</p>
+                <p className="text-teal-400 font-bold text-sm">{confirmingLoad.order?.orderNumber}</p>
+              </div>
+              <div>
+                <p className="text-[10px] text-slate-500 font-bold uppercase tracking-wider">Load ID</p>
+                <p className="text-slate-300 font-bold text-sm">{confirmingLoad.loadNumber}</p>
+              </div>
+            </div>
+
+            {/* Items Listing */}
+            <div className="mb-5">
+              <h3 className="text-slate-300 font-bold text-xs uppercase tracking-wider mb-2 flex items-center gap-1.5">
+                <Package size={14} className="text-teal-400" /> Dispatch Order Items
+              </h3>
+              <div className="bg-slate-950 border border-slate-800 rounded-xl overflow-hidden text-xs">
+                <table className="w-full text-left">
+                  <thead className="bg-slate-800/80 text-slate-400">
+                    <tr>
+                      <th className="p-2.5 pl-3">Product</th>
+                      <th className="p-2.5 text-center">Thickness</th>
+                      <th className="p-2.5 text-right">Dispatch Qty</th>
+                      <th className="p-2.5 text-right pr-3">Total Sqft</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-800">
+                    {confirmingLoad.items?.map((item: any, idx: number) => {
+                      const itemSqft = (item.size?.sqft || (item.size?.length * item.size?.width / 929.0304) || 32) * item.quantity;
+                      return (
+                        <tr key={idx} className="bg-slate-950/50">
+                          <td className="p-2.5 pl-3 text-white font-medium">
+                            {item.category?.name} • {item.size?.label}
+                          </td>
+                          <td className="p-2.5 text-center">
+                            <span className="px-2 py-0.5 bg-cyan-500/10 text-cyan-400 font-bold rounded">
+                              {item.thickness?.value}mm
+                            </span>
+                          </td>
+                          <td className="p-2.5 text-right font-bold text-emerald-400">{item.quantity}</td>
+                          <td className="p-2.5 text-right pr-3 text-slate-400">{itemSqft.toFixed(1)} sqft</td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+
+            {/* Sale Price per sqft per Thickness */}
+            <div className="mb-6 bg-gradient-to-br from-slate-900 to-slate-950 border border-teal-500/30 rounded-2xl p-5 shadow-lg">
+              <h3 className="text-white font-bold text-sm mb-3 flex items-center gap-2">
+                <IndianRupee size={16} className="text-teal-400" /> Set Sale Price Per Sqft (By Thickness)
+              </h3>
+              
+              {/* Distinct Thickness inputs */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                {Array.from(new Set(confirmingLoad.items?.map((i: any) => String(i.thickness?.value)))).filter(Boolean).map((tVal: any) => (
+                  <div key={tVal} className="bg-slate-950 border border-slate-800 rounded-xl p-3">
+                    <label className="text-xs text-slate-400 font-bold block mb-1.5 flex items-center justify-between">
+                      <span>{tVal}mm Plywood</span>
+                      <span className="text-[10px] text-teal-400 font-normal">₹ / sqft</span>
+                    </label>
+                    <div className="relative">
+                      <span className="absolute left-3 top-2.5 text-slate-500 text-sm font-bold">₹</span>
+                      <input
+                        type="number"
+                        step="0.01"
+                        placeholder="e.g. 55.00"
+                        value={thicknessPrices[tVal] || ""}
+                        onChange={(e) => setThicknessPrices({ ...thicknessPrices, [tVal]: e.target.value })}
+                        className="w-full bg-slate-900 border border-slate-700 rounded-lg pl-8 pr-3 py-2 text-white font-bold outline-none focus:border-teal-400 transition"
+                      />
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              {/* Total Estimated Revenue Calculation */}
+              <div className="mt-4 pt-4 border-t border-slate-800/80 flex items-center justify-between">
+                <div>
+                  <p className="text-slate-400 text-xs">Total Estimated Revenue</p>
+                  <p className="text-[10px] text-slate-500">Calculated across all items in this dispatch</p>
+                </div>
+                <div className="text-right">
+                  <p className="text-2xl font-black text-emerald-400">
+                    ₹{confirmingLoad.items?.reduce((acc: number, item: any) => {
+                      const tVal = String(item.thickness?.value || "");
+                      const price = parseFloat(thicknessPrices[tVal]) || 0;
+                      const itemSqft = (item.size?.sqft || (item.size?.length * item.size?.width / 929.0304) || 32) * item.quantity;
+                      return acc + (itemSqft * price);
+                    }, 0).toLocaleString()}
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            {/* Modal Actions */}
+            <div className="flex gap-3">
+              <button
+                onClick={() => setConfirmingLoad(null)}
+                className="flex-1 py-3 bg-slate-800 hover:bg-slate-700 text-slate-300 font-bold rounded-xl transition"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleFinalDispatch}
+                disabled={actionLoading === confirmingLoad.id}
+                className="flex-2 py-3 px-6 bg-gradient-to-r from-teal-600 to-emerald-600 hover:from-teal-500 hover:to-emerald-500 disabled:opacity-50 text-white font-bold rounded-xl shadow-lg shadow-teal-900/30 transition active:scale-[0.98] flex items-center justify-center gap-2"
+              >
+                <Truck size={18} /> {actionLoading === confirmingLoad.id ? "Processing..." : "Confirm & Dispatch Load"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Stock Shortage Modal */}
       {stockShortages && (
@@ -243,6 +413,7 @@ function ManagerDispatchContent() {
                   <tr>
                     <th className="p-2 pl-3">Product</th>
                     <th className="p-2 text-right">Ordered Qty</th>
+                    <th className="p-2 text-right">Sale Price/sqft</th>
                     <th className="p-2 text-right pr-3">Dispatching Qty</th>
                   </tr>
                 </thead>
@@ -259,13 +430,32 @@ function ManagerDispatchContent() {
                       <tr key={idx} className="bg-slate-900/40">
                         <td className="p-2 pl-3 text-white font-medium text-xs sm:text-sm">{item.category?.name} • {item.thickness?.value}mm • {item.size?.label}</td>
                         <td className="p-2 text-right font-bold text-slate-500">{orderedQty || "-"}</td>
+                        <td className="p-2 text-right">
+                          {editingLoadId === load.id ? (
+                            <div className="flex items-center justify-end gap-1">
+                              <span className="text-slate-500 text-xs">₹</span>
+                              <input
+                                type="number"
+                                step="0.01"
+                                placeholder="0.00"
+                                className="w-16 px-2 py-1 bg-slate-950 border border-slate-600 rounded text-cyan-400 font-bold outline-none focus:border-cyan-500 text-right"
+                                value={editData[item.id]?.salePricePerSqft || ""}
+                                onChange={(e) => setEditData({ ...editData, [item.id]: { ...editData[item.id], salePricePerSqft: e.target.value } })}
+                              />
+                            </div>
+                          ) : (
+                            <span className="font-medium text-cyan-400">
+                              {item.salePricePerSqft ? `₹${item.salePricePerSqft}` : "-"}
+                            </span>
+                          )}
+                        </td>
                         <td className="p-2 text-right pr-3">
                           {editingLoadId === load.id ? (
                             <input
                               type="number"
                               className="w-16 px-2 py-1 bg-slate-950 border border-slate-600 rounded text-emerald-400 font-bold outline-none focus:border-emerald-500 text-right"
-                              value={editData[item.id] || item.quantity}
-                              onChange={(e) => setEditData({ ...editData, [item.id]: e.target.value })}
+                              value={editData[item.id]?.quantity || item.quantity}
+                              onChange={(e) => setEditData({ ...editData, [item.id]: { ...editData[item.id], quantity: e.target.value } })}
                             />
                           ) : (
                             <span className={`font-bold ${item.quantity < orderedQty ? "text-amber-400" : "text-emerald-400"}`}>
@@ -284,7 +474,7 @@ function ManagerDispatchContent() {
             )}
           </div>
 
-          <div className="flex flex-col gap-2 min-w-[150px]">
+          <div className="flex flex-col gap-2 min-w-[170px]">
             {editingLoadId === load.id ? (
               <>
                 <button
@@ -304,34 +494,17 @@ function ManagerDispatchContent() {
               </>
             ) : (
               <>
-                {load.status === "SUPERVISOR_SUBMITTED" && (
+                {isPending && (
                   <button
-                    onClick={() => updateStatus(load.id, "MANAGER_CONFIRMED")}
+                    onClick={() => openConfirmModal(load)}
                     disabled={isUpdating}
-                    className="w-full py-2.5 bg-blue-600 hover:bg-blue-500 text-white font-bold rounded-xl shadow-lg disabled:opacity-50 transition"
+                    className="w-full py-2.5 bg-gradient-to-r from-teal-600 to-emerald-600 hover:from-teal-500 hover:to-emerald-500 text-white font-bold rounded-xl shadow-lg disabled:opacity-50 transition flex items-center justify-center gap-1.5"
                   >
-                    {isUpdating ? "..." : "Confirm Load"}
+                    <Truck size={16} /> Confirm & Dispatch
                   </button>
                 )}
-                {load.status === "MANAGER_CONFIRMED" && (
-                  <div className="flex flex-col gap-1.5 mt-2">
-                    <div className="bg-amber-500/10 border border-amber-500/30 p-2 rounded-lg">
-                      <p className="text-[10px] text-amber-500/90 text-center font-bold tracking-tight leading-tight flex flex-col items-center gap-1">
-                        <AlertTriangle size={12} />
-                        Final dispatch will permanently deduct quantities from active stock!
-                      </p>
-                    </div>
-                    <button
-                      onClick={() => updateStatus(load.id, "DISPATCHED")}
-                      disabled={isUpdating}
-                      className="w-full py-2.5 bg-emerald-600 hover:bg-emerald-500 text-white font-bold rounded-xl shadow-lg disabled:opacity-50 transition"
-                    >
-                      {isUpdating ? "..." : "Mark Dispatched"}
-                    </button>
-                  </div>
-                )}
 
-                {(load.status === "SUPERVISOR_SUBMITTED" || load.status === "MANAGER_CONFIRMED") && (
+                {isPending && (
                   <>
                     <button onClick={() => startEdit(load)} disabled={isUpdating} className="w-full py-2 border border-slate-600 text-slate-300 hover:text-white rounded-xl text-sm transition mt-1">
                       ✎ Edit List

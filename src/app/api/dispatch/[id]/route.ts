@@ -50,16 +50,20 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
       return NextResponse.json({ error: "Invalid status" }, { status: 400 });
     }
 
-    // Handle item quantity edits (no status change)
+    // Handle item quantity and sale price edits (no status change)
     if (items && Array.isArray(items)) {
       const updates = items
-        .filter((item: any) => item.id && item.quantity !== undefined)
-        .map((item: any) =>
-          prisma.dispatchLoadItem.update({
+        .filter((item: any) => item.id && (item.quantity !== undefined || item.salePricePerSqft !== undefined))
+        .map((item: any) => {
+          const data: any = {};
+          if (item.quantity !== undefined) data.quantity = parseInt(item.quantity);
+          if (item.salePricePerSqft !== undefined) data.salePricePerSqft = parseFloat(item.salePricePerSqft);
+          
+          return prisma.dispatchLoadItem.update({
             where: { id: item.id },
-            data: { quantity: parseInt(item.quantity) },
-          })
-        );
+            data,
+          });
+        });
       if (updates.length > 0) await prisma.$transaction(updates);
     }
 
