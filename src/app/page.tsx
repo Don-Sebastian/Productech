@@ -5,19 +5,15 @@ import {
   TrendingUp, ShieldCheck,
   ChevronRight, MapPin, Phone, Mail
 } from "lucide-react";
-import { prisma } from "@/lib/prisma";
 import { auth } from "@/lib/auth";
 import EnquiryForm from "@/components/EnquiryForm";
+import { isSystemSetUp } from "@/actions/setup";
 
 export default async function Home() {
   // Server-side check if setup is needed
-  try {
-    const userCount = await prisma.user.count({ take: 1 });
-    if (userCount === 0) {
-      redirect("/signup");
-    }
-  } catch (error) {
-    console.error("Setup check error on home page:", error);
+  const isSetUp = await isSystemSetUp();
+  if (!isSetUp) {
+    redirect("/signup");
   }
 
   // Server-side check if session already exists
