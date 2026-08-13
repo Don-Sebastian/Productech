@@ -108,7 +108,7 @@ export default function NotificationsPage() {
                   key={n.id}
                   onClick={() => {
                     if (!n.isRead) markRead(n.id);
-                    if (n.orderId) router.push(`/supervisor/orders?id=${n.orderId}`);
+                    if (n.orderId) router.push(`/orders?id=${n.orderId}`);
                     else if (n.productionListId) router.push(`/supervisor/production-list?id=${n.productionListId}`);
                   }}
                   className={`bg-slate-800/40 border rounded-2xl p-4 transition-all cursor-pointer active:scale-[0.99] ${

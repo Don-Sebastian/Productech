@@ -215,7 +215,7 @@ function DispatchListContent() {
             {!order && (
               <div className="bg-amber-500/10 border border-amber-500/20 rounded-xl p-3 mb-4 text-amber-300 text-sm">
                 No order selected. Please go to Orders and click &quot;Create Dispatch Load&quot; to link properly. 
-                <button onClick={() => router.push('/supervisor/orders')} className="block mt-2 font-bold underline">Go to Orders &rarr;</button>
+                <button onClick={() => router.push('/orders')} className="block mt-2 font-bold underline">Go to Orders &rarr;</button>
               </div>
             )}
 

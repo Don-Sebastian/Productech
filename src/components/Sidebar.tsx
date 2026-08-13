@@ -58,7 +58,7 @@ const roleConfigs: Record<string, { label: string; color: string; links: { href:
       { href: "/owner/log-history", label: "Log History", icon: History },
       { href: "/owner/inventory", label: "Inventory", icon: Package },
       { href: "/owner/inventory/transfer", label: "Stock Transfer", icon: Truck },
-      { href: "/owner/orders", label: "Order", icon: ShoppingCart },
+      { href: "/orders", label: "Orders", icon: ShoppingCart },
       { href: "/owner/production", label: "Production", icon: Factory },
       { href: "/approvals", label: "Approve Production", icon: ClipboardCheck },
       { href: "/owner/dispatch-history", label: "Dispatch", icon: Truck },
@@ -74,7 +74,7 @@ const roleConfigs: Record<string, { label: string; color: string; links: { href:
     color: "from-blue-600 to-cyan-600",
     links: [
       { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
-      { href: "/manager/orders", label: "Orders", icon: ShoppingCart },
+      { href: "/orders", label: "Orders", icon: ShoppingCart },
       { href: "/manager/production", label: "Production Lists", icon: ListChecks },
       { href: "/approvals", label: "Approve Production", icon: ClipboardCheck },
       { href: "/manager/dispatch", label: "Dispatch", icon: Truck },
@@ -91,7 +91,7 @@ const roleConfigs: Record<string, { label: string; color: string; links: { href:
     color: "from-amber-600 to-orange-600",
     links: [
       { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
-      { href: "/supervisor/orders", label: "Orders", icon: ShoppingCart },
+      { href: "/orders", label: "Orders", icon: ShoppingCart },
       { href: "/approvals", label: "Approve Production", icon: ClipboardCheck },
       { href: "/supervisor/production-list", label: "Production List", icon: ListChecks },
       { href: "/supervisor/log-history", label: "Log History", icon: History },
