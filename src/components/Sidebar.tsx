@@ -44,16 +44,16 @@ const roleConfigs: Record<string, { label: string; color: string; links: { href:
     label: "Platform Admin",
     color: "from-violet-600 to-indigo-600",
     links: [
-      { href: "/admin", label: "Dashboard", icon: LayoutDashboard },
-      { href: "/admin/companies", label: "Companies", icon: Building2 },
-      { href: "/admin/account", label: "My Account", icon: KeyRound },
+      { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
+      { href: "/companies", label: "Companies", icon: Building2 },
+      { href: "/account", label: "My Account", icon: KeyRound },
     ],
   },
   OWNER: {
     label: "Company Owner",
     color: "from-emerald-600 to-teal-600",
     links: [
-      { href: "/owner", label: "Dashboard", icon: LayoutDashboard },
+      { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
       { href: "/owner/overall-stats", label: "Overall Stats", icon: Gauge },
       { href: "/owner/log-history", label: "Log History", icon: History },
       { href: "/owner/inventory", label: "Inventory", icon: Package },
@@ -65,14 +65,14 @@ const roleConfigs: Record<string, { label: string; color: string; links: { href:
       { href: "/owner/employees", label: "Employees", icon: Users },
       { href: "/owner/attendance", label: "Attendance View", icon: UserCheck },
       { href: "/owner/expenses", label: "Salary Expenses", icon: Banknote },
-      { href: "/owner/account", label: "My Account", icon: KeyRound },
+      { href: "/account", label: "My Account", icon: KeyRound },
     ],
   },
   MANAGER: {
     label: "Manager",
     color: "from-blue-600 to-cyan-600",
     links: [
-      { href: "/manager", label: "Dashboard", icon: LayoutDashboard },
+      { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
       { href: "/manager/orders", label: "Orders", icon: ShoppingCart },
       { href: "/manager/production", label: "Production Lists", icon: ListChecks },
       { href: "/manager/approvals", label: "Approve Production", icon: ClipboardCheck },
@@ -82,14 +82,14 @@ const roleConfigs: Record<string, { label: string; color: string; links: { href:
       { href: "/manager/attendance", label: "Attendance Approvals", icon: UserCheck },
       { href: "/manager/employees", label: "Employee Log", icon: Users },
       { href: "/manager/settings", label: "Settings", icon: Settings },
-      { href: "/manager/account", label: "My Account", icon: KeyRound },
+      { href: "/account", label: "My Account", icon: KeyRound },
     ],
   },
   SUPERVISOR: {
     label: "Supervisor",
     color: "from-amber-600 to-orange-600",
     links: [
-      { href: "/supervisor", label: "Dashboard", icon: LayoutDashboard },
+      { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
       { href: "/supervisor/orders", label: "Orders", icon: ShoppingCart },
       { href: "/supervisor/approvals", label: "Approve Production", icon: ClipboardCheck },
       { href: "/supervisor/production-list", label: "Production List", icon: ListChecks },
@@ -97,14 +97,14 @@ const roleConfigs: Record<string, { label: string; color: string; links: { href:
       { href: "/supervisor/dispatch", label: "Dispatch", icon: Truck },
       { href: "/supervisor/attendance", label: "Mark Attendance", icon: UserCheck },
       { href: "/supervisor/employees", label: "My Workers", icon: Users },
-      { href: "/supervisor/account", label: "My Account", icon: KeyRound },
+      { href: "/account", label: "My Account", icon: KeyRound },
     ],
   },
   OPERATOR: {
     label: "Operator",
     color: "from-rose-600 to-pink-600",
     links: [
-      // { href: "/operator", label: "Dashboard", icon: LayoutDashboard },
+      // { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
       // { href: "/operator/log", label: "Machine Log", icon: Gauge },
       // { href: "/operator/history", label: "Log History", icon: History },
       // { href: "/operator/account", label: "My Account", icon: KeyRound },
@@ -117,19 +117,19 @@ const sectionNavLinks: Record<string, { href: string; label: string; icon: any }
     { href: "/operator/hotpress/log", label: "Machine Log", icon: Gauge },
     { href: "/operator/hotpress/production", label: "Production List", icon: ClipboardList },
     { href: "/operator/hotpress/history", label: "Log History", icon: History },
-    { href: "/operator/account", label: "My Account", icon: KeyRound },
+    { href: "/account", label: "My Account", icon: KeyRound },
   ],
   peeling: [
     { href: "/operator/peeling/log", label: "Dashboard", icon: LayoutDashboard },
-    { href: "/operator/account", label: "My Account", icon: KeyRound },
+    { href: "/account", label: "My Account", icon: KeyRound },
   ],
   dryer: [
     { href: "/operator/dryer/log", label: "Dashboard", icon: LayoutDashboard },
-    { href: "/operator/account", label: "My Account", icon: KeyRound },
+    { href: "/account", label: "My Account", icon: KeyRound },
   ],
   finishing: [
     { href: "/operator/finishing/log", label: "Dashboard", icon: LayoutDashboard },
-    { href: "/operator/account", label: "My Account", icon: KeyRound },
+    { href: "/account", label: "My Account", icon: KeyRound },
   ],
 };
 
@@ -244,11 +244,10 @@ export default function Sidebar({ user }: SidebarProps) {
                   });
                 }
               }}
-              className={`flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all duration-200 group ${
-                isActive
-                  ? `bg-gradient-to-r ${config.color} text-white shadow-lg`
-                  : "text-slate-400 hover:text-white hover:bg-slate-800/50"
-              }`}
+              className={`flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all duration-200 group ${isActive
+                ? `bg-gradient-to-r ${config.color} text-white shadow-lg`
+                : "text-slate-400 hover:text-white hover:bg-slate-800/50"
+                }`}
             >
               <Icon size={18} className={isActive ? "text-white" : "text-slate-500 group-hover:text-slate-300"} />
               <span className="flex-1">{link.label}</span>
@@ -271,11 +270,10 @@ export default function Sidebar({ user }: SidebarProps) {
           <Link
             href={notifPath}
             onClick={() => setMobileOpen(false)}
-            className={`flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all duration-200 group ${
-              pathname === notifPath
-                ? `bg-gradient-to-r ${config.color} text-white shadow-lg`
-                : "text-slate-400 hover:text-white hover:bg-slate-800/50"
-            }`}
+            className={`flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all duration-200 group ${pathname === notifPath
+              ? `bg-gradient-to-r ${config.color} text-white shadow-lg`
+              : "text-slate-400 hover:text-white hover:bg-slate-800/50"
+              }`}
           >
             <Bell size={18} className={pathname === notifPath ? "text-white" : "text-slate-500 group-hover:text-slate-300"} />
             <span className="flex-1">Notifications</span>
@@ -319,9 +317,8 @@ export default function Sidebar({ user }: SidebarProps) {
       )}
 
       {/* Sidebar */}
-      <aside className={`fixed left-0 top-0 h-screen w-64 bg-slate-900 border-r border-slate-800 flex flex-col z-50 transition-transform duration-300 ${
-        mobileOpen ? "translate-x-0" : "-translate-x-full md:translate-x-0"
-      }`}>
+      <aside className={`fixed left-0 top-0 h-screen w-64 bg-slate-900 border-r border-slate-800 flex flex-col z-50 transition-transform duration-300 ${mobileOpen ? "translate-x-0" : "-translate-x-full md:translate-x-0"
+        }`}>
         {sidebarContent}
       </aside>
     </>

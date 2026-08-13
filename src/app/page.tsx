@@ -29,15 +29,7 @@ export default function Home() {
         if (status === "loading") return;
 
         if (session?.user) {
-          const role = (session.user as any).role;
-          const paths: Record<string, string> = {
-            ADMIN: "/admin",
-            OWNER: "/owner",
-            MANAGER: "/manager",
-            SUPERVISOR: "/supervisor",
-            OPERATOR: "/operator",
-          };
-          router.replace(paths[role] || "/login");
+          router.replace("/dashboard");
         } else {
           setChecking(false);
         }

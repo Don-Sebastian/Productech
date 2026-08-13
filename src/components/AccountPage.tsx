@@ -2,8 +2,6 @@
 
 import { useState } from "react";
 import { useSession, signOut } from "next-auth/react";
-import { useRouter } from "next/navigation";
-import { useEffect } from "react";
 import Sidebar from "@/components/Sidebar";
 import {
   KeyRound,
@@ -24,7 +22,6 @@ interface AccountPageProps {
 
 export default function AccountPage({ allowedRole }: AccountPageProps) {
   const { data: session, status } = useSession();
-  const router = useRouter();
 
   const [currentPassword, setCurrentPassword] = useState("");
   const [newPassword, setNewPassword] = useState("");
@@ -34,15 +31,6 @@ export default function AccountPage({ allowedRole }: AccountPageProps) {
   const [loading, setLoading] = useState(false);
   const [success, setSuccess] = useState("");
   const [error, setError] = useState("");
-
-  useEffect(() => {
-    if (status === "unauthenticated") router.push("/login");
-    if (
-      status === "authenticated" &&
-      (session?.user as any)?.role !== allowedRole
-    )
-      router.push("/");
-  }, [status, session, router, allowedRole]);
 
   const handleChangePassword = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -253,11 +241,10 @@ export default function AccountPage({ allowedRole }: AccountPageProps) {
                     type="password"
                     value={confirmPassword}
                     onChange={(e) => setConfirmPassword(e.target.value)}
-                    className={`w-full px-4 py-3 bg-slate-900/50 border rounded-xl text-white outline-none focus:ring-2 focus:ring-blue-500/50 ${
-                      confirmPassword && confirmPassword !== newPassword
-                        ? "border-red-500/50"
-                        : "border-slate-600"
-                    }`}
+                    className={`w-full px-4 py-3 bg-slate-900/50 border rounded-xl text-white outline-none focus:ring-2 focus:ring-blue-500/50 ${confirmPassword && confirmPassword !== newPassword
+                      ? "border-red-500/50"
+                      : "border-slate-600"
+                      }`}
                     placeholder="Re-enter new password"
                     required
                     minLength={6}
@@ -300,8 +287,8 @@ export default function AccountPage({ allowedRole }: AccountPageProps) {
                   {role === "MANAGER"
                     ? "Owner"
                     : role === "OWNER"
-                    ? "Admin"
-                    : "administrator"}{" "}
+                      ? "Admin"
+                      : "administrator"}{" "}
                   to reset it for you.
                 </p>
               </div>

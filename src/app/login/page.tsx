@@ -38,11 +38,11 @@ export default function Login() {
 
   function redirectByRole(role: string) {
     const paths: Record<string, string> = {
-      ADMIN: "/admin",
-      OWNER: "/owner",
-      MANAGER: "/manager",
-      SUPERVISOR: "/supervisor",
-      OPERATOR: "/operator",
+      ADMIN: "/dashboard",
+      OWNER: "/dashboard",
+      MANAGER: "/dashboard",
+      SUPERVISOR: "/dashboard",
+      OPERATOR: "/dashboard",
     };
     router.push(paths[role] || "/login");
   }

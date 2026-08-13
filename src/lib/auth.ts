@@ -112,15 +112,15 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
 export function getDashboardPath(role: string): string {
   switch (role) {
     case "ADMIN":
-      return "/admin";
+      return "/dashboard";
     case "OWNER":
-      return "/owner";
+      return "/dashboard";
     case "MANAGER":
-      return "/manager";
+      return "/dashboard";
     case "SUPERVISOR":
-      return "/supervisor";
+      return "/dashboard";
     case "OPERATOR":
-      return "/operator";
+      return "/dashboard";
     default:
       return "/login";
   }
