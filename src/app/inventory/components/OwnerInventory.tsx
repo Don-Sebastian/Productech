@@ -1,8 +1,7 @@
 "use client";
 
 import { useSession } from "next-auth/react";
-import { useRouter } from "next/navigation";
-import { useEffect, useState, useMemo } from "react";
+import { useState, useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
 import Sidebar from "@/components/Sidebar";
 import { Package, ChevronDown, ChevronUp, AlertTriangle, Droplets } from "lucide-react";
@@ -20,14 +19,8 @@ interface Product {
 
 export default function OwnerInventory() {
   const { data: session, status } = useSession();
-  const router = useRouter();
   const [filter, setFilter] = useState("All");
   const [expandedCats, setExpandedCats] = useState<Set<string>>(new Set());
-
-  useEffect(() => {
-    if (status === "unauthenticated") router.push("/login");
-    if (status === "authenticated" && (session?.user as any)?.role !== "OWNER") router.push("/");
-  }, [status, session, router]);
 
   const { data: apiData, isLoading: loading } = useQuery({
     queryKey: ["owner-inventory"],

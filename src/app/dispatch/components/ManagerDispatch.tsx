@@ -187,7 +187,7 @@ function ManagerDispatchContent() {
 
             <div className="flex gap-2">
               <button
-                onClick={() => { setStockShortages(null); router.push("/manager/inventory"); }}
+                onClick={() => { setStockShortages(null); router.push("/inventory"); }}
                 className="flex-1 py-3 bg-red-600 hover:bg-red-500 text-white font-bold rounded-xl shadow-lg transition active:scale-[0.97]"
               >
                 Go to Inventory

@@ -2,7 +2,7 @@
 
 import { useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
-import { useEffect, useState, useMemo } from "react";
+import { useState, useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
 import Sidebar from "@/components/Sidebar";
 import { Package, ChevronDown, ChevronUp, Pencil, Check, X, AlertTriangle } from "lucide-react";
@@ -25,11 +25,6 @@ export default function ManagerInventory() {
   const [expandedCats, setExpandedCats] = useState<Set<string>>(new Set());
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editValue, setEditValue] = useState("");
-
-  useEffect(() => {
-    if (status === "unauthenticated") router.push("/login");
-    if (status === "authenticated" && (session?.user as any)?.role !== "MANAGER") router.push("/");
-  }, [status, session, router]);
 
   const { data: apiData, isLoading: loading, refetch: fetchProducts } = useQuery({
     queryKey: ["manager-inventory"],
@@ -93,7 +88,6 @@ export default function ManagerInventory() {
   const totalStock = products.reduce((s, p) => s + p.currentStock, 0);
   const totalSqft = products.reduce((s, p) => s + (p.currentStock * (p.size?.sqft || 0)), 0);
   const totalCost = products.reduce((s, p) => s + (p.currentStock * (p.size?.sqft || 0) * (p.thickness?.ratePerSqft || 0)), 0);
-  const lowStockCount = products.filter((p) => p.currentStock < 50).length;
 
   if (status === "loading" || !session?.user) {
     return <div className="flex items-center justify-center h-screen bg-slate-950"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-400" /></div>;
@@ -165,7 +159,7 @@ export default function ManagerInventory() {
                   <div className="max-h-[60vh] overflow-x-auto flex gap-10 px-2 pb-3 md:px-4 md:pb-4">
                     {Object.entries(groupByThickness(items)).map(([thickLabel, sizeItems]) => (
                       <div key={thickLabel} className="mb-3 last:mb-0">
-                        <p className="text-blue-300 font-bold text-xs md:text-xl mb-3 px-1 sticky top-0  py-1 z-10 backdrop-blur-sm">{thickLabel}</p>
+                        <p className="text-blue-300 font-bold text-xs md:text-xl mb-3 px-1 sticky top-0 py-1 z-10 backdrop-blur-sm">{thickLabel}</p>
                         
                         {/* Mobile: Card layout */}
                         <div className="md:hidden space-y-1.5">
