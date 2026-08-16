@@ -221,7 +221,7 @@ export default function OwnerDashboard({ user }: { user: any }) {
                         </div>
 
                         <button
-                            onClick={() => router.push("/owner/managers")}
+                            onClick={() => router.push("/managers")}
                             className="mt-6 w-full py-2.5 bg-gradient-to-r from-emerald-600 to-teal-600 text-white font-medium rounded-xl shadow-lg hover:shadow-xl transition-all text-sm"
                         >
                             Manage Team

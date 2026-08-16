@@ -54,7 +54,7 @@ const roleConfigs: Record<string, { label: string; color: string; links: { href:
     color: "from-emerald-600 to-teal-600",
     links: [
       { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
-      { href: "/owner/overall-stats", label: "Overall Stats", icon: Gauge },
+      { href: "/overall-stats", label: "Overall Stats", icon: Gauge },
       { href: "/log-history", label: "Log History", icon: History },
       { href: "/inventory", label: "Inventory", icon: Package },
       { href: "/inventory/transfer", label: "Stock Transfer", icon: Truck },
@@ -62,10 +62,10 @@ const roleConfigs: Record<string, { label: string; color: string; links: { href:
       { href: "/production", label: "Production", icon: Factory },
       { href: "/approvals", label: "Approve Production", icon: ClipboardCheck },
       { href: "/dispatch", label: "Dispatch", icon: Truck },
-      { href: "/owner/managers", label: "Managers", icon: Users },
+      { href: "/managers", label: "Managers", icon: Users },
       { href: "/employees", label: "Employees", icon: Users },
       { href: "/attendance", label: "Attendance View", icon: UserCheck },
-      { href: "/owner/expenses", label: "Salary Expenses", icon: Banknote },
+      { href: "/expenses", label: "Salary Expenses", icon: Banknote },
       { href: "/settings", label: "Settings", icon: Settings },
       { href: "/account", label: "My Account", icon: KeyRound },
     ],
@@ -198,7 +198,7 @@ export default function Sidebar({ user }: SidebarProps) {
               value={(session.user as any).companyId || ""}
               onChange={async (e) => {
                 await update({ companyId: e.target.value });
-                window.location.href = "/owner"; // Navigate and hard reload to clear cache
+                window.location.href = "/dashboard"; // Navigate and hard reload to clear cache
               }}
               className="w-full bg-slate-900 border border-slate-700 text-slate-300 text-xs rounded-lg px-2 py-2 focus:outline-none focus:ring-1 focus:ring-violet-500"
             >

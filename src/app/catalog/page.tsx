@@ -2,12 +2,12 @@
 
 import { useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
-import { useEffect, useState, useMemo } from "react";
+import { useEffect, useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
 import Sidebar from "@/components/Sidebar";
 import { Package, Layers, Info } from "lucide-react";
 
-export default function OwnerCatalogPage() {
+export default function CatalogPage() {
   const { data: session, status } = useSession();
   const router = useRouter();
 
@@ -31,8 +31,12 @@ export default function OwnerCatalogPage() {
   const catalog = useMemo(() => pageData?.catalog || { categories: [], thicknesses: [], sizes: [] }, [pageData]);
   const products = useMemo(() => Array.isArray(pageData?.products) ? pageData.products : [], [pageData]);
 
-  if (status === "loading" || !session?.user) {
-    return <div className="flex items-center justify-center h-screen bg-slate-950"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-emerald-400" /></div>;
+  if (status === "loading" || !session?.user || (session?.user as any)?.role !== "OWNER") {
+    return (
+      <div className="flex items-center justify-center h-screen bg-slate-950">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-emerald-400" />
+      </div>
+    );
   }
 
   const activeProducts = products.filter(p => p.isActive);

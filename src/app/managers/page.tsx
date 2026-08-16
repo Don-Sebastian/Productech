@@ -7,7 +7,7 @@ import { useQuery } from "@tanstack/react-query";
 import Sidebar from "@/components/Sidebar";
 import UserManagement from "@/components/UserManagement";
 
-export default function OwnerManagers() {
+export default function ManagersPage() {
   const { data: session, status } = useSession();
   const router = useRouter();
 
@@ -28,7 +28,7 @@ export default function OwnerManagers() {
 
   const users = useMemo(() => Array.isArray(usersData) ? usersData : [], [usersData]);
 
-  if (status === "loading" || !session?.user) {
+  if (status === "loading" || !session?.user || (session?.user as any)?.role !== "OWNER") {
     return (
       <div className="flex items-center justify-center h-screen bg-slate-950">
         <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-emerald-400"></div>

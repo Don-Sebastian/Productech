@@ -3,22 +3,16 @@
 import { useState, useEffect, useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useSession } from "next-auth/react";
+import { useRouter } from "next/navigation";
 import Sidebar from "@/components/Sidebar";
 import { 
   Banknote, 
   Calendar, 
-  TrendingUp, 
-  PieChart, 
   ArrowUpRight,
   ArrowDownRight,
-  UserCheck,
   Users,
-  Clock,
   ChevronDown,
-  ChevronUp,
-  Search,
-  Loader2,
-  Filter
+  Loader2
 } from "lucide-react";
 import { format, startOfMonth, endOfMonth, startOfWeek, endOfWeek, subMonths, subWeeks } from "date-fns";
 
@@ -49,11 +43,17 @@ interface AttendanceRegister {
 
 export default function SalaryExpensesDashboard() {
   const { data: session, status } = useSession();
+  const router = useRouter();
   const [viewMode, setViewMode] = useState<"monthly" | "weekly">("monthly");
   const [month, setMonth] = useState(format(new Date(), "yyyy-MM"));
   const [weekStart, setWeekStart] = useState(format(startOfWeek(new Date(), { weekStartsOn: 1 }), "yyyy-MM-dd"));
   const [expandedSection, setExpandedSection] = useState<string | null>("employees");
   const [filterMachine, setFilterMachine] = useState("all");
+
+  useEffect(() => {
+    if (status === "unauthenticated") router.push("/login");
+    if (status === "authenticated" && (session?.user as any)?.role !== "OWNER") router.push("/");
+  }, [status, session, router]);
 
   const { data: apiData, isLoading: loading } = useQuery({
     queryKey: ["owner-expenses", viewMode, month, weekStart],
@@ -162,9 +162,17 @@ export default function SalaryExpensesDashboard() {
 
   const machineNames = [...new Set(registers.flatMap(r => r.shift.machine?.name || "General"))];
 
+  if (status === "loading" || !session?.user || (session?.user as any)?.role !== "OWNER") {
+    return (
+      <div className="flex items-center justify-center h-screen bg-slate-950">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-emerald-400" />
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-slate-950 flex">
-      {session?.user && <Sidebar user={session.user} />}
+      <Sidebar user={session.user} />
 
       <main className="flex-1 ml-0 md:ml-64 p-4 md:p-8">
         <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-10 gap-6">
