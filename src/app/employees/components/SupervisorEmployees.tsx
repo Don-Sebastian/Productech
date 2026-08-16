@@ -16,7 +16,6 @@ import {
   Trash2,
   Edit3,
   Search,
-  Filter,
   Loader2,
   Link2,
   GripVertical
@@ -139,7 +138,6 @@ export default function SupervisorEmployees() {
   const [editingEmployee, setEditingEmployee] = useState<Employee | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
   const [filterMachine, setFilterMachine] = useState("all");
-  const [filterSubDept, setFilterSubDept] = useState("all");
   const [saving, setSaving] = useState(false);
   const [showSuccess, setShowSuccess] = useState("");
   
@@ -274,8 +272,7 @@ export default function SupervisorEmployees() {
   const filteredEmployees = employees.filter((emp: any) => {
     const matchesSearch = !searchQuery || emp.name.toLowerCase().includes(searchQuery.toLowerCase()) || emp.phone?.includes(searchQuery);
     const matchesMachine = filterMachine === "all" || emp.machineId === filterMachine;
-    const matchesSubDept = filterSubDept === "all" || emp.subDepartmentId === filterSubDept;
-    return matchesSearch && matchesMachine && matchesSubDept;
+    return matchesSearch && matchesMachine;
   });
 
   const handleDragStart = (event: any) => {
@@ -412,7 +409,6 @@ export default function SupervisorEmployees() {
             <div className="flex overflow-x-auto snap-x gap-6 pb-8 hide-scrollbar">
               {columns.map(col => {
                 const colEmployees = filteredEmployees.filter((emp: any) => col.id === "unassigned" ? !emp.subDepartmentId : emp.subDepartmentId === col.id);
-                // hide column if empty and unassigned, to avoid clutter? No, keep it always
                 return (
                   <DroppableColumn key={col.id} id={col.id} title={col.title} count={colEmployees.length}>
                     {colEmployees.map(emp => (

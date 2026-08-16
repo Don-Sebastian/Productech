@@ -1,23 +1,20 @@
 "use client";
 
-import { useState, useEffect, useMemo } from "react";
+import { useState, useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
+import { useSession } from "next-auth/react";
 import { 
   Users, 
   Search, 
-  Filter, 
   Edit3, 
   History, 
   Phone, 
-  Camera,
-  Banknote,
-  Check,
-  X,
-  CreditCard,
-  Building,
-  TrendingUp,
-  ShieldCheck,
-  UserCheck
+  Banknote, 
+  X, 
+  CreditCard, 
+  Building, 
+  TrendingUp, 
+  ShieldCheck 
 } from "lucide-react";
 import { format } from "date-fns";
 
@@ -46,7 +43,8 @@ interface Employee {
   wageLogs: WageLog[];
 }
 
-export default function OwnerEmployeeManagement() {
+export default function OwnerEmployees() {
+  const { data: session, status } = useSession();
   const [searchQuery, setSearchQuery] = useState("");
   const [filterMachine, setFilterMachine] = useState("all");
   
@@ -77,6 +75,7 @@ export default function OwnerEmployeeManagement() {
         machines: await machRes.json(),
       };
     },
+    enabled: status === "authenticated",
   });
 
   const employees: Employee[] = useMemo(() => Array.isArray(pageData?.employees) ? pageData.employees : [], [pageData]);
@@ -109,6 +108,14 @@ export default function OwnerEmployeeManagement() {
     const matchesMachine = filterMachine === "all" || emp.machineId === filterMachine;
     return matchesSearch && matchesMachine;
   });
+
+  if (status === "loading" || !session?.user) {
+    return (
+      <div className="flex flex-col items-center justify-center py-20">
+        <div className="w-16 h-16 border-4 border-emerald-600 border-t-transparent rounded-full animate-spin"></div>
+      </div>
+    );
+  }
 
   return (
     <div className="p-6 max-w-7xl mx-auto">
@@ -155,7 +162,7 @@ export default function OwnerEmployeeManagement() {
           className="px-6 py-4 bg-white border-2 border-gray-50 rounded-2xl text-lg font-bold text-gray-700 focus:border-emerald-500 focus:ring-0 transition-all shadow-sm"
         >
           <option value="all">All Machines</option>
-          {machines.map(m => <option key={m.id} value={m.id}>{m.name}</option>)}
+          {machines.map((m: any) => <option key={m.id} value={m.id}>{m.name}</option>)}
         </select>
       </div>
 
@@ -177,7 +184,7 @@ export default function OwnerEmployeeManagement() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-50">
-                {filteredEmployees.map(emp => (
+                {filteredEmployees.map((emp: any) => (
                   <tr key={emp.id} className="hover:bg-emerald-50/30 transition-all group">
                     <td className="px-8 py-6">
                       <div className="flex items-center gap-4">
@@ -249,6 +256,7 @@ export default function OwnerEmployeeManagement() {
                     <td className="px-8 py-6 text-right">
                       <div className="flex justify-end gap-2 opacity-0 group-hover:opacity-100 transition-all">
                         <button 
+                          type="button"
                           onClick={() => {
                             setHistoryEmployee(emp);
                             setIsHistoryOpen(true);
@@ -259,6 +267,7 @@ export default function OwnerEmployeeManagement() {
                           <History className="w-5 h-5" />
                         </button>
                         <button 
+                          type="button"
                           onClick={() => {
                             setEditingEmployee(emp);
                             setFormData({
@@ -301,7 +310,7 @@ export default function OwnerEmployeeManagement() {
                   <p className="text-emerald-600/70 font-bold text-sm mt-1 uppercase tracking-widest">{editingEmployee.name}</p>
                 </div>
               </div>
-              <button onClick={() => setIsModalOpen(false)} className="w-12 h-12 bg-white rounded-2xl flex items-center justify-center text-gray-400 hover:text-rose-500 transition-colors shadow-sm">
+              <button type="button" onClick={() => setIsModalOpen(false)} className="w-12 h-12 bg-white rounded-2xl flex items-center justify-center text-gray-400 hover:text-rose-500 transition-colors shadow-sm">
                 <X className="w-6 h-6" />
               </button>
             </div>
@@ -364,7 +373,7 @@ export default function OwnerEmployeeManagement() {
                   <p className="text-xs font-bold text-gray-400 uppercase tracking-widest mt-1">Wage History: {historyEmployee.name}</p>
                 </div>
               </div>
-              <button onClick={() => setIsHistoryOpen(false)} className="w-12 h-12 bg-white rounded-2xl flex items-center justify-center text-gray-400 border border-gray-100">
+              <button type="button" onClick={() => setIsHistoryOpen(false)} className="w-12 h-12 bg-white rounded-2xl flex items-center justify-center text-gray-400 border border-gray-100">
                 <X className="w-6 h-6" />
               </button>
             </div>
