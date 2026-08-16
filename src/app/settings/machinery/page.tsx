@@ -59,7 +59,8 @@ export default function MachinerySettings() {
 
   useEffect(() => {
     if (status === "unauthenticated") router.push("/login");
-    if (status === "authenticated" && !["MANAGER", "OWNER"].includes((session?.user as any)?.role)) router.push("/");
+    const allowedRoles = ["MANAGER", "OWNER", "ADMIN"];
+    if (status === "authenticated" && !allowedRoles.includes((session?.user as any)?.role)) router.push("/");
   }, [status, session, router]);
 
   const { data: pageData, isLoading: loading, refetch: fetchAll } = useQuery({

@@ -17,7 +17,8 @@ export default function PeelingCatalogPage() {
 
   useEffect(() => {
     if (status === "unauthenticated") router.push("/login");
-    if (status === "authenticated" && (session?.user as any)?.role !== "MANAGER") router.push("/");
+    const allowedRoles = ["MANAGER", "OWNER", "ADMIN"];
+    if (status === "authenticated" && !allowedRoles.includes((session?.user as any)?.role)) router.push("/");
   }, [status, session, router]);
 
   const { data: apiData, isLoading: loading, refetch: fetchData } = useQuery({

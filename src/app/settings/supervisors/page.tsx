@@ -7,20 +7,21 @@ import { useQuery } from "@tanstack/react-query";
 import Sidebar from "@/components/Sidebar";
 import UserManagement from "@/components/UserManagement";
 
-export default function ManagerOperators() {
+export default function ManagerSupervisors() {
   const { data: session, status } = useSession();
   const router = useRouter();
 
   useEffect(() => {
     if (status === "unauthenticated") router.push("/login");
-    if (status === "authenticated" && (session?.user as any)?.role !== "MANAGER") router.push("/");
+    const allowedRoles = ["MANAGER", "OWNER", "ADMIN"];
+    if (status === "authenticated" && !allowedRoles.includes((session?.user as any)?.role)) router.push("/");
   }, [status, session, router]);
 
   const { data: apiData, isLoading: loadingUsers, refetch: fetchUsers } = useQuery({
-    queryKey: ["users-operators"],
+    queryKey: ["users-supervisors"],
     queryFn: async () => {
       const [usersRes, sectionsRes] = await Promise.all([
-        fetch("/api/users?role=OPERATOR"),
+        fetch("/api/users?role=SUPERVISOR"),
         fetch("/api/sections"),
       ]);
       if (!usersRes.ok || !sectionsRes.ok) throw new Error("Failed to fetch data");
@@ -46,11 +47,11 @@ export default function ManagerOperators() {
   return (
     <div className="h-full flex flex-col">
       <UserManagement
-        targetRole="OPERATOR"
-        title="Operators"
-        description="Create and manage operators who run machines in different sections."
+        targetRole="SUPERVISOR"
+        title="Supervisors"
+        description="Create and manage supervisors for different sections. Each supervisor manages production in their assigned section."
         showSection={true}
-        accentColor="emerald"
+        accentColor="amber"
         users={users}
         sections={sections}
         loading={loadingUsers}

@@ -42,7 +42,8 @@ export default function ManagerCatalog() {
 
   useEffect(() => {
     if (status === "unauthenticated") router.push("/login");
-    if (status === "authenticated" && (session?.user as any)?.role !== "MANAGER") router.push("/");
+    const allowedRoles = ["MANAGER", "OWNER", "ADMIN"];
+    if (status === "authenticated" && !allowedRoles.includes((session?.user as any)?.role)) router.push("/");
   }, [status, session, router]);
 
   const { data: pageData, isLoading: loading, refetch: fetchData } = useQuery({
@@ -243,7 +244,7 @@ export default function ManagerCatalog() {
             <button key={t.key} onClick={() => { 
                 setMgmtTab(t.key); 
                 setShowAdd(false);
-                router.replace(`/manager/settings/catalog?tab=${t.key}`, { scroll: false });
+                router.replace(`/settings/catalog?tab=${t.key}`, { scroll: false });
               }}
               className={`py-3 rounded-xl font-semibold text-sm transition ${
                 mgmtTab === t.key

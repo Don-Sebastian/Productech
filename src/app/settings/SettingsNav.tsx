@@ -8,17 +8,17 @@ export default function SettingsNav() {
   const pathname = usePathname();
 
   const tabs = [
-    { href: "/manager/settings/catalog", label: "Product Catalog", icon: Layers },
-    { href: "/manager/settings/peeling-catalog", label: "Peeling Catalog", icon: TreePine },
-    { href: "/manager/settings/production", label: "Hot Press", icon: Flame },
-    { href: "/manager/settings/glue-stock", label: "Glue Stock", icon: Droplets },
-    { href: "/manager/settings/machinery", label: "Departments", icon: Cog },
-    // { href: "/manager/settings/sections", label: "Departments", icon: FolderTree },
-    { href: "/manager/settings/sub-departments", label: "Sections", icon: LayoutTemplate },
-    { href: "/manager/settings/shifts", label: "Shifts", icon: Clock },
-    { href: "/manager/settings/supervisors", label: "Supervisors", icon: Users },
-    { href: "/manager/settings/operators", label: "Operators", icon: Wrench },
-    { href: "/manager/settings/customizations", label: "Order Customizations", icon: Settings2 },
+    { href: "/settings/catalog", label: "Product Catalog", icon: Layers },
+    { href: "/settings/peeling-catalog", label: "Peeling Catalog", icon: TreePine },
+    { href: "/settings/production", label: "Hot Press", icon: Flame },
+    { href: "/settings/glue-stock", label: "Glue Stock", icon: Droplets },
+    { href: "/settings/machinery", label: "Departments", icon: Cog },
+    // { href: "/settings/sections", label: "Departments", icon: FolderTree },
+    { href: "/settings/sub-departments", label: "Sections", icon: LayoutTemplate },
+    { href: "/settings/shifts", label: "Shifts", icon: Clock },
+    { href: "/settings/supervisors", label: "Supervisors", icon: Users },
+    { href: "/settings/operators", label: "Operators", icon: Wrench },
+    { href: "/settings/customizations", label: "Order Customizations", icon: Settings2 },
   ];
 
 

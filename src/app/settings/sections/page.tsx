@@ -6,7 +6,7 @@ import { useRouter } from "next/navigation";
 export default function RedirectToMachinery() {
   const router = useRouter();
   useEffect(() => {
-    router.replace("/manager/settings/machinery");
+    router.replace("/settings/machinery");
   }, [router]);
 
   return null;
