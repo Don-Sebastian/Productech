@@ -18,7 +18,8 @@ export default function HotPressOperatorDashboard() {
 
   useEffect(() => {
     if (status === "unauthenticated") router.push("/login");
-    if (status === "authenticated" && (session?.user as any)?.role !== "OPERATOR") router.push("/");
+    const allowedRoles = ["OPERATOR", "SUPERVISOR", "MANAGER", "OWNER", "ADMIN"];
+    if (status === "authenticated" && !allowedRoles.includes((session?.user as any)?.role)) router.push("/");
   }, [status, session, router]);
 
   const role = (session?.user as any)?.role;
@@ -108,7 +109,7 @@ export default function HotPressOperatorDashboard() {
                 </h2>
                 <div className="flex gap-2">
                   <button 
-                    onClick={() => router.push("/operator/hotpress/log")}
+                    onClick={() => router.push("/hotpress/log")}
                     className="px-4 py-2 bg-orange-600 shadow-lg shadow-orange-900/20 text-white font-black text-[10px] rounded-xl active:scale-95 transition flex items-center gap-2"
                   >
                     <Plus size={14} /> LOG MACHINE ACTION

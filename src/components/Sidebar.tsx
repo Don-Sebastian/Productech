@@ -115,21 +115,21 @@ const roleConfigs: Record<string, { label: string; color: string; links: { href:
 
 const sectionNavLinks: Record<string, { href: string; label: string; icon: any }[]> = {
   hotpress: [
-    { href: "/operator/hotpress/log", label: "Machine Log", icon: Gauge },
-    { href: "/operator/hotpress/production", label: "Production List", icon: ClipboardList },
-    { href: "/operator/hotpress/history", label: "Log History", icon: History },
+    { href: "/hotpress/log", label: "Machine Log", icon: Gauge },
+    { href: "/hotpress/production", label: "Production List", icon: ClipboardList },
+    { href: "/hotpress/history", label: "Log History", icon: History },
     { href: "/account", label: "My Account", icon: KeyRound },
   ],
   peeling: [
-    { href: "/operator/peeling/log", label: "Dashboard", icon: LayoutDashboard },
+    { href: "/peeling/log", label: "Dashboard", icon: LayoutDashboard },
     { href: "/account", label: "My Account", icon: KeyRound },
   ],
   dryer: [
-    { href: "/operator/dryer/log", label: "Dashboard", icon: LayoutDashboard },
+    { href: "/dryer/log", label: "Dashboard", icon: LayoutDashboard },
     { href: "/account", label: "My Account", icon: KeyRound },
   ],
   finishing: [
-    { href: "/operator/finishing/log", label: "Dashboard", icon: LayoutDashboard },
+    { href: "/finishing/log", label: "Dashboard", icon: LayoutDashboard },
     { href: "/account", label: "My Account", icon: KeyRound },
   ],
 };
@@ -173,7 +173,7 @@ export default function Sidebar({ user }: SidebarProps) {
     : config.links;
 
   const notifPath = role === "OPERATOR" && operatorSection
-    ? `/operator/${operatorSection}/notification`
+    ? `/${operatorSection}/notification`
     : `/${role.toLowerCase()}/notifications`;
 
   const sidebarContent = (

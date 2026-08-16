@@ -15,12 +15,12 @@ export default function OperatorLanding({ user }: { user: any }) {
         if (!loading && assigned && machine?.section?.slug) {
             const slug = machine.section.slug;
             const sectionRoutes: Record<string, string> = {
-                hotpress: "/operator/hotpress/log",
-                peeling: "/operator/peeling/log",
-                dryer: "/operator/dryer/log",
-                finishing: "/operator/finishing/log",
+                hotpress: "/hotpress/log",
+                peeling: "/peeling/log",
+                dryer: "/dryer/log",
+                finishing: "/finishing/log",
             };
-            const route = sectionRoutes[slug] || "/operator/hotpress/log";
+            const route = sectionRoutes[slug] || "/hotpress/log";
             router.replace(route);
         }
     }, [loading, assigned, machine, router]);

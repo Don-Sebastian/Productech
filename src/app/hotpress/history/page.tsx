@@ -16,7 +16,8 @@ export default function OperatorHistoryPage() {
 
   useEffect(() => {
     if (status === "unauthenticated") router.push("/login");
-    if (status === "authenticated" && (session?.user as any)?.role !== "OPERATOR") router.push("/");
+    const allowedRoles = ["OPERATOR", "SUPERVISOR", "MANAGER", "OWNER", "ADMIN"];
+    if (status === "authenticated" && !allowedRoles.includes((session?.user as any)?.role)) router.push("/");
   }, [status, session, router]);
 
   if (status === "loading" || !session?.user || assignmentLoading) {
