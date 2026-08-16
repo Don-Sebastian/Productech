@@ -1,7 +1,6 @@
 "use client";
 
 import { useSession } from "next-auth/react";
-import { useRouter } from "next/navigation";
 import { useEffect, useState, useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
 import Sidebar from "@/components/Sidebar";
@@ -26,16 +25,10 @@ import { StatSkeleton, ListSkeleton } from "@/components/Skeleton";
 
 export default function OwnerProduction() {
   const { data: session, status } = useSession();
-  const router = useRouter();
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState("ALL");
   const [viewMode, setViewMode] = useState<"ACTIVE" | "HISTORY">("ACTIVE");
   const [expandedList, setExpandedList] = useState<string | null>(null);
-
-  useEffect(() => {
-    if (status === "unauthenticated") router.push("/login");
-    if (status === "authenticated" && (session?.user as any)?.role !== "OWNER") router.push("/");
-  }, [status, session, router]);
 
   const { data: apiData, isLoading: loading } = useQuery({
     queryKey: ["owner-production-lists"],

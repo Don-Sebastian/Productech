@@ -127,7 +127,7 @@ export default function ManagerDashboard({ user }: { user: any }) {
                                 </div>
                             </button>
                             <button
-                                onClick={() => router.push("/manager/production")}
+                                onClick={() => router.push("/production")}
                                 className="w-full flex items-center gap-3 p-4 bg-slate-700/20 rounded-xl hover:bg-slate-700/40 transition text-left"
                             >
                                 <div className="w-9 h-9 rounded-lg bg-blue-500/20 flex items-center justify-center">

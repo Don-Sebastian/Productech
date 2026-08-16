@@ -59,7 +59,7 @@ const roleConfigs: Record<string, { label: string; color: string; links: { href:
       { href: "/owner/inventory", label: "Inventory", icon: Package },
       { href: "/owner/inventory/transfer", label: "Stock Transfer", icon: Truck },
       { href: "/orders", label: "Orders", icon: ShoppingCart },
-      { href: "/owner/production", label: "Production", icon: Factory },
+      { href: "/production", label: "Production", icon: Factory },
       { href: "/approvals", label: "Approve Production", icon: ClipboardCheck },
       { href: "/owner/dispatch-history", label: "Dispatch", icon: Truck },
       { href: "/owner/managers", label: "Managers", icon: Users },
@@ -76,7 +76,7 @@ const roleConfigs: Record<string, { label: string; color: string; links: { href:
     links: [
       { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
       { href: "/orders", label: "Orders", icon: ShoppingCart },
-      { href: "/manager/production", label: "Production Lists", icon: ListChecks },
+      { href: "/production", label: "Production Lists", icon: ListChecks },
       { href: "/approvals", label: "Approve Production", icon: ClipboardCheck },
       { href: "/manager/dispatch", label: "Dispatch", icon: Truck },
       { href: "/manager/inventory", label: "Inventory", icon: Package },

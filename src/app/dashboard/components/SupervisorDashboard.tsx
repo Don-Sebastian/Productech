@@ -103,7 +103,7 @@ export default function SupervisorDashboard({ user }: { user: any }) {
                     </h2>
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                         <button
-                            onClick={() => router.push("/supervisor/production")}
+                            onClick={() => router.push("/production")}
                             className="flex items-center gap-4 p-4 bg-slate-700/30 border border-slate-600/30 rounded-xl hover:bg-slate-700/50 hover:border-amber-500/30 transition-all duration-200 text-left"
                         >
                             <div className="w-10 h-10 rounded-lg bg-amber-500/20 flex items-center justify-center">

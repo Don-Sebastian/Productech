@@ -1,7 +1,6 @@
 "use client";
 
 import { useSession } from "next-auth/react";
-import { useRouter } from "next/navigation";
 import { useEffect, useState, useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
 import Sidebar from "@/components/Sidebar";
@@ -22,15 +21,9 @@ import { StatSkeleton, ListSkeleton } from "@/components/Skeleton";
 
 export default function ManagerProduction() {
   const { data: session, status } = useSession();
-  const router = useRouter();
   const [expandedList, setExpandedList] = useState<string | null>(null);
   const [viewMode, setViewMode] = useState<"ACTIVE" | "HISTORY">("ACTIVE");
   const [statusFilter, setStatusFilter] = useState("ALL");
-
-  useEffect(() => {
-    if (status === "unauthenticated") router.push("/login");
-    if (status === "authenticated" && (session?.user as any)?.role !== "MANAGER") router.push("/");
-  }, [status, session, router]);
 
   const { data: pageData, isLoading: loading } = useQuery({
     queryKey: ["manager-production-lists"],
@@ -212,7 +205,7 @@ export default function ManagerProduction() {
               const productionDays = prodMinutes / (pressSettings.workingHoursPerDay * 60);
               const estDates = hasTimings && list.order?.createdAt
                 ? calcEstimatedDates(list.order.createdAt, prodMinutes, pressSettings)
-                : null;
+                 : null;
 
               return (
                 <div key={list.id} className={`bg-slate-800/40 border rounded-2xl overflow-hidden transition-all hover:bg-slate-800/60 ${

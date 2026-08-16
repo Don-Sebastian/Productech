@@ -1,7 +1,6 @@
 "use client";
 
 import { useSession } from "next-auth/react";
-import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import Sidebar from "@/components/Sidebar";
@@ -10,12 +9,10 @@ import {
   Plus,
   CheckCircle,
   AlertCircle,
-  Factory,
 } from "lucide-react";
 
 export default function SupervisorProduction() {
   const { data: session, status } = useSession();
-  const router = useRouter();
   const [loading, setLoading] = useState(false);
   const [success, setSuccess] = useState("");
   const [error, setError] = useState("");
@@ -29,11 +26,6 @@ export default function SupervisorProduction() {
     notes: "",
     section: "",
   });
-
-  useEffect(() => {
-    if (status === "unauthenticated") router.push("/login");
-    if (status === "authenticated" && (session?.user as any)?.role !== "SUPERVISOR") router.push("/");
-  }, [status, session, router]);
 
   useEffect(() => {
     if (status === "authenticated") {
