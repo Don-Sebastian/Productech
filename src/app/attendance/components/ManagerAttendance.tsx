@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useMemo } from "react";
+import { useState, useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useSession } from "next-auth/react";
 import Sidebar from "@/components/Sidebar";
@@ -10,12 +10,10 @@ import {
   Clock, 
   User as UserIcon, 
   CheckCircle2, 
+  XCircle, 
   ChevronDown, 
-  ChevronUp,
   AlertCircle,
   Search,
-  Building,
-  Eye,
   Loader2
 } from "lucide-react";
 import { format } from "date-fns";
@@ -31,8 +29,6 @@ interface AttendanceEntry {
     subDepartment: { name: string } | null;
     machine: { name: string } | null;
     photoData: string | null;
-    wageAmount: number;
-    wageType: string;
   };
 }
 
@@ -42,42 +38,72 @@ interface AttendanceRegister {
   status: "PENDING" | "APPROVED" | "REJECTED";
   notes: string | null;
   shift: {
-    id: string;
     name: string;
     startTime: string;
     endTime: string;
     machine: { name: string } | null;
   };
-  supervisor: { name: string };
-  manager: { name: string } | null;
+  supervisor: {
+    name: string;
+  };
   entries: AttendanceEntry[];
 }
 
-export default function OwnerAttendanceView() {
+export default function ManagerAttendance() {
   const { data: session, status } = useSession();
   const [expandedId, setExpandedId] = useState<string | null>(null);
+  const [actionLoading, setActionLoading] = useState<string | null>(null);
   const [filterDate, setFilterDate] = useState(format(new Date(), "yyyy-MM-dd"));
   const [filterStatus, setFilterStatus] = useState<string>("all");
 
-  const { data: apiData, isLoading: loading } = useQuery({
-    queryKey: ["owner-attendance", filterDate, filterStatus],
+  const queryParams = useMemo(() => {
+    const q = new URLSearchParams();
+    if (filterDate) q.append("date", filterDate);
+    if (filterStatus !== "all") q.append("status", filterStatus);
+    return q.toString();
+  }, [filterDate, filterStatus]);
+
+  const { data: registersData, isLoading: loading, refetch: fetchRegisters } = useQuery({
+    queryKey: ["manager-attendance", queryParams],
     queryFn: async () => {
-      const query = new URLSearchParams();
-      if (filterDate) query.append("date", filterDate);
-      if (filterStatus !== "all") query.append("status", filterStatus);
-      const res = await fetch(`/api/attendance?${query.toString()}`);
+      const res = await fetch(`/api/attendance?${queryParams}`);
       if (!res.ok) throw new Error("Failed to fetch");
       return res.json();
     },
     enabled: status === "authenticated",
   });
 
-  const registers: AttendanceRegister[] = useMemo(() => Array.isArray(apiData) ? apiData : [], [apiData]);
+  const registers: AttendanceRegister[] = Array.isArray(registersData) ? registersData : [];
+
+  const handleAction = async (registerId: string, action: "approve" | "reject") => {
+    const notes = prompt(`Enter notes for this ${action} (optional):`);
+    if (notes === null) return;
+
+    setActionLoading(registerId);
+    try {
+      const res = await fetch("/api/attendance", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action, registerId, notes }),
+      });
+
+      if (res.ok) {
+        fetchRegisters();
+      } else {
+        const data = await res.json();
+        alert(data.error || `Failed to ${action} attendance`);
+      }
+    } catch (err) {
+      console.error(`Error ${action}ing attendance:`, err);
+    } finally {
+      setActionLoading(null);
+    }
+  };
 
   const getStatusDisplay = (status: string) => {
     switch (status) {
       case "APPROVED": return { badge: "bg-emerald-500/10 text-emerald-400 border-emerald-500/20", icon: <CheckCircle2 size={16} /> };
-      case "REJECTED": return { badge: "bg-rose-500/10 text-rose-400 border-rose-500/20", icon: <AlertCircle size={16} /> };
+      case "REJECTED": return { badge: "bg-rose-500/10 text-rose-400 border-rose-500/20", icon: <XCircle size={16} /> };
       default: return { badge: "bg-amber-500/10 text-amber-400 border-amber-500/20", icon: <Clock size={16} /> };
     }
   };
@@ -91,23 +117,26 @@ export default function OwnerAttendanceView() {
     }
   };
 
-  const totalPresent = registers.reduce((acc, reg) => acc + reg.entries.filter(e => e.status === 'PRESENT').length, 0);
-  const totalAbsent = registers.reduce((acc, reg) => acc + reg.entries.filter(e => e.status === 'ABSENT').length, 0);
-  const totalHalfDay = registers.reduce((acc, reg) => acc + reg.entries.filter(e => e.status === 'HALF_DAY').length, 0);
+  if (status === "loading" || !session?.user) {
+    return (
+      <div className="flex flex-col items-center justify-center py-20">
+        <div className="w-16 h-16 border-4 border-blue-600 border-t-transparent rounded-full animate-spin"></div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-slate-950 flex">
-      {session?.user && <Sidebar user={session.user} />}
+      <Sidebar user={session.user} />
 
       <main className="flex-1 ml-0 md:ml-64 p-4 md:p-8">
-        {/* Header */}
         <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-10 gap-6">
           <div>
             <h1 className="text-3xl font-bold text-white mb-1 flex items-center gap-3">
-              <Eye className="text-emerald-400" size={32} />
-              Attendance Overview
+              <ClipboardCheck className="text-blue-400" size={32} />
+              Attendance Approvals
             </h1>
-            <p className="text-slate-400">Master visibility across all factory sections</p>
+            <p className="text-slate-400">Review register submissions from supervisors</p>
           </div>
 
           <div className="flex flex-wrap items-center gap-3 bg-slate-900 border border-slate-800 p-2 rounded-2xl shadow-xl">
@@ -117,13 +146,13 @@ export default function OwnerAttendanceView() {
                 type="date"
                 value={filterDate}
                 onChange={(e) => setFilterDate(e.target.value)}
-                className="pl-10 pr-4 py-2.5 bg-slate-800/50 border-none rounded-xl text-sm font-bold text-white focus:ring-2 focus:ring-emerald-500/50 outline-none"
+                className="pl-10 pr-4 py-2.5 bg-slate-800/50 border-none rounded-xl text-sm font-bold text-white focus:ring-2 focus:ring-blue-500/50 outline-none"
               />
             </div>
             <select 
               value={filterStatus}
               onChange={(e) => setFilterStatus(e.target.value)}
-              className="px-4 py-2.5 bg-slate-800/50 border-none rounded-xl text-sm font-bold text-white focus:ring-2 focus:ring-emerald-500/50 outline-none min-w-[140px]"
+              className="px-4 py-2.5 bg-slate-800/50 border-none rounded-xl text-sm font-bold text-white focus:ring-2 focus:ring-blue-500/50 outline-none min-w-[140px]"
             >
               <option value="all">Every Status</option>
               <option value="PENDING">Pending</option>
@@ -133,40 +162,18 @@ export default function OwnerAttendanceView() {
           </div>
         </div>
 
-        {/* Global Stats */}
-        {!loading && registers.length > 0 && (
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
-            <div className="bg-slate-900 border border-slate-800 p-6 rounded-3xl text-center">
-              <p className="text-3xl font-black text-white">{registers.length}</p>
-              <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mt-1">Total Registers</p>
-            </div>
-            <div className="bg-emerald-500/10 border border-emerald-500/20 p-6 rounded-3xl text-center">
-              <p className="text-3xl font-black text-emerald-400">{totalPresent}</p>
-              <p className="text-[10px] font-bold text-emerald-500 uppercase tracking-widest mt-1">Present Today</p>
-            </div>
-            <div className="bg-rose-500/10 border border-rose-500/20 p-6 rounded-3xl text-center">
-              <p className="text-3xl font-black text-rose-400">{totalAbsent}</p>
-              <p className="text-[10px] font-bold text-rose-500 uppercase tracking-widest mt-1">Absent</p>
-            </div>
-            <div className="bg-amber-500/10 border border-amber-500/20 p-6 rounded-3xl text-center">
-              <p className="text-3xl font-black text-amber-400">{totalHalfDay}</p>
-              <p className="text-[10px] font-bold text-amber-500 uppercase tracking-widest mt-1">Half Day</p>
-            </div>
-          </div>
-        )}
-
         {loading ? (
           <div className="flex flex-col items-center justify-center py-24 bg-slate-900/50 rounded-[40px] border border-slate-800">
-            <Loader2 className="w-12 h-12 text-emerald-500 animate-spin mb-4" />
-            <p className="text-slate-500 font-bold uppercase tracking-widest text-xs">Aggregating Data...</p>
+            <Loader2 className="w-12 h-12 text-blue-500 animate-spin mb-4" />
+            <p className="text-slate-500 font-bold uppercase tracking-widest text-xs">Scanning Registers...</p>
           </div>
         ) : registers.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-24 bg-slate-900/50 rounded-[40px] border border-slate-800 border-dashed text-center px-4">
             <div className="w-20 h-20 bg-slate-800 rounded-full flex items-center justify-center mb-6">
               <Search className="w-10 h-10 text-slate-600" />
             </div>
-            <h3 className="text-xl font-bold text-white">No Logs Found</h3>
-            <p className="text-slate-500 max-w-sm mt-2">Attendance data for this date is not yet available.</p>
+            <h3 className="text-xl font-bold text-white">No Registers Found</h3>
+            <p className="text-slate-500 max-w-sm mt-2">No attendance logs were submitted for this date or criteria.</p>
           </div>
         ) : (
           <div className="grid gap-6">
@@ -176,7 +183,7 @@ export default function OwnerAttendanceView() {
                 <div 
                   key={reg.id} 
                   className={`bg-slate-900 rounded-[32px] border transition-all overflow-hidden ${
-                    expandedId === reg.id ? 'border-emerald-500/50 shadow-2xl shadow-emerald-500/10' : 'border-slate-800 hover:border-slate-700'
+                    expandedId === reg.id ? 'border-blue-500/50 shadow-2xl shadow-blue-500/10' : 'border-slate-800 hover:border-slate-700'
                   }`}
                 >
                   {/* Register Header */}
@@ -191,12 +198,6 @@ export default function OwnerAttendanceView() {
                       <div>
                         <div className="flex items-center gap-3">
                           <h3 className="text-xl font-bold text-white">{reg.shift.name}</h3>
-                          {reg.shift.machine && (
-                            <span className="px-2.5 py-1 bg-blue-500/10 text-blue-400 rounded-lg text-[10px] font-black uppercase tracking-widest border border-blue-500/20 flex items-center gap-1.5">
-                              <Building size={12} />
-                              {reg.shift.machine.name}
-                            </span>
-                          )}
                           <span className={`px-2.5 py-1 rounded-full text-[10px] font-black uppercase tracking-widest border ${statusInfo.badge}`}>
                             {reg.status}
                           </span>
@@ -204,14 +205,12 @@ export default function OwnerAttendanceView() {
                         <div className="flex flex-wrap items-center gap-y-2 gap-x-6 mt-2 text-xs">
                           <span className="flex items-center gap-2 font-bold text-slate-300">
                             <UserIcon size={14} className="text-slate-500" />
-                            Sup: {reg.supervisor.name}
+                            {reg.supervisor.name}
                           </span>
-                          {reg.manager && (
-                            <span className="flex items-center gap-2 font-bold text-emerald-400">
-                              <CheckCircle2 size={14} />
-                              Mgr: {reg.manager.name}
-                            </span>
-                          )}
+                          <span className="flex items-center gap-2 text-slate-400">
+                            <div className="w-1.5 h-1.5 rounded-full bg-slate-700"></div>
+                            {reg.shift.machine?.name || 'General'}
+                          </span>
                           <span className="flex items-center gap-2 text-slate-400">
                             <Clock size={14} className="text-slate-500" />
                             {reg.shift.startTime} - {reg.shift.endTime}
@@ -221,13 +220,9 @@ export default function OwnerAttendanceView() {
                     </div>
 
                     <div className="flex items-center gap-6">
-                      <div className="text-right hidden sm:block pr-6 border-r border-slate-800 font-mono">
-                        <p className="text-lg text-white font-bold">
-                          <span className="text-emerald-400">{reg.entries.filter(e => e.status === 'PRESENT').length}</span>
-                          <span className="text-slate-700mx-1">/</span>
-                          <span className="text-rose-400">{reg.entries.filter(e => e.status === 'ABSENT').length}</span>
-                        </p>
-                        <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">P/A Count</p>
+                      <div className="text-right hidden sm:block pr-6 border-r border-slate-800">
+                        <p className="text-xl font-black text-white">{reg.entries.length}</p>
+                        <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Workers logged</p>
                       </div>
                       <div className={`w-10 h-10 rounded-xl bg-slate-800 flex items-center justify-center transition-transform duration-300 ${expandedId === reg.id ? 'rotate-180' : ''}`}>
                         <ChevronDown className="text-slate-400" />
@@ -235,18 +230,28 @@ export default function OwnerAttendanceView() {
                     </div>
                   </div>
 
-                  {/* Details Overlay */}
+                  {/* Register Details */}
                   {expandedId === reg.id && (
                     <div className="p-8 bg-slate-950/30 border-t border-slate-800">
-                      <div className="overflow-hidden rounded-[24px] border border-slate-800 bg-slate-900/50 backdrop-blur-sm shadow-inner">
+                      {reg.notes && (
+                        <div className="mb-8 p-6 bg-blue-500/5 border border-blue-500/20 rounded-[24px] flex gap-4">
+                          <AlertCircle className="w-6 h-6 text-blue-400 flex-shrink-0" />
+                          <div>
+                            <p className="text-[10px] font-black text-blue-400 uppercase tracking-widest mb-1">Feedback / Notes</p>
+                            <p className="text-sm font-medium text-slate-300 leading-relaxed">{reg.notes}</p>
+                          </div>
+                        </div>
+                      )}
+
+                      <div className="overflow-hidden rounded-[24px] border border-slate-800 bg-slate-900/50 backdrop-blur-sm">
                         <table className="w-full text-left">
                           <thead>
                             <tr className="bg-slate-800/50 border-b border-slate-800">
-                              <th className="px-6 py-5 text-[10px] font-black text-slate-500 uppercase tracking-widest">Employee</th>
-                              <th className="px-6 py-5 text-[10px] font-black text-slate-500 uppercase tracking-widest">Placement</th>
-                              <th className="px-6 py-5 text-[10px] font-black text-slate-500 uppercase tracking-widest">Log</th>
-                              <th className="px-6 py-5 text-[10px] font-black text-slate-500 uppercase tracking-widest">Overtime</th>
-                              <th className="px-6 py-5 text-[10px] font-black text-slate-500 uppercase tracking-widest">Rate</th>
+                              <th className="px-6 py-5 text-[10px] font-black text-slate-500 uppercase tracking-widest">Worker Profile</th>
+                              <th className="px-6 py-5 text-[10px] font-black text-slate-500 uppercase tracking-widest">Department</th>
+                              <th className="px-6 py-5 text-[10px] font-black text-slate-500 uppercase tracking-widest">Status</th>
+                              <th className="px-6 py-5 text-[10px] font-black text-slate-500 uppercase tracking-widest">OT Hours</th>
+                              <th className="px-6 py-5 text-[10px] font-black text-slate-500 uppercase tracking-widest">Notes</th>
                             </tr>
                           </thead>
                           <tbody className="divide-y divide-slate-800">
@@ -257,7 +262,7 @@ export default function OwnerAttendanceView() {
                                     {entry.employee.photoData ? (
                                       <img 
                                         src={entry.employee.photoData} 
-                                        className="w-12 h-12 rounded-xl object-cover ring-2 ring-slate-800 group-hover:ring-emerald-500/30 transition-all"
+                                        className="w-12 h-12 rounded-xl object-cover ring-2 ring-slate-800 group-hover:ring-blue-500/30 transition-all"
                                         alt={entry.employee.name}
                                       />
                                     ) : (
@@ -265,29 +270,58 @@ export default function OwnerAttendanceView() {
                                         {entry.employee.name[0]}
                                       </div>
                                     )}
-                                    <span className="font-bold text-white group-hover:text-emerald-400 transition-colors">{entry.employee.name}</span>
+                                    <span className="font-bold text-white group-hover:text-blue-400 transition-colors">{entry.employee.name}</span>
                                   </div>
                                 </td>
                                 <td className="px-6 py-5">
                                   <div>
-                                    <p className="text-xs font-bold text-slate-300 uppercase tracking-wide">{entry.employee.subDepartment?.name || 'Worker'}</p>
-                                    <p className="text-[10px] font-medium text-slate-500 mt-1 uppercase opacity-60 truncate max-w-[120px]">{entry.employee.machine?.name || 'N/A'}</p>
+                                    <p className="text-xs font-bold text-slate-300 uppercase tracking-wide">{entry.employee.subDepartment?.name || 'General'}</p>
+                                    <p className="text-[10px] font-medium text-slate-500 mt-1 uppercase opacity-60">{entry.employee.machine?.name || 'Plywood Factory'}</p>
                                   </div>
                                 </td>
                                 <td className="px-6 py-5">
                                   {getEntryStatusBadge(entry.status)}
                                 </td>
-                                <td className="px-6 py-5 text-sm font-bold text-blue-400">
-                                  {entry.overtimeHours > 0 ? `+${entry.overtimeHours}h` : '—'}
+                                <td className="px-6 py-5">
+                                  {entry.overtimeHours > 0 ? (
+                                    <span className="text-sm font-bold text-blue-400">+{entry.overtimeHours} <span className="text-[10px] uppercase opacity-60">Hrs</span></span>
+                                  ) : (
+                                    <span className="text-slate-600 font-black">—</span>
+                                  )}
                                 </td>
-                                <td className="px-6 py-5 text-sm font-black text-emerald-500 italic">
-                                  ₹{entry.employee.wageAmount.toLocaleString()}<span className="text-[10px] text-slate-600 font-normal ml-1">/{entry.employee.wageType[0]}</span>
+                                <td className="px-6 py-5 text-xs text-slate-500 italic max-w-xs truncate">
+                                  {entry.notes || '—'}
                                 </td>
                               </tr>
                             ))}
                           </tbody>
                         </table>
                       </div>
+
+                      {reg.status === 'PENDING' && (
+                        <div className="mt-8 flex justify-end gap-4">
+                          <button 
+                            onClick={(e) => { e.stopPropagation(); handleAction(reg.id, 'reject'); }}
+                            disabled={!!actionLoading}
+                            className="h-14 px-8 text-rose-400 font-bold hover:bg-rose-500/10 rounded-2xl border border-rose-500/20 transition-all flex items-center gap-3"
+                          >
+                            <XCircle size={20} />
+                            Send for Revision
+                          </button>
+                          <button 
+                            onClick={(e) => { e.stopPropagation(); handleAction(reg.id, 'approve'); }}
+                            disabled={!!actionLoading}
+                            className="h-14 px-10 bg-emerald-600 hover:bg-emerald-500 text-white font-bold rounded-2xl shadow-xl shadow-emerald-600/20 transition-all flex items-center gap-3 animate-pulse-slow"
+                          >
+                            {actionLoading === reg.id ? (
+                              <Loader2 className="animate-spin" size={20} />
+                            ) : (
+                              <CheckCircle2 size={24} />
+                            )}
+                            Approve Register
+                          </button>
+                        </div>
+                      )}
                     </div>
                   )}
                 </div>
@@ -296,6 +330,15 @@ export default function OwnerAttendanceView() {
           </div>
         )}
       </main>
+      <style jsx global>{`
+        .animate-pulse-slow {
+          animation: pulse 3s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+        }
+        @keyframes pulse {
+          0%, 100% { opacity: 1; }
+          50% { opacity: 0.85; }
+        }
+      `}</style>
     </div>
   );
 }

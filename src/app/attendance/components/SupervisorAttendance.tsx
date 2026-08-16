@@ -15,13 +15,11 @@ import {
   Clock3,
   MinusCircle,
   Plus,
-  Filter,
   Send,
   Save,
   Loader2,
   Search,
-  User as UserIcon,
-  RefreshCcw
+  User as UserIcon
 } from "lucide-react";
 import { format } from "date-fns";
 
@@ -60,7 +58,7 @@ interface AttendanceEntry {
 }
 
 export default function SupervisorAttendance() {
-  const { data: session } = useSession();
+  const { data: session, status } = useSession();
   const [selectedShift, setSelectedShift] = useState("");
   const [selectedDate, setSelectedDate] = useState(format(new Date(), "yyyy-MM-dd"));
   const [submitting, setSubmitting] = useState(false);
@@ -81,7 +79,8 @@ export default function SupervisorAttendance() {
       const shiftsData: Shift[] = sRes.ok ? await sRes.json() : [];
       const employeesData: Employee[] = eRes.ok ? await eRes.json() : [];
       return { shiftsData, employeesData };
-    }
+    },
+    enabled: status === "authenticated"
   });
 
   const shifts = metaData?.shiftsData || [];
@@ -101,7 +100,7 @@ export default function SupervisorAttendance() {
       if (!res.ok) throw new Error("Failed to fetch attendance");
       return res.json();
     },
-    enabled: !!selectedShift && !!selectedDate,
+    enabled: !!selectedShift && !!selectedDate && status === "authenticated",
   });
 
   useEffect(() => {
@@ -252,9 +251,17 @@ export default function SupervisorAttendance() {
 
   const isEditable = !activeRegister || activeRegister.status === 'PENDING';
 
+  if (status === "loading" || !session?.user) {
+    return (
+      <div className="flex items-center justify-center h-screen bg-slate-950">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-emerald-400" />
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-slate-950 flex">
-      {session?.user && <Sidebar user={session.user} />}
+      <Sidebar user={session.user} />
 
       <main className="flex-1 ml-0 md:ml-64 p-4 md:p-8 pb-40">
         {/* Header */}
