@@ -94,7 +94,7 @@ const roleConfigs: Record<string, { label: string; color: string; links: { href:
       { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
       { href: "/orders", label: "Orders", icon: ShoppingCart },
       { href: "/approvals", label: "Approve Production", icon: ClipboardCheck },
-      { href: "/supervisor/production-list", label: "Production List", icon: ListChecks },
+      { href: "/production-list", label: "Production List", icon: ListChecks },
       { href: "/supervisor/log-history", label: "Log History", icon: History },
       { href: "/supervisor/dispatch", label: "Dispatch", icon: Truck },
       { href: "/supervisor/attendance", label: "Mark Attendance", icon: UserCheck },

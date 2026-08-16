@@ -38,7 +38,8 @@ function ProductionListContent() {
 
   useEffect(() => {
     if (status === "unauthenticated") router.push("/login");
-    if (status === "authenticated" && (session?.user as any)?.role !== "SUPERVISOR") router.push("/");
+    const allowedRoles = ["SUPERVISOR", "MANAGER", "OWNER", "ADMIN"];
+    if (status === "authenticated" && !allowedRoles.includes((session?.user as any)?.role)) router.push("/");
   }, [status, session, router]);
 
   const { data: pageData, isLoading: loading, refetch: refetchLists } = useQuery({

@@ -109,7 +109,7 @@ export default function NotificationsPage() {
                   onClick={() => {
                     if (!n.isRead) markRead(n.id);
                     if (n.orderId) router.push(`/orders?id=${n.orderId}`);
-                    else if (n.productionListId) router.push(`/supervisor/production-list?id=${n.productionListId}`);
+                    else if (n.productionListId) router.push(`/production-list?id=${n.productionListId}`);
                   }}
                   className={`bg-slate-800/40 border rounded-2xl p-4 transition-all cursor-pointer active:scale-[0.99] ${
                     n.isRead ? "border-slate-700/30 opacity-60" : "border-slate-600/50 hover:border-slate-500/50"

@@ -626,7 +626,7 @@ function OrdersContent({ user }: OrdersPageProps) {
                             {/* Supervisor production triggers */}
                             {isSupervisor && (order.status === "CONFIRMED" || order.status === "PENDING") && (
                               <button
-                                onClick={() => router.push(`/supervisor/production-list?orderId=${order.id}`)}
+                                onClick={() => router.push(`/production-list?orderId=${order.id}`)}
                                 className="w-full py-3 bg-gradient-to-r from-amber-600 to-orange-600 text-white font-bold rounded-xl shadow-lg active:scale-[0.97] transition flex items-center justify-center gap-2 text-sm"
                               >
                                 <ListChecks size={16} /> Create Production List
