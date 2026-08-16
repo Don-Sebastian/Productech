@@ -1,8 +1,7 @@
 "use client";
 
 import { useSession } from "next-auth/react";
-import { useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import Sidebar from "@/components/Sidebar";
 import {
@@ -18,14 +17,8 @@ import {
 
 export default function SupervisorBatches() {
   const { data: session, status } = useSession();
-  const router = useRouter();
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState("ALL");
-
-  useEffect(() => {
-    if (status === "unauthenticated") router.push("/login");
-    if (status === "authenticated" && (session?.user as any)?.role !== "SUPERVISOR") router.push("/");
-  }, [status, session, router]);
 
   const { data: batchesData, isLoading: loading } = useQuery({
     queryKey: ["supervisor-batches"],

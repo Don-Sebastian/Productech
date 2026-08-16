@@ -115,7 +115,7 @@ export default function SupervisorDashboard({ user }: { user: any }) {
                             </div>
                         </button>
                         <button
-                            onClick={() => router.push("/supervisor/batches")}
+                            onClick={() => router.push("/batches")}
                             className="flex items-center gap-4 p-4 bg-slate-700/30 border border-slate-600/30 rounded-xl hover:bg-slate-700/50 hover:border-blue-500/30 transition-all duration-200 text-left"
                         >
                             <div className="w-10 h-10 rounded-lg bg-blue-500/20 flex items-center justify-center">
