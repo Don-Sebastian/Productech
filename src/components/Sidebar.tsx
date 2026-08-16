@@ -175,7 +175,7 @@ export default function Sidebar({ user }: SidebarProps) {
 
   const notifPath = role === "OPERATOR" && operatorSection
     ? `/${operatorSection}/notification`
-    : `/${role.toLowerCase()}/notifications`;
+    : "/notifications";
 
   const sidebarContent = (
     <>

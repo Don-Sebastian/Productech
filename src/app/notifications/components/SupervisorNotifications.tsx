@@ -2,22 +2,17 @@
 
 import { useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
-import { useEffect, useMemo } from "react";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useQuery } from "@tanstack/react-query";
 import Sidebar from "@/components/Sidebar";
 import { Bell, BellOff, Check, Package, ListChecks, AlertTriangle, Clock } from "lucide-react";
 
-export default function NotificationsPage() {
+export default function SupervisorNotifications() {
   const { data: session, status } = useSession();
   const router = useRouter();
-  const queryClient = useQueryClient();
+  const role = (session?.user as any)?.role || "SUPERVISOR";
 
-  useEffect(() => {
-    if (status === "unauthenticated") router.push("/login");
-  }, [status, router]);
-
-  const { data: apiData, isLoading: loading } = useQuery({
-    queryKey: ["owner-notifications"],
+  const { data: apiData, isLoading: loading, refetch } = useQuery({
+    queryKey: ["notifications", role],
     queryFn: async () => {
       const res = await fetch("/api/notifications");
       if (!res.ok) throw new Error("Failed to fetch");
@@ -30,38 +25,25 @@ export default function NotificationsPage() {
     refetchInterval: false,
   });
 
-  const notifications = useMemo(() => Array.isArray(apiData) ? apiData : [], [apiData]);
+  const notifications = Array.isArray(apiData) ? apiData : [];
 
-  const markAllReadMutation = useMutation({
-    mutationFn: async () => {
-      await fetch("/api/notifications", {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ markAllRead: true }),
-      });
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["owner-notifications"] });
-      window.dispatchEvent(new Event("notifications_read"));
-    },
-  });
+  const markAllRead = async () => {
+    await fetch("/api/notifications", {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ markAllRead: true }),
+    });
+    refetch();
+  };
 
-  const markReadMutation = useMutation({
-    mutationFn: async (id: string) => {
-      await fetch("/api/notifications", {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ notificationIds: [id] }),
-      });
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["owner-notifications"] });
-      window.dispatchEvent(new Event("notifications_read"));
-    },
-  });
-
-  const markAllRead = () => markAllReadMutation.mutate();
-  const markRead = (id: string) => markReadMutation.mutate(id);
+  const markRead = async (id: string) => {
+    await fetch("/api/notifications", {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ notificationIds: [id] }),
+    });
+    refetch();
+  };
 
   if (status === "loading" || !session?.user) {
     return <div className="flex items-center justify-center h-screen bg-slate-950"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-400" /></div>;
@@ -119,7 +101,11 @@ export default function NotificationsPage() {
               return (
                 <div
                   key={n.id}
-                  onClick={() => !n.isRead && markRead(n.id)}
+                  onClick={() => {
+                    if (!n.isRead) markRead(n.id);
+                    if (n.orderId) router.push(`/orders?id=${n.orderId}`);
+                    else if (n.productionListId) router.push(`/production-list?id=${n.productionListId}`);
+                  }}
                   className={`bg-slate-800/40 border rounded-2xl p-4 transition-all cursor-pointer active:scale-[0.99] ${
                     n.isRead ? "border-slate-700/30 opacity-60" : "border-slate-600/50 hover:border-slate-500/50"
                   }`}

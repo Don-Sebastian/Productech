@@ -1,18 +1,12 @@
 "use client";
 
 import { useSession } from "next-auth/react";
-import { useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import Sidebar from "@/components/Sidebar";
 import { Bell, BellOff, Check, Package, ListChecks, AlertTriangle, Clock } from "lucide-react";
 
-export default function NotificationsPage() {
+export default function ManagerNotifications() {
   const { data: session, status } = useSession();
-  const router = useRouter();
-  useEffect(() => {
-    if (status === "unauthenticated") router.push("/login");
-  }, [status, router]);
 
   const { data: apiData, isLoading: loading, refetch: fetchNotifications } = useQuery({
     queryKey: ["manager-notifications"],
