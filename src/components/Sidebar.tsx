@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { signOut, useSession } from "next-auth/react";
+import { useSession } from "next-auth/react";
 import { useState, useEffect } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useMachineAssignment } from "@/hooks/useMachineAssignment";
@@ -14,11 +14,9 @@ import {
   Package,
   ChevronRight,
   Gauge,
-  Wrench,
   ClipboardList,
   ShoppingCart,
   Bell,
-  Layers,
   Menu,
   X,
   ListChecks,

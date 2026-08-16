@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 "use client";
 
 import { useState, useEffect, useMemo } from "react";
@@ -40,6 +41,31 @@ interface AttendanceRegister {
   supervisor: { name: string };
   entries: AttendanceEntry[];
 }
+
+const calculateEntryCost = (entry: AttendanceEntry) => {
+  let cost = 0;
+  const { wageAmount, wageType } = entry.employee;
+  
+  if (entry.status === 'PRESENT') {
+    if (wageType === 'DAILY') cost = wageAmount;
+    else if (wageType === 'WEEKLY') cost = wageAmount / 6;
+    else if (wageType === 'MONTHLY') cost = wageAmount / 26;
+  } else if (entry.status === 'HALF_DAY') {
+    if (wageType === 'DAILY') cost = wageAmount / 2;
+    else if (wageType === 'WEEKLY') cost = wageAmount / 12;
+    else if (wageType === 'MONTHLY') cost = wageAmount / 52;
+  }
+  
+  if (entry.overtimeHours > 0) {
+    let hourlyRate = 0;
+    if (wageType === 'DAILY') hourlyRate = wageAmount / 8;
+    else if (wageType === 'WEEKLY') hourlyRate = wageAmount / 48;
+    else if (wageType === 'MONTHLY') hourlyRate = wageAmount / 208;
+    cost += entry.overtimeHours * hourlyRate * 1.5;
+  }
+  
+  return cost;
+};
 
 export default function SalaryExpensesDashboard() {
   const { data: session, status } = useSession();
@@ -93,44 +119,29 @@ export default function SalaryExpensesDashboard() {
   const registers: AttendanceRegister[] = useMemo(() => Array.isArray(apiData?.registers) ? apiData.registers : [], [apiData]);
   const prevRegisters: AttendanceRegister[] = useMemo(() => Array.isArray(apiData?.prevRegisters) ? apiData.prevRegisters : [], [apiData]);
 
-  const calculateEntryCost = (entry: AttendanceEntry) => {
-    let cost = 0;
-    const { wageAmount, wageType } = entry.employee;
-    
-    if (entry.status === 'PRESENT') {
-      if (wageType === 'DAILY') cost = wageAmount;
-      else if (wageType === 'WEEKLY') cost = wageAmount / 6;
-      else if (wageType === 'MONTHLY') cost = wageAmount / 26;
-    } else if (entry.status === 'HALF_DAY') {
-      if (wageType === 'DAILY') cost = wageAmount / 2;
-      else if (wageType === 'WEEKLY') cost = wageAmount / 12;
-      else if (wageType === 'MONTHLY') cost = wageAmount / 52;
-    }
-    
-    if (entry.overtimeHours > 0) {
-      let hourlyRate = 0;
-      if (wageType === 'DAILY') hourlyRate = wageAmount / 8;
-      else if (wageType === 'WEEKLY') hourlyRate = wageAmount / 48;
-      else if (wageType === 'MONTHLY') hourlyRate = wageAmount / 208;
-      cost += entry.overtimeHours * hourlyRate * 1.5;
-    }
-    
-    return cost;
-  };
 
-  const calcTotal = (regs: AttendanceRegister[]) => {
+  const totalExpense = useMemo(() => {
     let total = 0;
-    const filteredRegs = filterMachine === "all" ? regs : regs.filter(r => r.shift.machine?.name === filterMachine);
+    const filteredRegs = filterMachine === "all" ? registers : registers.filter(r => r.shift.machine?.name === filterMachine);
     filteredRegs.forEach(reg => {
       reg.entries.forEach(entry => {
         total += calculateEntryCost(entry);
       });
     });
     return total;
-  };
+  }, [registers, filterMachine]);
 
-  const totalExpense = useMemo(() => calcTotal(registers), [registers, filterMachine]);
-  const prevTotalExpense = useMemo(() => calcTotal(prevRegisters), [prevRegisters, filterMachine]);
+  const prevTotalExpense = useMemo(() => {
+    let total = 0;
+    const filteredRegs = filterMachine === "all" ? prevRegisters : prevRegisters.filter(r => r.shift.machine?.name === filterMachine);
+    filteredRegs.forEach(reg => {
+      reg.entries.forEach(entry => {
+        total += calculateEntryCost(entry);
+      });
+    });
+    return total;
+  }, [prevRegisters, filterMachine]);
+
   const changePercent = prevTotalExpense > 0 ? ((totalExpense - prevTotalExpense) / prevTotalExpense * 100) : 0;
 
   const totalOTHours = useMemo(() => {
