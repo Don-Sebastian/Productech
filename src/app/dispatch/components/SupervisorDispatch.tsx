@@ -35,11 +35,6 @@ function DispatchListContent() {
   const [selQty, setSelQty] = useState("");
 
   useEffect(() => {
-    if (status === "unauthenticated") router.push("/login");
-    if (status === "authenticated" && (session?.user as any)?.role !== "SUPERVISOR") router.push("/");
-  }, [status, session, router]);
-
-  useEffect(() => {
     if (status !== "authenticated") return;
     Promise.all([
       fetch("/api/catalog").then((r) => r.json()),
@@ -360,7 +355,7 @@ function DispatchListContent() {
                       </div>
                     </div>
                     <button onClick={() => {
-                        router.push(`/supervisor/dispatch?orderId=${ro.id}`);
+                        router.push(`/dispatch?orderId=${ro.id}`);
                         setShowCreate(true);
                       }}
                       className="w-full md:w-auto px-6 py-2.5 bg-emerald-600 hover:bg-emerald-500 text-white font-bold rounded-xl active:scale-[0.97] transition shrink-0">
@@ -408,7 +403,6 @@ function DispatchListContent() {
                    </div>
                    {load.status === "SUPERVISOR_SUBMITTED" && (
                      <div className="mt-4 pt-3 border-t border-slate-700/50">
-                        {/* Delete logic can be implemented via API if needed */}
                         <p className="text-[10px] text-amber-500 font-bold uppercase tracking-widest flex items-center gap-1">
                           <AlertTriangle size={12} /> Pending Manager Confirmation
                         </p>
@@ -424,7 +418,7 @@ function DispatchListContent() {
   );
 }
 
-export default function SupervisorDispatchList() {
+export default function SupervisorDispatch() {
   return (
     <Suspense fallback={<div className="flex items-center justify-center h-screen bg-slate-950"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-emerald-400" /></div>}>
       <DispatchListContent />

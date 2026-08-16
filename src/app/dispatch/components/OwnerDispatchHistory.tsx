@@ -1,21 +1,15 @@
 "use client";
 
 import { useSession } from "next-auth/react";
-import { useRouter } from "next/navigation";
-import { useEffect, useState, useMemo } from "react";
+import { useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
 import Sidebar from "@/components/Sidebar";
 import { Truck, Package, Clock, CheckCircle } from "lucide-react";
+import { formatDate } from "@/lib/productionEstimate";
 
-export default function OwnerDispatchHistoryPage() {
+export default function OwnerDispatchHistory() {
   const { data: session, status } = useSession();
-  const router = useRouter();
   
-  useEffect(() => {
-    if (status === "unauthenticated") router.push("/login");
-    if (status === "authenticated" && (session?.user as any)?.role !== "OWNER") router.push("/");
-  }, [status, session, router]);
-
   const { data: apiData, isLoading: loading } = useQuery({
     queryKey: ["owner-dispatch-history"],
     queryFn: async () => {

@@ -6,6 +6,7 @@ import { useEffect, useState, Suspense, useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
 import Sidebar from "@/components/Sidebar";
 import { Truck, Check, Package, X, CheckSquare, Clock, AlertTriangle } from "lucide-react";
+import { formatDate } from "@/lib/productionEstimate";
 
 function ManagerDispatchContent() {
   const { data: session, status } = useSession();
@@ -15,11 +16,6 @@ function ManagerDispatchContent() {
   
   const [editingLoadId, setEditingLoadId] = useState<string | null>(null);
   const [editData, setEditData] = useState<any>({});
-
-  useEffect(() => {
-    if (status === "unauthenticated") router.push("/login");
-    if (status === "authenticated" && (session?.user as any)?.role !== "MANAGER") router.push("/");
-  }, [status, session, router]);
 
   const { data: apiData, isLoading: loading, refetch: fetchLoads } = useQuery({
     queryKey: ["manager-dispatch"],
@@ -351,7 +347,7 @@ function ManagerDispatchContent() {
   }
 }
 
-export default function ManagerDispatchPage() {
+export default function ManagerDispatch() {
   return (
     <Suspense fallback={<div className="flex items-center justify-center h-screen bg-slate-950"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-cyan-400" /></div>}>
       <ManagerDispatchContent />
