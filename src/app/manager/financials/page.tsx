@@ -5,7 +5,9 @@ import { useRouter } from "next/navigation";
 import { useEffect, useState, useMemo, Suspense } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import Sidebar from "@/components/Sidebar";
-import { Banknote, PackageOpen, Plus, Tag, Layers, FileText, Wallet, History, Calendar, Filter } from "lucide-react";
+import { Banknote, PackageOpen, Plus, Tag, Layers, FileText, Wallet, History, Calendar, Filter, PieChart } from "lucide-react";
+import ProductSpecsTab from "@/components/ProductSpecsTab";
+import { formatINR } from "@/lib/formatIndian";
 
 function getTodayString() {
   const now = new Date();
@@ -56,7 +58,7 @@ function ManagerFinancialsContent() {
   const router = useRouter();
   const queryClient = useQueryClient();
 
-  const [activeTab, setActiveTab] = useState<"MATERIALS" | "PURCHASES" | "EXPENSES">("MATERIALS");
+  const [activeTab, setActiveTab] = useState<"MATERIALS" | "PURCHASES" | "EXPENSES" | "SPECS">("MATERIALS");
 
   // Filters for Purchases List
   const [purchaseDateFilter, setPurchaseDateFilter] = useState<"THIS_WEEK" | "THIS_MONTH" | "ALL" | "CUSTOM">("THIS_WEEK");
@@ -91,8 +93,17 @@ function ManagerFinancialsContent() {
     queryFn: () => fetch("/api/financials/expenses").then(res => res.json()),
   });
 
+  const RAW_MATERIAL_CATEGORIES = [
+    "Wood / Timber",
+    "Gum / Resin",
+    "Face Veneer",
+    "Core Veneer",
+    "Chemicals",
+    "Others",
+  ];
+
   // State for forms
-  const [materialForm, setMaterialForm] = useState({ name: "", unit: "" });
+  const [materialForm, setMaterialForm] = useState({ name: "", category: "Wood / Timber", unit: "", currentRate: "", description: "" });
   const [purchaseForm, setPurchaseForm] = useState({
     materialId: "",
     quantity: "",
@@ -118,7 +129,7 @@ function ManagerFinancialsContent() {
       }).then(res => res.json()),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["raw-materials"] });
-      setMaterialForm({ name: "", unit: "" });
+      setMaterialForm({ name: "", category: "Wood / Timber", unit: "", currentRate: "", description: "" });
     },
   });
 
@@ -228,6 +239,47 @@ function ManagerFinancialsContent() {
     return filteredPayments.reduce((acc: number, p: any) => acc + (p.amount || 0), 0);
   }, [filteredPayments]);
 
+  // Group materials by category
+  const groupedMaterials = useMemo(() => {
+    if (!Array.isArray(materials)) return {};
+    const grouped: Record<string, any[]> = {};
+    materials.forEach((m: any) => {
+      const cat = m.category || "Wood / Timber";
+      if (!grouped[cat]) grouped[cat] = [];
+      grouped[cat].push(m);
+    });
+    return grouped;
+  }, [materials]);
+
+  // Category-level stats calculation
+  const categoryStats = useMemo(() => {
+    if (!Array.isArray(purchases) || !Array.isArray(materials)) return [];
+    const matCatMap = new Map<string, string>();
+    materials.forEach((m: any) => {
+      matCatMap.set(m.id, m.category || "Wood / Timber");
+    });
+
+    const stats: Record<string, { totalSpend: number; totalQty: number; purchaseCount: number; materials: Set<string> }> = {};
+    purchases.forEach((p: any) => {
+      const cat = matCatMap.get(p.materialId) || "Wood / Timber";
+      if (!stats[cat]) {
+        stats[cat] = { totalSpend: 0, totalQty: 0, purchaseCount: 0, materials: new Set() };
+      }
+      stats[cat].totalSpend += (p.totalCost || 0);
+      stats[cat].totalQty += (p.quantity || 0);
+      stats[cat].purchaseCount += 1;
+      if (p.material?.name) stats[cat].materials.add(p.material.name);
+    });
+
+    return Object.entries(stats).map(([category, data]) => ({
+      category,
+      totalSpend: data.totalSpend,
+      totalQty: data.totalQty,
+      purchaseCount: data.purchaseCount,
+      materialCount: data.materials.size,
+    })).sort((a, b) => b.totalSpend - a.totalSpend);
+  }, [purchases, materials]);
+
   if (status === "loading" || !session?.user) {
     return (
       <div className="flex items-center justify-center h-screen bg-slate-950">
@@ -253,6 +305,7 @@ function ManagerFinancialsContent() {
               { key: "MATERIALS", label: "Materials" },
               { key: "PURCHASES", label: "Purchases" },
               { key: "EXPENSES", label: "Expenses" },
+              { key: "SPECS", label: "Specs" },
             ].map(tab => (
               <button
                 key={tab.key}
@@ -272,65 +325,194 @@ function ManagerFinancialsContent() {
 
         {/* MATERIALS TAB */}
         {activeTab === "MATERIALS" && (
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-            <div className="lg:col-span-1 bg-slate-900 border border-slate-800 rounded-2xl p-6 h-fit">
-              <h2 className="text-lg font-bold text-white mb-4 flex items-center gap-2">
-                <PackageOpen size={18} className="text-cyan-400" /> Add Material
-              </h2>
-              <div className="space-y-4">
-                <div>
-                  <label className="text-xs text-slate-400 font-bold mb-1 block">Material Name</label>
-                  <input
-                    type="text"
-                    placeholder="e.g. WOOD, GUM, FACE"
-                    value={materialForm.name}
-                    onChange={e => setMaterialForm({ ...materialForm, name: e.target.value })}
-                    className="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-2 text-white outline-none focus:border-cyan-500 transition"
-                  />
-                </div>
-                <div>
-                  <label className="text-xs text-slate-400 font-bold mb-1 block">Unit</label>
-                  <input
-                    type="text"
-                    placeholder="e.g. TON, KG, SQMTS"
-                    value={materialForm.unit}
-                    onChange={e => setMaterialForm({ ...materialForm, unit: e.target.value })}
-                    className="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-2 text-white outline-none focus:border-cyan-500 transition"
-                  />
-                </div>
-                <button
-                  onClick={() => addMaterial.mutate(materialForm)}
-                  disabled={!materialForm.name || !materialForm.unit || addMaterial.isPending}
-                  className="w-full bg-cyan-600 hover:bg-cyan-500 disabled:opacity-50 text-white font-bold py-2.5 rounded-xl transition flex items-center justify-center gap-2"
-                >
-                  <Plus size={18} /> Add Material
-                </button>
-              </div>
-            </div>
-
-            <div className="lg:col-span-2 space-y-3">
-              {materials.length === 0 ? (
-                <div className="text-slate-500 text-center py-12 bg-slate-900 border border-slate-800 rounded-2xl">
-                  No raw materials defined yet.
-                </div>
-              ) : (
-                materials.map((m: any) => (
-                  <div key={m.id} className="bg-slate-900 border border-slate-800 rounded-xl p-4 flex items-center justify-between">
-                    <div className="flex items-center gap-4">
-                      <div className="w-10 h-10 bg-cyan-500/10 rounded-lg flex items-center justify-center text-cyan-400">
-                        <Layers size={20} />
-                      </div>
+          <div className="space-y-6">
+            {/* Category Stats Overview */}
+            {categoryStats.length > 0 && (
+              <div className="bg-slate-900/80 border border-slate-800 rounded-2xl p-5">
+                <h3 className="text-sm font-bold text-white mb-3 flex items-center gap-2">
+                  <PieChart size={16} className="text-cyan-400" /> Raw Material Category Analytics & Spend Breakdown
+                </h3>
+                <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
+                  {categoryStats.map((cs) => (
+                    <div key={cs.category} className="bg-slate-950 border border-slate-800/80 rounded-xl p-3.5 flex flex-col justify-between">
                       <div>
-                        <h3 className="text-white font-bold">{m.name}</h3>
-                        <p className="text-slate-500 text-xs tracking-widest uppercase">Unit: {m.unit}</p>
+                        <span className="text-[10px] font-black uppercase tracking-wider text-cyan-400/90 block mb-1">
+                          {cs.category}
+                        </span>
+                        <p className="text-lg font-black text-white">
+                          {formatINR(cs.totalSpend)}
+                        </p>
+                      </div>
+                      <div className="mt-2 pt-2 border-t border-slate-800/60 flex items-center justify-between text-[10px] text-slate-500">
+                        <span>{cs.materialCount} types</span>
+                        <span>{cs.purchaseCount} orders</span>
                       </div>
                     </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+              <div className="lg:col-span-1 bg-slate-900 border border-slate-800 rounded-2xl p-6 h-fit">
+                <h2 className="text-lg font-bold text-white mb-4 flex items-center gap-2">
+                  <PackageOpen size={18} className="text-cyan-400" /> Add Raw Material
+                </h2>
+                <div className="space-y-4">
+                  <div>
+                    <label className="text-xs text-slate-400 font-bold mb-1 block">Category</label>
+                    <select
+                      value={materialForm.category}
+                      onChange={e => setMaterialForm({ ...materialForm, category: e.target.value })}
+                      className="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-2 text-white outline-none focus:border-cyan-500 transition"
+                    >
+                      {RAW_MATERIAL_CATEGORIES.map(cat => (
+                        <option key={cat} value={cat}>{cat}</option>
+                      ))}
+                    </select>
                   </div>
-                ))
-              )}
+                  <div>
+                    <label className="text-xs text-slate-400 font-bold mb-1 block">Material Type / Name</label>
+                    <input
+                      type="text"
+                      placeholder="e.g. Rubberwood, PF Resin, Gurjan Face"
+                      value={materialForm.name}
+                      onChange={e => setMaterialForm({ ...materialForm, name: e.target.value })}
+                      className="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-2 text-white outline-none focus:border-cyan-500 transition"
+                    />
+                  </div>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <label className="text-xs text-slate-400 font-bold mb-1 block">Unit</label>
+                      <input
+                        type="text"
+                        placeholder="e.g. KG, TON, PCS"
+                        value={materialForm.unit}
+                        onChange={e => setMaterialForm({ ...materialForm, unit: e.target.value })}
+                        className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-white outline-none focus:border-cyan-500 transition uppercase"
+                      />
+                    </div>
+                    <div>
+                      <label className="text-xs text-slate-400 font-bold mb-1 block">Current Rate (₹/unit)</label>
+                      <input
+                        type="number"
+                        step="0.01"
+                        placeholder="e.g. 45.00"
+                        value={materialForm.currentRate}
+                        onChange={e => setMaterialForm({ ...materialForm, currentRate: e.target.value })}
+                        className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-emerald-400 font-bold outline-none focus:border-cyan-500 transition"
+                      />
+                    </div>
+                  </div>
+                  <div>
+                    <label className="text-xs text-slate-400 font-bold mb-1 block">Description (Optional)</label>
+                    <input
+                      type="text"
+                      placeholder="e.g. Standard 8x4 core logs"
+                      value={materialForm.description}
+                      onChange={e => setMaterialForm({ ...materialForm, description: e.target.value })}
+                      className="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-2 text-white outline-none focus:border-cyan-500 transition text-sm"
+                    />
+                  </div>
+                  <button
+                    onClick={() => addMaterial.mutate(materialForm)}
+                    disabled={!materialForm.name || !materialForm.unit || addMaterial.isPending}
+                    className="w-full bg-cyan-600 hover:bg-cyan-500 disabled:opacity-50 text-white font-bold py-2.5 rounded-xl transition flex items-center justify-center gap-2 shadow-lg shadow-cyan-900/30"
+                  >
+                    <Plus size={18} /> {addMaterial.isPending ? "Adding..." : "Add Material"}
+                  </button>
+                </div>
+              </div>
+
+              <div className="lg:col-span-2 space-y-6">
+                {Object.keys(groupedMaterials).length === 0 ? (
+                  <div className="text-slate-500 text-center py-12 bg-slate-900 border border-slate-800 rounded-2xl">
+                    No raw materials defined yet.
+                  </div>
+                ) : (
+                  Object.entries(groupedMaterials).map(([category, mats]) => (
+                    <div key={category} className="bg-slate-900/90 border border-slate-800 rounded-2xl p-5">
+                      <div className="flex items-center justify-between mb-3 border-b border-slate-800/80 pb-2.5">
+                        <h3 className="text-sm font-black text-cyan-400 uppercase tracking-wider flex items-center gap-2">
+                          <Layers size={16} /> {category} ({mats.length} types)
+                        </h3>
+                      </div>
+                      <div className="space-y-2.5">
+                        {mats.map((m: any) => (
+                          <div key={m.id} className="bg-slate-950 border border-slate-800/80 rounded-xl p-3.5 flex items-center justify-between gap-3">
+                            <div className="flex items-center gap-3">
+                              <div className={`w-9 h-9 rounded-lg flex items-center justify-center ${m.isFaceMaterial ? "bg-violet-500/10 text-violet-400" : "bg-cyan-500/10 text-cyan-400"}`}>
+                                <PackageOpen size={18} />
+                              </div>
+                              <div>
+                                <div className="flex items-center gap-2">
+                                  <h4 className="text-white font-bold text-sm">{m.name}</h4>
+                                  {/* {m.isFaceMaterial && (
+                                    <span className="text-[9px] font-black px-2 py-0.5 bg-violet-500/10 border border-violet-500/30 text-violet-300 rounded-full uppercase tracking-wider">Face Material</span>
+                                  )} */}
+                                </div>
+                                <div className="flex items-center gap-3 text-xs text-slate-400 mt-0.5">
+                                  <span className="uppercase text-slate-500 text-[10px] font-bold">Unit: {m.unit}</span>
+                                  <span className="text-emerald-400 font-bold text-xs">
+                                    Current Rate: ₹{m.currentRate ? Number(m.currentRate).toFixed(2) : "0.00"} / {m.unit}
+                                  </span>
+                                </div>
+                              </div>
+                            </div>
+                            <div className="flex items-center gap-2">
+                              <button
+                                onClick={async () => {
+                                  const newRate = prompt(`Enter new Current Rate (₹/${m.unit}) for ${m.name}:`, String(m.currentRate || ""));
+                                  if (newRate !== null) {
+                                    const parsed = parseFloat(newRate);
+                                    if (!isNaN(parsed)) {
+                                      await fetch(`/api/raw-materials/${m.id}`, {
+                                        method: "PATCH",
+                                        headers: { "Content-Type": "application/json" },
+                                        body: JSON.stringify({ currentRate: parsed }),
+                                      });
+                                      queryClient.invalidateQueries({ queryKey: ["raw-materials"] });
+                                    }
+                                  }
+                                }}
+                                className="text-[11px] px-2.5 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-300 font-bold rounded-lg transition border border-slate-700"
+                              >
+                                Edit Rate
+                              </button>
+                              {/* <button
+                                onClick={async () => {
+                                  try {
+                                    await fetch(`/api/raw-materials/${m.id}`, {
+                                      method: "PATCH",
+                                      headers: { "Content-Type": "application/json" },
+                                      body: JSON.stringify({ isFaceMaterial: !m.isFaceMaterial }),
+                                    });
+                                    queryClient.invalidateQueries({ queryKey: ["raw-materials"] });
+                                  } catch (e) {
+                                    console.error("Failed to toggle face material", e);
+                                  }
+                                }}
+                                title={m.isFaceMaterial ? "Remove Face Material flag" : "Mark as Face Material (for wastage tracking)"}
+                                className={`text-[11px] px-2.5 py-1.5 rounded-lg font-bold transition border ${
+                                  m.isFaceMaterial
+                                    ? "bg-violet-500/20 border-violet-500/40 text-violet-300 hover:bg-rose-500/20 hover:border-rose-500/40 hover:text-rose-300"
+                                    : "bg-slate-800 border-slate-700 text-slate-400 hover:bg-violet-500/10 hover:border-violet-500/30 hover:text-violet-300"
+                                }`}
+                              >
+                                {m.isFaceMaterial ? "✓ Face" : "+ Face"}
+                              </button> */}
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  ))
+                )}
+              </div>
             </div>
           </div>
         )}
+
 
         {/* PURCHASES TAB */}
         {activeTab === "PURCHASES" && (
@@ -397,7 +579,7 @@ function ManagerFinancialsContent() {
                 <div>
                   <label className="text-xs text-slate-400 font-bold mb-1 block">Total Cost</label>
                   <div className="w-full bg-slate-950/50 border border-slate-800 rounded-xl px-4 py-2 text-emerald-400 font-black">
-                    ₹{((parseFloat(purchaseForm.quantity) || 0) * (parseFloat(purchaseForm.unitPrice) || 0)).toLocaleString()}
+                    {formatINR((parseFloat(purchaseForm.quantity) || 0) * (parseFloat(purchaseForm.unitPrice) || 0))}
                   </div>
                 </div>
 
@@ -438,7 +620,7 @@ function ManagerFinancialsContent() {
                     <Filter size={14} className="text-emerald-400" /> Filter Purchases
                   </div>
                   <div className="text-xs font-semibold px-3 py-1 bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 rounded-full">
-                    {filteredPurchases.length} Records • ₹{filteredPurchasesTotal.toLocaleString()} Total
+                    {filteredPurchases.length} Records • {formatINR(filteredPurchasesTotal)} Total
                   </div>
                 </div>
 
@@ -548,7 +730,7 @@ function ManagerFinancialsContent() {
                       </div>
                       <div className="border-l border-slate-800 pl-4">
                         <p className="text-[10px] text-emerald-500/70 font-bold uppercase tracking-widest">Total</p>
-                        <p className="text-emerald-400 font-black text-lg">₹{p.totalCost?.toLocaleString()}</p>
+                        <p className="text-emerald-400 font-black text-lg">{formatINR(p.totalCost)}</p>
                       </div>
                     </div>
                   </div>
@@ -660,7 +842,7 @@ function ManagerFinancialsContent() {
                     <Filter size={14} className="text-amber-400" /> Filter Expenses
                   </div>
                   <div className="text-xs font-semibold px-3 py-1 bg-amber-500/10 text-amber-400 border border-amber-500/20 rounded-full">
-                    {filteredPayments.length} Records • ₹{filteredPaymentsTotal.toLocaleString()} Total
+                    {filteredPayments.length} Records • {formatINR(filteredPaymentsTotal)} Total
                   </div>
                 </div>
 
@@ -751,13 +933,18 @@ function ManagerFinancialsContent() {
                       {p.notes && <p className="text-slate-400 text-xs mt-0.5">{p.notes}</p>}
                     </div>
                     <div className="text-right">
-                      <p className="text-amber-400 font-black text-lg">₹{p.amount?.toLocaleString()}</p>
+                      <p className="text-amber-400 font-black text-lg">{formatINR(p.amount)}</p>
                     </div>
                   </div>
                 ))
               )}
             </div>
           </div>
+        )}
+
+        {/* SPECS TAB */}
+        {activeTab === "SPECS" && (
+          <ProductSpecsTab />
         )}
       </main>
     </div>

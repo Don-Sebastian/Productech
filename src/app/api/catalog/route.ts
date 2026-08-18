@@ -12,7 +12,7 @@ export async function GET(request: NextRequest) {
     const companyId = (session.user as any).companyId;
     if (!companyId) return NextResponse.json({ error: "No company" }, { status: 400 });
 
-    const [categories, thicknesses, sizes, productTimings] = await Promise.all([
+    const [categories, thicknesses, sizes, productTimings, productSpecs, rawMaterials, budget, standardCosts] = await Promise.all([
       prisma.plywoodCategory.findMany({
         where: { companyId, isActive: true },
         orderBy: { sortOrder: "desc" },
@@ -26,10 +26,29 @@ export async function GET(request: NextRequest) {
         orderBy: [{ length: "desc" }, { width: "desc" }],
       }),
       prisma.productTiming.findMany({ where: { companyId } }).catch(() => [] as any[]),
+      prisma.plywoodProductSpec.findMany({ 
+        where: { companyId },
+        include: {
+          bomItems: {
+            include: { material: true },
+          },
+        },
+      }).catch(() => [] as any[]),
+      prisma.rawMaterial.findMany({
+        where: { companyId },
+        orderBy: [{ category: 'asc' }, { name: 'asc' }],
+      }).catch(() => [] as any[]),
+      prisma.budgetConfig.findFirst({
+        where: { companyId },
+        orderBy: { effectiveFrom: "desc" },
+      }).catch(() => null),
+      prisma.standardCostConfig.findMany({
+        where: { companyId },
+      }).catch(() => [] as any[]),
     ]);
 
     // Cache catalog for 5 minutes — it changes very rarely
-    return cachedJson({ categories, thicknesses, sizes, productTimings }, 300);
+    return cachedJson({ categories, thicknesses, sizes, productTimings, productSpecs, rawMaterials, budget, standardCosts }, 300);
   } catch (error: any) {
     console.error("Error fetching catalog:", error);
     return NextResponse.json({ error: "Failed to fetch catalog", details: error.message }, { status: 500 });
@@ -175,6 +194,47 @@ export async function POST(request: NextRequest) {
             error: "Failed to save timing", 
             message: dbError.message,
             code: dbError.code 
+          }, { status: 500 });
+        }
+      }
+    }
+
+    if (type === "spec") {
+      if (action === "update") {
+        const { categoryId, thicknessId, weightPerSheetKg, longCore, glueCore, notes } = data;
+
+        try {
+          const spec = await prisma.plywoodProductSpec.upsert({
+            where: {
+              companyId_categoryId_thicknessId: {
+                companyId,
+                categoryId,
+                thicknessId,
+              },
+            },
+            update: {
+              weightPerSheetKg: parseFloat(weightPerSheetKg) || 0,
+              longCore: parseInt(longCore, 10) || 0,
+              glueCore: parseInt(glueCore, 10) || 0,
+              notes: notes || null,
+            },
+            create: {
+              companyId,
+              categoryId,
+              thicknessId,
+              weightPerSheetKg: parseFloat(weightPerSheetKg) || 0,
+              longCore: parseInt(longCore, 10) || 0,
+              glueCore: parseInt(glueCore, 10) || 0,
+              notes: notes || null,
+            },
+          });
+          return NextResponse.json(spec);
+        } catch (dbError: any) {
+          console.error("[SPEC] Failed:", dbError.message, dbError.code);
+          return NextResponse.json({
+            error: "Failed to save product spec",
+            message: dbError.message,
+            code: dbError.code,
           }, { status: 500 });
         }
       }

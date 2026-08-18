@@ -21,6 +21,7 @@ import {
   Filter
 } from "lucide-react";
 import { format, startOfMonth, endOfMonth, startOfWeek, endOfWeek, subMonths, subWeeks } from "date-fns";
+import { formatINR } from "@/lib/formatIndian";
 
 interface AttendanceEntry {
   status: "PRESENT" | "ABSENT" | "HALF_DAY";
@@ -229,7 +230,7 @@ export default function SalaryExpensesDashboard() {
                   <Banknote size={80} />
                 </div>
                 <p className="text-blue-100 font-bold uppercase tracking-[0.2em] text-[10px] mb-2">Total Labor Cost</p>
-                <h2 className="text-4xl font-black text-white">₹{Math.round(totalExpense).toLocaleString()}</h2>
+                <h2 className="text-4xl font-black text-white">{formatINR(Math.round(totalExpense))}</h2>
                 <div className="mt-6 flex items-center gap-2">
                   <div className={`flex items-center gap-1 px-3 py-1 rounded-full text-[10px] font-black uppercase ${changePercent >= 0 ? "bg-rose-500/20 text-rose-300" : "bg-emerald-500/20 text-emerald-300"}`}>
                     {changePercent >= 0 ? <ArrowUpRight size={12} /> : <ArrowDownRight size={12} />}
@@ -243,7 +244,7 @@ export default function SalaryExpensesDashboard() {
                 <p className="text-slate-500 font-bold uppercase tracking-[0.15em] text-[10px] mb-2">Overtime Impact</p>
                 <h2 className="text-4xl font-black text-white">{totalOTHours}<span className="text-lg text-slate-600 ml-2">Hrs</span></h2>
                 <div className="mt-6 text-xs text-slate-500">
-                  Estimated premium cost: <span className="text-blue-400 font-bold">₹{Math.round(totalOTHours * 50).toLocaleString()}</span>
+                  Estimated premium cost: <span className="text-blue-400 font-bold">{formatINR(Math.round(totalOTHours * 50))}</span>
                 </div>
               </div>
 
@@ -305,7 +306,7 @@ export default function SalaryExpensesDashboard() {
                         <td colSpan={2} className="py-6 px-4 font-black text-slate-500 uppercase text-xs">Total Summary</td>
                         <td className="py-6 text-center font-black text-white">{costByEmployee.reduce((a, e) => a + e.daysWorked, 0)}</td>
                         <td className="py-6 text-center font-black text-blue-400">{costByEmployee.reduce((a, e) => a + e.otHours, 0)}h</td>
-                        <td className="py-6 text-right font-black text-emerald-400 text-2xl italic pr-2">₹{Math.round(totalExpense).toLocaleString()}</td>
+                        <td className="py-6 text-right font-black text-emerald-400 text-2xl italic pr-2">{formatINR(Math.round(totalExpense))}</td>
                       </tr>
                     </tfoot>
                   </table>

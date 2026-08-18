@@ -30,13 +30,13 @@ async function runTests() {
   }
   console.log(`✅ Raw Material Verified: ${wood.name} (${wood.unit})`);
 
-  let gum = await prisma.rawMaterial.findFirst({ where: { companyId: company.id, name: "GUM" } });
-  if (!gum) {
-    gum = await prisma.rawMaterial.create({
-      data: { name: "GUM", unit: "KG", companyId: company.id }
+  let glue = await prisma.rawMaterial.findFirst({ where: { companyId: company.id, name: "glue" } });
+  if (!glue) {
+    glue = await prisma.rawMaterial.create({
+      data: { name: "glue", unit: "KG", companyId: company.id }
     });
   }
-  console.log(`✅ Raw Material Verified: ${gum.name} (${gum.unit})`);
+  console.log(`✅ Raw Material Verified: ${glue.name} (${glue.unit})`);
 
   // 3. Test Purchases Logging & Calculations
   console.log("\n💰 Testing Raw Material Purchases...");
@@ -70,7 +70,7 @@ async function runTests() {
 
   const purchase3 = await prisma.rawMaterialPurchase.create({
     data: {
-      materialId: gum.id,
+      materialId: glue.id,
       quantity: 300,
       unitPrice: 90,
       totalCost: 300 * 90,
@@ -80,7 +80,7 @@ async function runTests() {
       purchaseDate: new Date()
     }
   });
-  console.log(`✅ Purchase 3 Logged: 300 KG GUM @ ₹90 = ₹${purchase3.totalCost.toLocaleString()}`);
+  console.log(`✅ Purchase 3 Logged: 300 KG glue @ ₹90 = ₹${purchase3.totalCost.toLocaleString()}`);
 
   // 4. Test Expenses & Payments
   console.log("\n⚡ Testing Expenses & Overhead Payments...");

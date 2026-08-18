@@ -64,6 +64,14 @@ model Company {
   rawMaterialPurchases RawMaterialPurchase[]
   expenses            Expense[]
   expensePayments     ExpensePayment[]
+  productSpecs        PlywoodProductSpec[]
+  
+  // Standard Costing & Budget
+  standardCosts       StandardCostConfig[]
+  budgets             BudgetConfig[]
+  
+  // Product Spec BOM Items
+  productSpecBOMItems ProductSpecBOMItem[]
 }
 
 model Section {
@@ -127,6 +135,8 @@ model User {
   // Financials
   createdPurchases       RawMaterialPurchase[]
   createdExpensePayments ExpensePayment[]
+  createdStandardCosts   StandardCostConfig[]
+  createdBudgets         BudgetConfig[]
 
   @@index([companyId])
   @@index([createdById])
@@ -165,6 +175,7 @@ model PlywoodCategory {
   productionItems   ProductionListItem[]
   productTimings    ProductTiming[]
   finishingEntries  FinishingEntry[]
+  productSpecs      PlywoodProductSpec[]
 
   @@index([companyId])
 }
@@ -186,7 +197,28 @@ model PlywoodThickness {
   productionItems   ProductionListItem[]
   productTimings    ProductTiming[]
   finishingEntries  FinishingEntry[]
+  productSpecs      PlywoodProductSpec[]
 
+  @@index([companyId])
+}
+
+model PlywoodProductSpec {
+  id               String           @id @default(cuid())
+  companyId        String
+  categoryId       String
+  thicknessId      String
+  weightPerSheetKg Float            // Avg weight in KG for a standard sheet (e.g. 27 kg for 14mm)
+  longCore         Int              // Number of long core veneer layers
+  glueCore         Int              // Number of glue core veneer layers
+  notes            String?
+  createdAt        DateTime             @default(now())
+  updatedAt        DateTime             @updatedAt
+  company          Company              @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  category         PlywoodCategory      @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+  thickness        PlywoodThickness     @relation(fields: [thicknessId], references: [id], onDelete: Cascade)
+  bomItems         ProductSpecBOMItem[]
+
+  @@unique([companyId, categoryId, thicknessId])
   @@index([companyId])
 }
 
@@ -596,18 +628,24 @@ model ProductType {
 }
 
 model RawMaterial {
-  id             String                @id @default(cuid())
-  name           String
-  unit           String
-  description    String?
-  createdAt      DateTime              @default(now())
-  updatedAt      DateTime              @updatedAt
-  companyId      String
-  batchMaterials BatchMaterial[]
-  purchases      RawMaterialPurchase[]
-  company        Company               @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  id               String                @id @default(cuid())
+  name             String
+  category         String                @default("Wood / Timber") // Wood / Timber, Gum / Resin, Face Veneer, Core Veneer, Chemicals, Others
+  unit             String
+  currentRate      Float                 @default(0) // Current standardized price per unit (₹)
+  description      String?
+  isFaceMaterial   Boolean               @default(false)
+  createdAt        DateTime              @default(now())
+  updatedAt        DateTime              @updatedAt
+  companyId        String
+  batchMaterials   BatchMaterial[]
+  purchases        RawMaterialPurchase[]
+  company          Company               @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  standardCosts    StandardCostConfig[]
+  bomItems         ProductSpecBOMItem[]
 
   @@index([companyId])
+  @@index([companyId, category])
 }
 
 model ProductionBatch {
@@ -1269,4 +1307,55 @@ model ExpensePayment {
   @@index([companyId])
   @@index([expenseId])
   @@index([createdById])
+}
+
+model StandardCostConfig {
+  id            String      @id @default(cuid())
+  companyId     String
+  materialId    String      // links to RawMaterial
+  standardPrice Float       // price per unit (kg, sqmt, etc.)
+  effectiveFrom DateTime    @default(now())
+  createdById   String
+  
+  material      RawMaterial @relation(fields: [materialId], references: [id], onDelete: Cascade)
+  company       Company     @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  createdBy     User        @relation(fields: [createdById], references: [id])
+
+  @@index([companyId])
+  @@index([materialId])
+  @@index([createdById])
+}
+
+model BudgetConfig {
+  id                      String   @id @default(cuid())
+  companyId               String
+  budgetedMonthlyOverhead Float    // e.g. 300000
+  budgetedMonthlySheets   Int      // e.g. 5000
+  effectiveFrom           DateTime @default(now())
+  createdById             String
+  
+  company                 Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  createdBy               User     @relation(fields: [createdById], references: [id])
+
+  @@index([companyId])
+  @@index([createdById])
+}
+
+model ProductSpecBOMItem {
+  id              String             @id @default(cuid())
+  specId          String
+  materialId      String
+  quantity        Float              // Quantity of raw material used
+  createdAt       DateTime           @default(now())
+  updatedAt       DateTime           @updatedAt
+  
+  spec            PlywoodProductSpec @relation(fields: [specId], references: [id], onDelete: Cascade)
+  material        RawMaterial        @relation(fields: [materialId], references: [id], onDelete: Cascade)
+  companyId       String
+  company         Company            @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  @@unique([specId, materialId])
+  @@index([specId])
+  @@index([materialId])
+  @@index([companyId])
 }

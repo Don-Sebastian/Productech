@@ -27,6 +27,7 @@ import {
   UserCheck,
   Banknote,
   KeyRound,
+  Activity,
 } from "lucide-react";
 
 interface SidebarProps {
@@ -52,6 +53,7 @@ const roleConfigs: Record<string, { label: string; color: string; links: { href:
     color: "from-emerald-600 to-teal-600",
     links: [
       { href: "/owner", label: "Dashboard", icon: LayoutDashboard },
+      { href: "/owner/reports", label: "Reports", icon: Activity },
       // { href: "/owner/overall-stats", label: "Overall Stats", icon: Gauge },
       { href: "/owner/log-history", label: "Log History", icon: History },
       { href: "/owner/inventory", label: "Inventory", icon: Package },
@@ -63,6 +65,7 @@ const roleConfigs: Record<string, { label: string; color: string; links: { href:
       // { href: "/owner/employees", label: "Employees", icon: Users },
       // { href: "/owner/attendance", label: "Attendance View", icon: UserCheck },
       // { href: "/owner/expenses", label: "Salary Expenses", icon: Banknote },
+      { href: "/owner/settings", label: "Financial Settings", icon: Settings },
       { href: "/owner/account", label: "My Account", icon: KeyRound },
     ],
   },
@@ -71,11 +74,11 @@ const roleConfigs: Record<string, { label: string; color: string; links: { href:
     color: "from-blue-600 to-cyan-600",
     links: [
       { href: "/manager", label: "Dashboard", icon: LayoutDashboard },
+      { href: "/manager/financials", label: "Financials", icon: Banknote },
       { href: "/manager/orders", label: "Orders", icon: ShoppingCart },
       { href: "/manager/production", label: "Production Lists", icon: ListChecks },
       { href: "/manager/approvals", label: "Approve Production", icon: ClipboardCheck },
       { href: "/manager/dispatch", label: "Dispatch", icon: Truck },
-      { href: "/manager/financials", label: "Financials", icon: Banknote },
       { href: "/manager/inventory", label: "Inventory", icon: Package },
       { href: "/manager/log-history", label: "Log History", icon: History },
       // { href: "/manager/attendance", label: "Attendance Approvals", icon: UserCheck },
