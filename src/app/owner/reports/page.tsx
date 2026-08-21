@@ -76,6 +76,19 @@ export default function OwnerReportsPage() {
     enabled: status === "authenticated",
   });
 
+  const { data: companySettings, isLoading: settingsLoading } = useQuery({
+    queryKey: ["company-settings"],
+    queryFn: () => fetch("/api/company/settings").then(res => res.json()),
+    enabled: status === "authenticated",
+  });
+
+  const costingPreference = companySettings?.costingPreference || "BOTH";
+
+  useEffect(() => {
+    if (costingPreference === "ACTUAL") setViewMode("actual");
+    if (costingPreference === "STANDARD") setViewMode("standard");
+  }, [costingPreference]);
+
   const handlePrevWeek = () => {
     const d = new Date(dateParam); d.setDate(d.getDate() - 7);
     setDateParam(d.toISOString().split("T")[0]);
@@ -85,7 +98,7 @@ export default function OwnerReportsPage() {
     setDateParam(d.toISOString().split("T")[0]);
   };
 
-  if (status === "loading" || !session?.user) {
+  if (status === "loading" || !session?.user || settingsLoading) {
     return (
       <div className="flex items-center justify-center h-screen bg-slate-950">
         <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-cyan-400" />
@@ -136,20 +149,22 @@ export default function OwnerReportsPage() {
 
           <div className="flex items-center gap-3">
             {/* Standard / Actual toggle */}
-            <div className="flex bg-slate-900 border border-slate-800 rounded-xl p-1 text-xs font-bold">
-              <button
-                onClick={() => setViewMode("actual")}
-                className={`px-3 py-1.5 rounded-lg transition-all ${viewMode === "actual" ? "bg-cyan-500/20 text-cyan-400 border border-cyan-500/30" : "text-slate-500 hover:text-slate-300"}`}
-              >
-                Actual View
-              </button>
-              <button
-                onClick={() => setViewMode("standard")}
-                className={`px-3 py-1.5 rounded-lg transition-all ${viewMode === "standard" ? "bg-purple-500/20 text-purple-400 border border-purple-500/30" : "text-slate-500 hover:text-slate-300"}`}
-              >
-                Standard View
-              </button>
-            </div>
+            {costingPreference === "BOTH" && (
+              <div className="flex bg-slate-900 border border-slate-800 rounded-xl p-1 text-xs font-bold">
+                <button
+                  onClick={() => setViewMode("actual")}
+                  className={`px-3 py-1.5 rounded-lg transition-all ${viewMode === "actual" ? "bg-cyan-500/20 text-cyan-400 border border-cyan-500/30" : "text-slate-500 hover:text-slate-300"}`}
+                >
+                  Actual View
+                </button>
+                <button
+                  onClick={() => setViewMode("standard")}
+                  className={`px-3 py-1.5 rounded-lg transition-all ${viewMode === "standard" ? "bg-purple-500/20 text-purple-400 border border-purple-500/30" : "text-slate-500 hover:text-slate-300"}`}
+                >
+                  Standard View
+                </button>
+              </div>
+            )}
 
             {/* Week navigator */}
             <div className="flex items-center bg-slate-900 border border-slate-800 rounded-xl p-1">
@@ -481,7 +496,7 @@ export default function OwnerReportsPage() {
                         <YAxis stroke="#64748b" tickFormatter={(v) => `₹${v}`} tick={{ fontSize: 10 }} />
                         <RechartsTooltip
                           contentStyle={{ backgroundColor: "#0f172a", borderColor: "#1e293b", color: "#fff" }}
-                          formatter={(v: any, name: string) => [formatPerUnit(v), name]}
+                          formatter={(v: any, name: any) => [formatPerUnit(v), name]}
                         />
                         <Legend />
                         <Bar dataKey="Standard Cost" fill="#a78bfa" radius={[4, 4, 0, 0]} />

@@ -2,12 +2,25 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { auth } from "@/lib/auth";
 
+async function getCompanyId(sessionUser: any): Promise<string | null> {
+  if (sessionUser?.companyId) return sessionUser.companyId;
+  if (sessionUser?.ownedCompanies?.length > 0) return sessionUser.ownedCompanies[0].id;
+  if (sessionUser?.id) {
+    const comp = await prisma.company.findFirst({
+      where: { ownerId: sessionUser.id },
+      select: { id: true },
+    });
+    if (comp) return comp.id;
+  }
+  return null;
+}
+
 export async function GET(request: NextRequest) {
   try {
     const session = await auth();
     if (!session?.user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-    const companyId = (session.user as any).companyId;
+    const companyId = await getCompanyId(session.user);
     if (!companyId) return NextResponse.json({ error: "No company" }, { status: 400 });
 
     // Fetch materials with their latest standard rate
@@ -42,7 +55,7 @@ export async function POST(request: NextRequest) {
     const session = await auth();
     if (!session?.user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-    const companyId = (session.user as any).companyId;
+    const companyId = await getCompanyId(session.user);
     if (!companyId) return NextResponse.json({ error: "No company" }, { status: 400 });
 
     const body = await request.json();

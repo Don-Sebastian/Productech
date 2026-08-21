@@ -116,7 +116,7 @@ export default function ManagerCatalog() {
     const costPerSqft = totalBase8x4Cost / 32;
     const mfgCostPerSheet = costPerSqft * sizeSqft;
 
-    const bomDescription = scaledBOM.map(b => `${b.materialName}: ${b.scaledQty.toFixed(1)} ${b.unit}`).join(" • ");
+    const bomDescription = scaledBOM.map((b: any) => `${b.materialName}: ${b.scaledQty.toFixed(1)} ${b.unit}`).join(" • ");
 
     return {
       hasBOM: true,

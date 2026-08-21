@@ -34,8 +34,12 @@ export async function GET(request: NextRequest) {
     const whereClause: any = {};
 
     if (userRole === "ADMIN") {
-      // Admin can see all owners across companies
-      whereClause.role = { in: manageableRoles };
+      // Admin can see all owners/technicians across companies
+      if (roleFilter && manageableRoles.includes(roleFilter)) {
+        whereClause.role = roleFilter;
+      } else {
+        whereClause.role = { in: manageableRoles };
+      }
     } else {
       // Other roles can only see users within their company
       whereClause.companyId = companyId;

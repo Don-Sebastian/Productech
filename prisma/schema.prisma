@@ -21,6 +21,7 @@ model Company {
   numHotPresses         Int   @default(1)  // Number of hot press machines
   pressCapacityPerPress Int   @default(10) // Daylights (boards) per press per cook
   glueAlertThresholdKg  Float @default(1000) // Alert when glue stock drops below this (kg)
+  costingPreference     CostingPreference @default(BOTH)
 
   ownerId               String?            // Link to the owner
   owner                 User?              @relation("CompanyOwner", fields: [ownerId], references: [id])
@@ -1358,4 +1359,10 @@ model ProductSpecBOMItem {
   @@index([specId])
   @@index([materialId])
   @@index([companyId])
+}
+
+enum CostingPreference {
+  ACTUAL
+  STANDARD
+  BOTH
 }

@@ -16,6 +16,8 @@ export async function GET(request: NextRequest) {
     const role = (session.user as any).role;
     if (role !== "OWNER") return NextResponse.json({ error: "Forbidden" }, { status: 403 });
 
+    const costingMode = request.nextUrl.searchParams.get("costingMode") || "actual";
+
     // ── 1. Revenue (dispatched items)
     const dispatches = await prisma.dispatchLoadItem.findMany({
       where: {
@@ -35,11 +37,34 @@ export async function GET(request: NextRequest) {
     });
 
     // ── 2. COGS
-    const purchasesResult = await prisma.rawMaterialPurchase.aggregate({
-      where: { companyId },
-      _sum: { totalCost: true },
-    });
-    const totalCOGS = purchasesResult._sum.totalCost || 0;
+    let totalCOGS = 0;
+    let standardPriceMap: Record<string, number> = {};
+
+    if (costingMode === "standard") {
+      const standardCosts = await prisma.standardCostConfig.findMany({
+        where: { companyId },
+        orderBy: { effectiveFrom: "desc" },
+        distinct: ["materialId"],
+      });
+      for (const sc of standardCosts) {
+        standardPriceMap[sc.materialId] = sc.standardPrice;
+      }
+
+      const allPurchasesRaw = await prisma.rawMaterialPurchase.findMany({
+        where: { companyId },
+        select: { quantity: true, materialId: true, totalCost: true }
+      });
+      allPurchasesRaw.forEach(p => {
+        const std = standardPriceMap[p.materialId] ?? (p.quantity > 0 ? p.totalCost / p.quantity : 0);
+        totalCOGS += p.quantity * std;
+      });
+    } else {
+      const purchasesResult = await prisma.rawMaterialPurchase.aggregate({
+        where: { companyId },
+        _sum: { totalCost: true },
+      });
+      totalCOGS = purchasesResult._sum.totalCost || 0;
+    }
 
     // ── 3. Overhead
     const expensesResult = await prisma.expensePayment.aggregate({
@@ -89,7 +114,7 @@ export async function GET(request: NextRequest) {
       }),
       prisma.rawMaterialPurchase.findMany({
         where: { companyId, purchaseDate: { gte: sixMonthsAgo } },
-        select: { purchaseDate: true, totalCost: true },
+        select: { purchaseDate: true, totalCost: true, quantity: true, materialId: true },
       }),
       prisma.expensePayment.findMany({
         where: { companyId, paymentDate: { gte: sixMonthsAgo } },
@@ -114,7 +139,12 @@ export async function GET(request: NextRequest) {
 
     recentPurchases.forEach((p) => {
       const key = format(new Date(p.purchaseDate), "MMM yy");
-      ensureMonth(key).cogs += p.totalCost;
+      if (costingMode === "standard") {
+        const std = standardPriceMap[p.materialId] ?? (p.quantity > 0 ? p.totalCost / p.quantity : 0);
+        ensureMonth(key).cogs += p.quantity * std;
+      } else {
+        ensureMonth(key).cogs += p.totalCost;
+      }
     });
 
     recentPayments.forEach((p) => {

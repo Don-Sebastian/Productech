@@ -19,6 +19,7 @@ export default function OwnerSettingsPage() {
 
   const [rates, setRates] = useState<any[]>([]);
   const [budget, setBudget] = useState({ budgetedMonthlyOverhead: 0, budgetedMonthlySheets: 0 });
+  const [costingPreference, setCostingPreference] = useState<string>("BOTH");
   const [saveSuccess, setSaveSuccess] = useState(false);
 
   const { data: fetchedRates, isLoading: isLoadingRates } = useQuery({
@@ -30,6 +31,12 @@ export default function OwnerSettingsPage() {
   const { data: fetchedBudget, isLoading: isLoadingBudget } = useQuery({
     queryKey: ["budget"],
     queryFn: () => fetch("/api/settings/budget").then(res => res.json()),
+    enabled: status === "authenticated",
+  });
+
+  const { data: fetchedCompanySettings, isLoading: isLoadingCompanySettings } = useQuery({
+    queryKey: ["company-settings"],
+    queryFn: () => fetch("/api/company/settings").then(res => res.json()),
     enabled: status === "authenticated",
   });
 
@@ -48,6 +55,12 @@ export default function OwnerSettingsPage() {
     }
   }, [fetchedBudget]);
 
+  useEffect(() => {
+    if (fetchedCompanySettings && !fetchedCompanySettings.error) {
+      setCostingPreference(fetchedCompanySettings.costingPreference || "BOTH");
+    }
+  }, [fetchedCompanySettings]);
+
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   const saveMutation = useMutation({
@@ -58,18 +71,35 @@ export default function OwnerSettingsPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ rates }),
       });
-      if (!resRates.ok) throw new Error("Failed to save standard rates");
+      if (!resRates.ok) {
+        const data = await resRates.json().catch(() => ({}));
+        throw new Error(data.error || "Failed to save standard rates");
+      }
 
       const resBudget = await fetch("/api/settings/budget", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(budget),
       });
-      if (!resBudget.ok) throw new Error("Failed to save budget settings");
+      if (!resBudget.ok) {
+        const data = await resBudget.json().catch(() => ({}));
+        throw new Error(data.error || "Failed to save budget settings");
+      }
+
+      const resCompanySettings = await fetch("/api/company/settings", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ costingPreference }),
+      });
+      if (!resCompanySettings.ok) {
+        const data = await resCompanySettings.json().catch(() => ({}));
+        throw new Error(data.error || "Failed to save company settings");
+      }
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["standard-rates"] });
       queryClient.invalidateQueries({ queryKey: ["budget"] });
+      queryClient.invalidateQueries({ queryKey: ["company-settings"] });
       setSaveSuccess(true);
       setTimeout(() => setSaveSuccess(false), 4000);
     },
@@ -78,7 +108,7 @@ export default function OwnerSettingsPage() {
     }
   });
 
-  if (status === "loading" || isLoadingRates || isLoadingBudget || !session?.user) {
+  if (status === "loading" || isLoadingRates || isLoadingBudget || isLoadingCompanySettings || !session?.user) {
     return (
       <div className="flex items-center justify-center h-screen bg-slate-950">
         <Loader2 className="animate-spin text-cyan-400 w-8 h-8" />
@@ -206,6 +236,33 @@ export default function OwnerSettingsPage() {
                     ₹{budget.budgetedMonthlySheets > 0 ? (budget.budgetedMonthlyOverhead / budget.budgetedMonthlySheets).toFixed(2) : "0.00"}
                   </p>
                 </div>
+              </div>
+            </div>
+
+            {/* Costing Preference */}
+            <div className="bg-slate-900 border border-slate-800 rounded-2xl p-6 lg:col-span-2">
+              <h2 className="text-lg font-bold text-white mb-4">Costing View Preference</h2>
+              <p className="text-sm text-slate-400 mb-6">Select which costing methodology should be displayed across reports and dashboards.</p>
+              
+              <div className="flex gap-4">
+                {["ACTUAL", "STANDARD", "BOTH"].map((mode) => (
+                  <label key={mode} className={`flex-1 flex flex-col items-center justify-center p-4 border rounded-xl cursor-pointer transition-all ${costingPreference === mode ? "bg-cyan-500/20 border-cyan-500 shadow-lg shadow-cyan-500/20" : "bg-slate-950 border-slate-800 hover:border-slate-700"}`}>
+                    <input
+                      type="radio"
+                      name="costingPreference"
+                      value={mode}
+                      checked={costingPreference === mode}
+                      onChange={(e) => setCostingPreference(e.target.value)}
+                      className="sr-only"
+                    />
+                    <span className={`text-lg font-bold mb-1 ${costingPreference === mode ? "text-cyan-400" : "text-white"}`}>{mode === "ACTUAL" ? "Actual Costing" : mode === "STANDARD" ? "Standard Costing" : "Allow Both"}</span>
+                    <span className="text-xs text-slate-400 text-center">
+                      {mode === "ACTUAL" && "Use real material purchase costs."}
+                      {mode === "STANDARD" && "Use pre-defined standard rates."}
+                      {mode === "BOTH" && "Show toggle in reports."}
+                    </span>
+                  </label>
+                ))}
               </div>
             </div>
           </div>

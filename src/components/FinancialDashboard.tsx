@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
 import {
   LineChart, Line, BarChart, Bar, AreaChart, Area,
@@ -40,10 +40,23 @@ function KpiCard({
 
 export default function FinancialDashboard() {
   const [selectedMaterial, setSelectedMaterial] = useState<string>("__ALL__");
+  const [costingMode, setCostingMode] = useState<"actual" | "standard">("actual");
+
+  const { data: companySettings, isLoading: settingsLoading } = useQuery({
+    queryKey: ["company-settings"],
+    queryFn: () => fetch("/api/company/settings").then((res) => res.json()),
+  });
+
+  const costingPreference = companySettings?.costingPreference || "BOTH";
+
+  useEffect(() => {
+    if (costingPreference === "ACTUAL") setCostingMode("actual");
+    if (costingPreference === "STANDARD") setCostingMode("standard");
+  }, [costingPreference]);
 
   const { data, isLoading } = useQuery({
-    queryKey: ["owner-financials"],
-    queryFn: () => fetch("/api/dashboard/financials").then((res) => res.json()),
+    queryKey: ["owner-financials", costingMode],
+    queryFn: () => fetch(`/api/dashboard/financials?costingMode=${costingMode}`).then((res) => res.json()),
     refetchInterval: 60000,
   });
 
@@ -88,14 +101,33 @@ export default function FinancialDashboard() {
   return (
     <div className="space-y-8 mt-12 mb-8">
       {/* Header */}
-      <div>
-        <h2 className="text-2xl font-black text-white flex items-center gap-2 mb-1">
-          <Activity className="text-emerald-400" />
-          Financial Overview
-        </h2>
-        <p className="text-slate-400 text-sm">
-          Real-time P&amp;L based on dispatches, raw material costs, and overhead.
-        </p>
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+        <div>
+          <h2 className="text-2xl font-black text-white flex items-center gap-2 mb-1">
+            <Activity className="text-emerald-400" />
+            Financial Overview
+          </h2>
+          <p className="text-slate-400 text-sm">
+            Real-time P&amp;L based on dispatches, raw material costs, and overhead.
+          </p>
+        </div>
+
+        {costingPreference === "BOTH" && (
+          <div className="flex bg-slate-900 border border-slate-800 rounded-xl p-1 text-xs font-bold">
+            <button
+              onClick={() => setCostingMode("actual")}
+              className={`px-3 py-1.5 rounded-lg transition-all ${costingMode === "actual" ? "bg-cyan-500/20 text-cyan-400 border border-cyan-500/30" : "text-slate-500 hover:text-slate-300"}`}
+            >
+              Actual View
+            </button>
+            <button
+              onClick={() => setCostingMode("standard")}
+              className={`px-3 py-1.5 rounded-lg transition-all ${costingMode === "standard" ? "bg-purple-500/20 text-purple-400 border border-purple-500/30" : "text-slate-500 hover:text-slate-300"}`}
+            >
+              Standard View
+            </button>
+          </div>
+        )}
       </div>
 
       {/* KPI Row */}

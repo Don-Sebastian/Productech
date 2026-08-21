@@ -78,20 +78,39 @@ function ManagerFinancialsContent() {
   }, [status, session, router]);
 
   // Queries
-  const { data: materials = [] } = useQuery({
+  const { data: rawMaterials } = useQuery({
     queryKey: ["raw-materials"],
-    queryFn: () => fetch("/api/raw-materials").then(res => res.json()),
+    queryFn: async () => {
+      const res = await fetch("/api/raw-materials");
+      if (!res.ok) return [];
+      const data = await res.json();
+      return Array.isArray(data) ? data : [];
+    },
   });
 
-  const { data: purchases = [] } = useQuery({
+  const { data: rawPurchases } = useQuery({
     queryKey: ["purchases"],
-    queryFn: () => fetch("/api/financials/purchases").then(res => res.json()),
+    queryFn: async () => {
+      const res = await fetch("/api/financials/purchases");
+      if (!res.ok) return [];
+      const data = await res.json();
+      return Array.isArray(data) ? data : [];
+    },
   });
 
-  const { data: expenses = [] } = useQuery({
+  const { data: rawExpenses } = useQuery({
     queryKey: ["expenses"],
-    queryFn: () => fetch("/api/financials/expenses").then(res => res.json()),
+    queryFn: async () => {
+      const res = await fetch("/api/financials/expenses");
+      if (!res.ok) return [];
+      const data = await res.json();
+      return Array.isArray(data) ? data : [];
+    },
   });
+
+  const materials = Array.isArray(rawMaterials) ? rawMaterials : [];
+  const purchases = Array.isArray(rawPurchases) ? rawPurchases : [];
+  const expenses = Array.isArray(rawExpenses) ? rawExpenses : [];
 
   const RAW_MATERIAL_CATEGORIES = [
     "Wood / Timber",

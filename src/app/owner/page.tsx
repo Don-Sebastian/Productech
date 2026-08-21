@@ -169,7 +169,7 @@ export default function OwnerDashboard() {
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           {/* Recent Batches */}
-          <div className="lg:col-span-2 bg-slate-800/40 border border-slate-700/50 rounded-2xl p-6">
+          {/* <div className="lg:col-span-2 bg-slate-800/40 border border-slate-700/50 rounded-2xl p-6">
             <div className="flex items-center justify-between mb-6">
               <h2 className="text-lg font-semibold text-white flex items-center gap-2">
                 <BarChart3 size={18} className="text-emerald-400" />
@@ -213,10 +213,10 @@ export default function OwnerDashboard() {
                 ))}
               </div>
             )}
-          </div>
+          </div> */}
 
           {/* Team Overview */}
-          <div className="bg-slate-800/40 border border-slate-700/50 rounded-2xl p-6">
+          {/* <div className="bg-slate-800/40 border border-slate-700/50 rounded-2xl p-6">
             <h2 className="text-lg font-semibold text-white mb-6 flex items-center gap-2">
               <Users size={18} className="text-blue-400" />
               Team Overview
@@ -257,7 +257,7 @@ export default function OwnerDashboard() {
             >
               Manage Team
             </button>
-          </div>
+          </div> */}
         </div>
       </main>
     </div>
