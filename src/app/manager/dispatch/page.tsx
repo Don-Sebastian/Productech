@@ -498,7 +498,7 @@ function ManagerDispatchContent() {
                   <button
                     onClick={() => openConfirmModal(load)}
                     disabled={isUpdating}
-                    className="w-full py-2.5 bg-gradient-to-r from-teal-600 to-emerald-600 hover:from-teal-500 hover:to-emerald-500 text-white font-bold rounded-xl shadow-lg disabled:opacity-50 transition flex items-center justify-center gap-1.5"
+                    className="w-full py-2.5 px-1.5 bg-gradient-to-r from-teal-600 to-emerald-600 hover:from-teal-500 hover:to-emerald-500 text-white font-bold rounded-xl shadow-lg disabled:opacity-50 transition flex items-center justify-center gap-1.5"
                   >
                     <Truck size={16} /> Confirm & Dispatch
                   </button>

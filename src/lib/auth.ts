@@ -163,3 +163,43 @@ export function canManageRole(managerRole: string, targetRole: string): boolean 
   };
   return hierarchy[managerRole]?.includes(targetRole) ?? false;
 }
+
+export async function requireOwnerOrManager(request?: Request) {
+  const session = await auth();
+  if (!session?.user) {
+    throw new Error("Unauthorized");
+  }
+  
+  const user = session.user as any;
+  if (user.role !== "OWNER" && user.role !== "MANAGER" && user.role !== "ADMIN") {
+    throw new Error("Forbidden: Requires Owner or Manager role");
+  }
+
+  let companyId = user.companyId;
+  if (!companyId && user.ownedCompanies?.length > 0) {
+    companyId = user.ownedCompanies[0].id;
+  }
+  if (!companyId) {
+    const comp = await prisma.company.findFirst({
+      where: { ownerId: user.id },
+      select: { id: true },
+    });
+    if (comp) companyId = comp.id;
+  }
+
+  if (!companyId) {
+    throw new Error("No company found for user");
+  }
+
+  const validCompany = await prisma.company.findUnique({
+    where: { id: companyId },
+    select: { id: true }
+  });
+
+  if (!validCompany) {
+    throw new Error("Company associated with this session no longer exists.");
+  }
+
+  return { session, user, companyId };
+}
+
