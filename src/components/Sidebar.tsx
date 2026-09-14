@@ -106,10 +106,10 @@ const roleConfigs: Record<string, { label: string; color: string; links: { href:
     label: "Operator",
     color: "from-rose-600 to-pink-600",
     links: [
-      // { href: "/operator", label: "Dashboard", icon: LayoutDashboard },
-      // { href: "/operator/log", label: "Machine Log", icon: Gauge },
-      // { href: "/operator/history", label: "Log History", icon: History },
-      // { href: "/operator/account", label: "My Account", icon: KeyRound },
+      { href: "/operator/hotpress/log", label: "Machine Log", icon: Gauge },
+      { href: "/operator/hotpress/production", label: "Production List", icon: ClipboardList },
+      { href: "/operator/hotpress/history", label: "Log History", icon: History },
+      { href: "/operator/account", label: "My Account", icon: KeyRound },
     ],
   },
 };
@@ -138,8 +138,9 @@ const sectionNavLinks: Record<string, { href: string; label: string; icon: any }
 export default function Sidebar({ user }: SidebarProps) {
   const { data: session, update } = useSession();
   const pathname = usePathname();
-  const role = (user as any)?.role || "OPERATOR";
-  const realRole = (user as any)?.realRole || role;
+  const currentUser = session?.user || user;
+  const role = (currentUser as any)?.role || (user as any)?.role || "OPERATOR";
+  const realRole = (currentUser as any)?.realRole || (user as any)?.realRole || role;
   const config = roleConfigs[role] || roleConfigs.OPERATOR;
   const [mobileOpen, setMobileOpen] = useState(false);
   const [impersonationEnabled, setImpersonationEnabled] = useState(false);
@@ -151,7 +152,19 @@ export default function Sidebar({ user }: SidebarProps) {
     }
   }, []);
 
-  const operatorSection = (user as any)?.section || null;
+  const rawSection = (currentUser as any)?.section || (currentUser as any)?.sections?.[0] || (user as any)?.section || null;
+  let operatorSection = typeof rawSection === "object" && rawSection !== null ? (rawSection.slug || rawSection.name) : rawSection;
+
+  if (!operatorSection && pathname.startsWith("/operator/")) {
+    const sectionFromPath = pathname.split("/")[2];
+    if (sectionFromPath && sectionNavLinks[sectionFromPath]) {
+      operatorSection = sectionFromPath;
+    }
+  }
+
+  if (!operatorSection && role === "OPERATOR") {
+    operatorSection = "hotpress";
+  }
 
   const { data: notifications = [] } = useQuery({
     queryKey: ["notifications", role],
